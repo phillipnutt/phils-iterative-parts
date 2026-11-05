@@ -13,8 +13,31 @@ $strip = 'TweakScale', 'TweakScalerWaterfallFX', 'EngineFailures', 'Reliability'
 # Every base model used here has rescaleFactor = 1 except where listed.
 $baseRescale = @{ RAPIER = 1.25 }
 
-# Adds one chassis part. $extra is a scriptblock that writes extra lines inside the part.
+# Stock stand-ins (DESIGN.md section 17). A chassis copied from a mod or DLC part
+# also gets "<name>-stock", copied from a stock part scaled to size; PIP uses the
+# preferred chassis when its part is installed, otherwise the stand-in. A chassis
+# with no stand-in gets a PIP_NEEDS note naming what it needs, for the padlock.
+$standIns = @{}   # chassis name -> @(stock part, scale)
+$needsOf = @{}    # chassis name -> what to install
+
+# Adds a chassis part, and its stock stand-in or needs note if it has one.
+# $extra is a scriptblock that writes extra lines inside the part; it's given the base part's name.
 function Chassis($name, $title, $base, [double]$scale, [double]$cost, $typeId, $model, [scriptblock]$extra) {
+    OneChassis $name $title $base $scale $cost $typeId $model $extra
+    if ($standIns.ContainsKey($name)) {
+        $s = $standIns[$name]
+        OneChassis "$name-stock" "$title (stock stand-in)" $s[0] $s[1] $cost $typeId $model $extra
+    }
+    if ($needsOf.ContainsKey($name)) {
+        L 'PIP_NEEDS'
+        L '{'
+        L "    chassis = $name"
+        L "    needs = $($needsOf[$name])"
+        L '}'
+    }
+}
+
+function OneChassis($name, $title, $base, [double]$scale, [double]$cost, $typeId, $model, [scriptblock]$extra) {
     L "+PART[$base]:FINAL"
     L '{'
     L "    @name = $name"
@@ -30,12 +53,14 @@ function Chassis($name, $title, $base, [double]$scale, [double]$cost, $typeId, $
         L "    %rescaleFactor = $r"
     }
     foreach ($m in $strip) { L "    !MODULE[$m],* {}" }
-    if ($extra) { & $extra }
+    if ($extra) { & $extra $base }
     L '    MODULE'
     L '    {'
     L '        name = ModulePipEngine'
     L "        typeId = $typeId"
     L "        model = $model"
+    # The part this chassis copies: its standard look (KSP names turn '_' into '.').
+    L "        chassisSource = $($base.Replace('_', '.'))"
     L '    }'
     L '}'
 }
@@ -75,6 +100,12 @@ $liquidModels = @{
     V = @(@('nflv-engine-rutherford-vac-1', 1), @('liquidEngine3_v2', 1), @('cryoengine-pavonis-1', 1), @('liquidEngine2-2_v2', 1), @('Size3AdvancedEngine', 1), @('Size3AdvancedEngine', 1.3333))
     A = @(@('toroidalAerospike', 0.5), @('toroidalAerospike', 1), @('toroidalAerospike', 1.5), @('toroidalAerospike', 2), @('toroidalAerospike', 3), @('toroidalAerospike', 4))
 }
+# Stock stand-ins for the models above that come from mods or Making History, by nozzle-size.
+$liquidStandIns = @{
+    'S-0625' = @('liquidEngineMini_v2', 1); 'S-1875' = @('liquidEngine_v2', 1.5); 'S-375' = @('Size3EngineCluster', 1); 'S-5' = @('Size3EngineCluster', 1.3333)
+    'B-125' = @('liquidEngine2_v2', 1); 'B-1875' = @('liquidEngine2_v2', 1.5); 'B-375' = @('engineLargeSkipper_v2', 1.5); 'B-5' = @('engineLargeSkipper_v2', 2)
+    'V-0625' = @('microEngine_v2', 1); 'V-1875' = @('liquidEngine3_v2', 1.5)
+}
 $nozzleNames = @{ S = 'sea level'; B = 'balanced'; V = 'vacuum'; A = 'aerospike' }
 $fuels = @(
     @{ code = 'K'; name = 'kerolox'; price = 1.0; props = @(@('LiquidFuel', 0.9), @('Oxidizer', 1.1)) },
@@ -86,6 +117,7 @@ foreach ($f in $fuels) {
         for ($i = 0; $i -lt $sizes.Count; $i++) {
             $base, $scale = $liquidModels[$nz][$i]
             $code = "$($f.code)-$($sizes[$i])-$nz"
+            if ($liquidStandIns.ContainsKey("$nz-$($sizes[$i])")) { $standIns["PIP-$code"] = $liquidStandIns["$nz-$($sizes[$i])"] }
             $props = $f.props
             Chassis "PIP-$code" "$($sizeLabels[$sizes[$i]]) $($f.name), $($nozzleNames[$nz])" $base $scale ($liquidBase[$i] * $f.price * $(if ($nz -eq 'A') { 2 } else { 1 })) 'liquid' $code { Propellants $props }.GetNewClosure()
         }
@@ -101,6 +133,7 @@ $solids = @(
     @('375', 'S', 'solidBooster_v2', 3, 10125), @('375', 'M', 'Thoroughbred', 1.5, 27000), @('375', 'L', 'Clydesdale', 1.5, 55350)
 )
 $noGimbal = 'Mite', 'Shrimp'
+$standIns['PIP-SOL-1875-L'] = @('MassiveBooster', 1.5)    # Pollux is Making History's
 foreach ($s in $solids) {
     $size, $len, $base, $scale, $units = $s
     $lenName = @{ S = 'short'; M = 'medium'; L = 'long' }[$len]
@@ -116,8 +149,16 @@ foreach ($s in $solids) {
 }
 
 # --- Monopropellant engines: Near Future Spacecraft orbital engines --------------
-$monos = @(@('0625', 'orbital-engine-0625', 400), @('125', 'orbital-engine-125', 1000), @('25', 'orbital-engine-25', 2500), @('375', 'orbital-engine-375', 6000))
-foreach ($m in $monos) { Chassis "PIP-MON-$($m[0])" "$($sizeLabels[$m[0]]) monopropellant" $m[1] 1 $m[2] 'monoprop' $m[0] $null }
+# Stand-ins: the Ant and the Terrier, scaled, burning monopropellant.
+$monos = @(@('0625', 'orbital-engine-0625', 400, 'microEngine_v2', 1), @('125', 'orbital-engine-125', 1000, 'liquidEngine3_v2', 1),
+           @('25', 'orbital-engine-25', 2500, 'liquidEngine3_v2', 2), @('375', 'orbital-engine-375', 6000, 'liquidEngine3_v2', 3))
+foreach ($m in $monos) {
+    $standIns["PIP-MON-$($m[0])"] = @($m[3], $m[4])
+    Chassis "PIP-MON-$($m[0])" "$($sizeLabels[$m[0]]) monopropellant" $m[1] 1 $m[2] 'monoprop' $m[0] {
+        param($b)
+        if ($b -notlike 'orbital-engine-*') { Propellants @(, @('MonoPropellant', 1)) }
+    }
+}
 
 # --- Nuclear: solid core and gas core, hydrogen only ------------------------------
 $nuclear = @(
@@ -125,17 +166,23 @@ $nuclear = @(
     @('S', '25', 'restock-engine-cherenkov', 1, 40000), @('S', '375', 'restock-engine-cherenkov', 1.5, 100000),
     @('G', '125', 'ntr-gc-25-1', 0.5, 30000), @('G', '1875', 'ntr-gc-25-1', 0.75, 50000), @('G', '25', 'ntr-gc-25-1', 1, 100000), @('G', '375', 'ntr-gc-25-1', 1.5, 250000)
 )
+# Stand-ins: the Nerv, scaled to size.
+$nerv = @{ 'S-0625' = 0.5; 'S-25' = 2; 'S-375' = 3; 'G-125' = 1; 'G-1875' = 1.5; 'G-25' = 2; 'G-375' = 3 }
+foreach ($k in $nerv.Keys) { $standIns["PIP-NUC-$k"] = @('nuclearEngine', $nerv[$k]) }
 foreach ($n in $nuclear) {
     $core, $size, $base, $scale, $cost = $n
     Chassis "PIP-NUC-$core-$size" "$($sizeLabels[$size]) $(if ($core -eq 'G') { 'gas-core' } else { 'solid-core' }) nuclear" $base $scale $cost 'nuclear' "$core-$size" {
-        if ($base -eq 'nuclearEngine') {
-            # The Nerv also has a liquid-fuel mode; PIP programs are hydrogen only.
+        param($b)
+        if ($b -eq 'nuclearEngine') {
+            # Kerbal Atomics gives the Nerv a liquid-fuel mode as well; the stock Nerv
+            # burns liquid fuel. PIP programs are hydrogen only.
             L '    !MODULE[MultiModeEngine],* {}'
             L '    !MODULE[ModuleEngines*]:HAS[#engineID[LF]] {}'
             AddGimbal
+            Propellants @(, @('LqdHydrogen', 1))
         }
-        if ($base -eq 'restock-engine-cherenkov') { Propellants @(, @('LqdHydrogen', 1)) }
-    }.GetNewClosure()
+        if ($b -eq 'restock-engine-cherenkov') { Propellants @(, @('LqdHydrogen', 1)) }
+    }
 }
 
 # --- Electric: gridded ion (xenon), Hall (argon), MPD (lithium) -------------------
@@ -145,6 +192,12 @@ $electric = @(
     @('M', '0625', 'mpdt-0625', 1, 7500), @('M', '125', 'mpdt-125', 1, 18000), @('M', '25', 'mpdt-25', 1, 45000)
 )
 $typeNames = @{ I = 'gridded ion'; H = 'Hall'; M = 'MPD' }
+# Gridded ion stands in with the Dawn, scaled. Hall and MPD burn argon and lithium,
+# which stock doesn't have: those need Near Future Propulsion.
+foreach ($e in $electric) {
+    if ($e[0] -eq 'I') { $standIns["PIP-ELE-I-$($e[1])"] = @('ionEngine', $e[3]) }
+    else { $needsOf["PIP-ELE-$($e[0])-$($e[1])"] = 'Near Future Propulsion' }
+}
 foreach ($e in $electric) { Chassis "PIP-ELE-$($e[0])-$($e[1])" "$($sizeLabels[$e[1]]) $($typeNames[$e[0]])" $e[2] $e[3] $e[4] 'electric' "$($e[0])-$($e[1])" $null }
 
 # --- Jets: turbofan, turbojet (dry/wet), ramjet, combined cycle -------------------

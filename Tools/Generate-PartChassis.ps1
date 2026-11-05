@@ -16,6 +16,7 @@ $nodeSize = @{ '0625' = 0; '125' = 1; '1875' = 1; '25' = 2; '375' = 3; '5' = 4 }
 $sizeLabel = @{ '0625' = '0.625 m'; '125' = '1.25 m'; '1875' = '1.875 m'; '25' = '2.5 m'; '375' = '3.75 m'; '5' = '5 m' }
 
 function Begin($name, $title, $base, [double]$cost, [string[]]$strip) {
+    $script:chassisBase = $base
     L "+PART[$base]:FINAL"
     L '{'
     L "    @name = $name"
@@ -40,6 +41,8 @@ function PipModule($typeId, $model) {
     L '        name = ModulePipPart'
     L "        typeId = $typeId"
     L "        model = $model"
+    # The part this chassis copies: its standard look (KSP names turn '_' into '.').
+    L "        chassisSource = $($script:chassisBase.Replace('_', '.'))"
     L '    }'
 }
 
@@ -111,8 +114,24 @@ $rcs = @(
     @('M-1', 'linearRcs', 'single monopropellant', $false), @('M-4', 'RCSBlock_v2', '4-way monopropellant', $false), @('M-5', 'rcsblock-orbital-5way-1', '5-way monopropellant', $false),
     @('B-1', 'nflv-rcs-heavy-1x-2', 'single bipropellant', $true), @('B-4', 'nflv-rcs-heavy-4x-2', '4-way bipropellant', $true), @('B-5', 'rcsblock-orbital-5way-1', '5-way bipropellant', $true)
 )
+# Stock stand-ins for the Near Future blocks (DESIGN.md section 17): the Vernor and
+# the RV-105 burning LF/Ox. Five-nozzle blocks have no stock stand-in: a padlock.
+$rcsStandIns = @{ 'B-1' = 'vernierEngine'; 'B-4' = 'RCSBlock_v2' }
+$rcsNeeds = @{ 'M-5' = 'Near Future Spacecraft'; 'B-5' = 'Near Future Spacecraft' }
+$rcsAll = @()
 foreach ($r in $rcs) {
-    Begin "PIP-RCS-$($r[0])" "$($r[2]) RCS" $r[1] 50 @()
+    $rcsAll += , $r
+    if ($rcsStandIns.ContainsKey($r[0])) { $rcsAll += , @("$($r[0])", $rcsStandIns[$r[0]], "$($r[2]) (stock stand-in)", $r[3], '-stock') }
+    if ($rcsNeeds.ContainsKey($r[0])) {
+        L 'PIP_NEEDS'
+        L '{'
+        L "    chassis = PIP-RCS-$($r[0])"
+        L "    needs = $($rcsNeeds[$r[0]])"
+        L '}'
+    }
+}
+foreach ($r in $rcsAll) {
+    Begin "PIP-RCS-$($r[0])$($r[4])" "$($r[2]) RCS" $r[1] 50 @()
     L '    !MODULE[ModuleB9PartSwitch]:HAS[#moduleID[RCS]] {}'
     if ($r[3]) {
         L '    @MODULE[ModuleRCS*]'
@@ -205,8 +224,26 @@ $kinds = @(
     @('S', 'standard', @(@('LF/O', 'LF/Ox', 'LFOX'), @('LiquidFuel', 'LF', 'LF'), @('Oxidizer', 'Ox', 'OX')), $false),
     @('C', 'cryogenic', @(@('LH2/O', 'LH2/Ox', 'LH2O'), @('LH2', 'LH2', 'LH2'), @('Methalox', 'LCH4/Ox', 'LMOx'), @('Methane', 'LCH4', 'LM')), $true),
     @('M', 'monopropellant', @(, @('Monopropellant', 'Monoprop', 'MonoPropellant')), $false),
-    @('E', 'electric propellant', @(@('Xenon', 'Xenon', 'Xenon'), @('Argon', 'Argon', 'Argon'), @('Lithium', 'Lithium', 'Lithium')), $false)
+    @('E', 'electric propellant', @(@('Xenon', 'Xenon', 'PIPXenon'), @('Argon', 'Argon', 'PIPArgon'), @('Lithium', 'Lithium', 'PIPLithium')), $false)
 )
+
+# Electric propellant tank types are Near Future's, not stock's or CryoTanks'. PIP
+# defines its own under its own names, with Near Future's numbers, so its tanks work
+# without Near Future and never clash with anyone's definitions (DESIGN.md 17).
+# Argon and lithium are Community Resource Pack resources, which CryoTanks requires.
+foreach ($t in @(@('PIPXenon', 0.00123046875, 4.5, 'XenonGas', 15.75), @('PIPArgon', 0.000594667, 2.5, 'ArgonGas', 1000), @('PIPLithium', 0.00089, 9.5625, 'Lithium', 5))) {
+    L 'B9_TANK_TYPE'
+    L '{'
+    L "    name = $($t[0])"
+    L "    tankMass = $(N $t[1])"
+    L "    tankCost = $(N $t[2])"
+    L '    RESOURCE'
+    L '    {'
+    L "        name = $($t[3])"
+    L "        unitsPerVolume = $(N $t[4])"
+    L '    }'
+    L '}'
+}
 $lengths = @(@('S', 'short', 0.25), @('M', 'medium', 0.5), @('L', 'long', 1), @('X', 'extra long', 2))
 foreach ($k in $kinds) {
     $strip = @()

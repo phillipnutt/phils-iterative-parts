@@ -17,6 +17,93 @@ namespace PIP
         public const string ProgramPrefix = "PIP.";
         public const string ChassisPrefix = "PIP-";
         public const string SideSuffix = ".side";
+        public const string StandInSuffix = "-stock";
+
+        #region Which chassis a model uses (DESIGN.md section 17)
+
+        // A model's chassis: the preferred one when its part is installed, else its
+        // stock stand-in ("<name>-stock"), else null (nothing to make the part from).
+        public static string Resolve(string chassis)
+        {
+            if (string.IsNullOrEmpty(chassis) || PartLoader.Instance == null) return null;
+            if (PartLoader.getPartInfoByName(chassis) != null) return chassis;
+            string stock = chassis + StandInSuffix;
+            return PartLoader.getPartInfoByName(stock) != null ? stock : null;
+        }
+
+        public static AvailablePart Info(string name) => string.IsNullOrEmpty(name) || PartLoader.Instance == null ? null : PartLoader.getPartInfoByName(name);
+
+        public static string ChassisFor(PartType t, string[] model) => t.Valid(model) ? Resolve(t.ChassisPart(model)) : null;
+
+        public static bool Made(PartType t, string[] model) => ChassisFor(t, model) != null;
+
+        // What to install for a model whose chassis can't be made ("Near Future
+        // Propulsion"), from the PIP_NEEDS notes the chassis generators write.
+        static Dictionary<string, string> needs;
+        public static string Needs(PartType t, string[] model)
+        {
+            if (needs == null)
+            {
+                needs = new Dictionary<string, string>();
+                if (GameDatabase.Instance != null)
+                    foreach (ConfigNode n in GameDatabase.Instance.GetConfigNodes("PIP_NEEDS"))
+                        if (n.HasValue("chassis") && n.HasValue("needs")) needs[n.GetValue("chassis")] = n.GetValue("needs");
+            }
+            return needs.TryGetValue(t.ChassisPart(model), out string what) ? what : "a part that isn't installed";
+        }
+
+        // The installed part a type's standard model is copied from: its standard look.
+        // That's the type's preferred part when installed, else the stock stand-in's part.
+        public static string StandardSource(PartType t, string[] model)
+        {
+            string preferred = t.DefaultLook(model);
+            if (!string.IsNullOrEmpty(preferred) && PartLoader.getPartInfoByName(preferred) != null) return preferred;
+            Part prefab = Info(ChassisFor(t, model))?.partPrefab;
+            string source = prefab?.FindModuleImplementing<ModulePipEngine>()?.chassisSource;
+            if (string.IsNullOrEmpty(source)) source = prefab?.FindModuleImplementing<ModulePipPart>()?.chassisSource;
+            return string.IsNullOrEmpty(source) ? preferred : source;
+        }
+
+        // One line for the log at the main menu: how every model of every type will be
+        // made here (preferred part, stock stand-in, or padlocked for a missing mod).
+        public static string ModelReport()
+        {
+            int preferred = 0;
+            var standIns = new List<string>();
+            var locked = new List<string>();
+            foreach (PartType t in PartTypes.All)
+                foreach (string[] m in AllModels(t))
+                {
+                    if (!t.Valid(m)) continue;
+                    string c = ChassisFor(t, m);
+                    if (c == null) locked.Add($"{t.ChassisPart(m)} (needs {Needs(t, m)})");
+                    else if (c.EndsWith(StandInSuffix, StringComparison.Ordinal)) standIns.Add($"{t.ChassisPart(m)}: {StandardSource(t, m)}");
+                    else preferred++;
+                }
+            return $"[PIP] Models: {preferred} preferred, {standIns.Count} stock stand-ins, {locked.Count} need a mod" +
+                   (locked.Count > 0 ? "\n[PIP] Need a mod: " + string.Join(", ", locked) : "") +
+                   (standIns.Count > 0 ? "\n[PIP] Stand-ins: " + string.Join(", ", standIns) : "");
+        }
+
+        static IEnumerable<string[]> AllModels(PartType t)
+        {
+            IEnumerable<string[]> all = new[] { new string[0] };
+            foreach (Choice c in t.Choices)
+            {
+                Choice choice = c;
+                all = all.SelectMany(a => choice.Options.Select(o => a.Concat(new[] { o.Code }).ToArray())).ToList();
+            }
+            return all;
+        }
+
+        // Why a program has no part right now, or null when it has one.
+        public static string Problem(Program p)
+        {
+            if (p == null || made.ContainsKey(p.PartName)) return null;
+            return Made(p.Type, p.Model) ? null : $"Its model needs {Needs(p.Type, p.Model)}, which isn't installed, so it has no part right now.";
+        }
+
+        #endregion
 
         static readonly Dictionary<string, AvailablePart> made = new Dictionary<string, AvailablePart>();
         static readonly Dictionary<string, string> chassisOf = new Dictionary<string, string>();
@@ -67,11 +154,12 @@ namespace PIP
 
         static string InlineChassis(Program p)
         {
-            if (string.IsNullOrEmpty(p.Look)) return p.ChassisPart;
+            string standard = ChassisFor(p.Type, p.Model) ?? p.ChassisPart;
+            if (string.IsNullOrEmpty(p.Look)) return standard;
             string look = Looks.Chassis(p.Type, false, p.Look, p.Model);
             if (look != null) return look;
             Debug.LogWarning($"[PIP] {p.Name}'s look {p.Look} isn't installed; it uses PIP's own model");
-            return p.ChassisPart;
+            return standard;
         }
 
         static AvailablePart Make(Program p, string partName, string chassisName)
@@ -157,7 +245,7 @@ namespace PIP
             Stats s = p.Stats(mk, PipSettings.Failures, variant);
             ap.title = p.DisplayName(mk) + (side ? " (side-mount)" : "");
             ap.cost = (float)Math.Round(s.BuildPrice);
-            string chassis = chassisOf.TryGetValue(ap.name, out string c) ? c : p.ChassisPart;
+            string chassis = chassisOf.TryGetValue(ap.name, out string c) ? c : ChassisFor(p.Type, p.Model) ?? p.ChassisPart;
             ap.moduleInfos = PartInfo.ModuleInfos(PartLoader.getPartInfoByName(chassis), p, s, side);
             ap.description = $"{p.Label}{(side ? ", side-mount" : "")}. Program {p.Name}, now at {Progress.MkName(mk)}.\n" + Describe(p.Type, p.Model, s);
         }

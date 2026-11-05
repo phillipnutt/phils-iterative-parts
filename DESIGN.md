@@ -1357,6 +1357,54 @@ The two chassis generators learn "preferred, else stand-in"; plus the
 dependency check, the padlocks and the Start guard. About one working session,
 most of it testing.
 
+### Built (2026-11-04, Phil: "Yes, build it", all three recommendations)
+
+- **Stand-ins:** every chassis copied from a mod or DLC part also gets
+  `<name>-stock` from a stock part (47 in all). `PartFactory.Resolve` picks the
+  preferred chassis when its part is installed, else the stand-in. Module
+  Manager's `:NEEDS` wasn't used: it can't reliably see the Making History DLC.
+  Changes from the table above: 3.75 and 5 m balanced stand in with the Skipper
+  (×1.5, ×2), not the Rhino; monopropellant engines with the Ant (0.625 m) and
+  the Terrier (×1–3) burning monopropellant.
+- **Each chassis records its source part** (`chassisSource` on ModulePipEngine /
+  ModulePipPart). `PartFactory.StandardSource` is the standard look: the
+  preferred part when installed, else the stand-in's.
+- **Padlocks:** the generators write `PIP_NEEDS { chassis, needs }` for the 8
+  models with no stand-in. The window's design rows padlock an option whose
+  model can't be made ("Needs Near Future Propulsion"), the bottom bar says the
+  same, `PipScenario.Create` refuses (no charge), and a program whose model went
+  missing says so on its page.
+- **Required mods** (`KSP\Requirements.cs`): Module Manager and B9PartSwitch
+  (assemblies), Community Tech Tree (the giganticRocketry node), CryoTanks
+  (SimpleBoiloff plus the LqdHydrogen and LqdMethane resources). Any missing:
+  every type Off, no looks made, and one popup at the main menu naming them.
+- **The Nerv chassis** now set hydrogen propellant explicitly (the stock Nerv
+  burns liquid fuel; Kerbal Atomics gave it a hydrogen mode).
+- **Found on the clean install, fixed:**
+  - Plain stock parts have `mesh =` and no MODEL node, so the size switch on the
+    solar, RTG, battery, wheel and ramp-intake chassis found nothing to scale.
+    The loader now gives such chassis a MODEL named PIPModel.
+    (Phil's pack never showed it: ReStock gives those parts MODEL nodes.)
+  - The electric-propellant tank used Near Future's Xenon, Argon and Lithium tank
+    types. PIP now defines PIPXenon, PIPArgon and PIPLithium with the same
+    numbers.
+- **A load report** in the log at the main menu: "Models: N preferred, N stock
+  stand-ins, N need a mod", with the lists.
+- **README.md** (requirements and optional mods) and
+  **PhilsIterativeParts.netkan** (CKAN depends, recommends, suggests) in the repo.
+
+**Tested:**
+- **Clean install** (a separate test install: stock without DLC, the five required
+  mods, PIP), from logs only. Phil declined screen access to that copy.
+  - 92 models preferred, 47 stock stand-ins (each standard look the right stock
+    part), 8 padlocked naming the right mod.
+  - No B9PartSwitch or PIP errors; looks made from stock parts.
+  - Not seen there: the window, padlocks on screen, starting a program, flying.
+- **Phil's install:**
+  - 147 preferred, 0 stand-ins, 0 padlocks, the same 507 looks, no errors.
+  - Window, Bolide's page and electric engines unchanged.
+- Core tests: 178 pass.
+
 ---
 
 ## Notes for the build (technical)

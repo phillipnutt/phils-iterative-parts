@@ -146,10 +146,54 @@ namespace PIP
             return "PIP-" + t.ChassisCode;
         }
 
+        // A part with only "mesh =" gets the MODEL node that stands for, so a size
+        // switch can find and scale it. Null when no model is found.
+        static ConfigNode MeshToModel(UrlDir.UrlConfig u, ConfigNode c)
+        {
+            string mesh = c.GetValue("mesh");
+            if (string.IsNullOrEmpty(mesh)) return null;
+            // KSP ignores the file name in "mesh" and uses the folder's model
+            // (the MPO probe's mesh = MPO_Probe.mu is really MpoProbe.mu).
+            string dir = u.parent.parent.url;
+            string url = dir + "/" + Path.GetFileNameWithoutExtension(mesh);
+            if (!GameDatabase.Instance.ExistsModel(url))
+            {
+                GameObject found = GameDatabase.Instance.GetModelPrefabIn(dir);
+                UrlDir.UrlFile file = found == null ? null : GameDatabase.Instance.GetModelFile(found);
+                if (file == null) return null;
+                url = file.url;
+            }
+            ConfigNode mn = c.AddNode("MODEL");
+            mn.AddValue("model", url);
+            c.RemoveValue("mesh");
+            return mn;
+        }
+
+        // PIP's own sized chassis copy stock parts. With ReStock those have MODEL
+        // nodes (named PIPModel by the chassis patch); plain stock parts only have
+        // "mesh =", so the size switch would find nothing to scale (DESIGN.md 17).
+        static void NameChassisModels(UrlDir.UrlConfig[] parts)
+        {
+            int fixedCount = 0;
+            foreach (UrlDir.UrlConfig u in parts)
+            {
+                string n = u.config.GetValue("name");
+                if (n == null || !n.StartsWith("PIP-", StringComparison.Ordinal) || u.config.HasNode("MODEL")) continue;
+                bool sized = u.config.GetNodes("MODULE").Any(m => m.GetValue("name") == "ModuleB9PartSwitch" && m.GetValue("moduleID") == "pipSize");
+                if (!sized) continue;
+                ConfigNode mn = MeshToModel(u, u.config);
+                if (mn == null) { Debug.LogWarning($"[PIP] No model found for chassis {n}"); continue; }
+                mn.AddValue("name", "PIPModel");
+                fixedCount++;
+            }
+            if (fixedCount > 0) Debug.Log($"[PIP] Gave {fixedCount} chassis a named MODEL (their stock parts only had \"mesh\")");
+        }
+
         public static void MakeConfigs()
         {
             if (GameDatabase.Instance == null) return;
             UrlDir.UrlConfig[] parts = GameDatabase.Instance.GetConfigs("PART");
+            NameChassisModels(parts);
             var names = new HashSet<string>();
             var templates = new Dictionary<string, ConfigNode>();
             foreach (UrlDir.UrlConfig u in parts)
@@ -326,22 +370,8 @@ namespace PIP
             List<ConfigNode> models = c.GetNodes("MODEL").ToList();
             if (models.Count == 0)
             {
-                string mesh = c.GetValue("mesh");
-                if (string.IsNullOrEmpty(mesh)) return null;
-                // KSP ignores the file name in "mesh" and uses the folder's model
-                // (the MPO probe's mesh = MPO_Probe.mu is really MpoProbe.mu).
-                string dir = u.parent.parent.url;
-                string url = dir + "/" + Path.GetFileNameWithoutExtension(mesh);
-                if (!GameDatabase.Instance.ExistsModel(url))
-                {
-                    GameObject found = GameDatabase.Instance.GetModelPrefabIn(dir);
-                    UrlDir.UrlFile file = found == null ? null : GameDatabase.Instance.GetModelFile(found);
-                    if (file == null) return null;
-                    url = file.url;
-                }
-                ConfigNode mn = c.AddNode("MODEL");
-                mn.AddValue("model", url);
-                c.RemoveValue("mesh");
+                ConfigNode mn = MeshToModel(u, c);
+                if (mn == null) return null;
                 models.Add(mn);
             }
             var positions = new List<Vector3>();
@@ -764,8 +794,8 @@ namespace PIP
         // Some engines have a fixed nozzle; their Gimbal category does nothing.
         public static bool Gimbals(PartType t, string source, string[] model)
         {
-            string chassis = (string.IsNullOrEmpty(source) ? null : Chassis(t, false, source, model)) ?? t.ChassisPart(model);
-            Part prefab = PartLoader.getPartInfoByName(chassis)?.partPrefab;
+            string chassis = (string.IsNullOrEmpty(source) ? null : Chassis(t, false, source, model)) ?? PartFactory.ChassisFor(t, model);
+            Part prefab = PartFactory.Info(chassis)?.partPrefab;
             return prefab == null || prefab.FindModuleImplementing<ModuleGimbal>() != null;
         }
 
@@ -789,6 +819,8 @@ namespace PIP
     {
         static void Prefix()
         {
+            // Looks need Module Manager and B9PartSwitch; with a required mod missing PIP stays off.
+            if (!Requirements.Ok) return;
             try { Looks.MakeConfigs(); }
             catch (Exception e) { Debug.LogError("[PIP] Making looks failed: " + e); }
         }

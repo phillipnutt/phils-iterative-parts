@@ -1,0 +1,33 @@
+{
+    "spec_version": "v1.4",
+    "identifier": "PhilsIterativeParts",
+    "name": "Phil's Iterative Parts",
+    "abstract": "Parts as development programs that improve as you fly them, from Mk. 0 to Mk. 10.",
+    "author": "phillipnutt",
+    "$kref": "#/ckan/github/phillipnutt/phils-iterative-parts",
+    "ksp_version_min": "1.12.3",
+    "ksp_version_max": "1.12.5",
+    "license": "restricted",
+    "install": [
+        { "find": "PIP", "install_to": "GameData" }
+    ],
+    "depends": [
+        { "name": "Harmony2" },
+        { "name": "ModuleManager" },
+        { "name": "B9PartSwitch" },
+        { "name": "CommunityTechTree" },
+        { "name": "CryoTanks" }
+    ],
+    "recommends": [
+        { "name": "NearFutureLaunchVehicles" },
+        { "name": "NearFuturePropulsion" },
+        { "name": "NearFutureSpacecraft" },
+        { "name": "CryoEngines" },
+        { "name": "KerbalAtomics" }
+    ],
+    "suggests": [
+        { "name": "ReStockPlus" },
+        { "name": "Kerbalism" },
+        { "name": "RemoteTech" }
+    ]
+}

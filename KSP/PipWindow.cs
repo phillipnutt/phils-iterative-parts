@@ -344,7 +344,7 @@ namespace PIP
             float y = right.y;
 
             // The part, turning.
-            string look = type.HasLooks ? (LookOf(type, model) is string l && l != "" ? l : type.DefaultLook(model)) : null;
+            string look = type.HasLooks ? (LookOf(type, model) is string l && l != "" ? l : PartFactory.StandardSource(type, model)) : null;
             Hero(new Rect(right.x, y, right.width, 196), look ?? (valid ? type.ChassisPart(model) : null), type,
                 $"{(string.IsNullOrWhiteSpace(newName) ? "Unnamed" : newName.Trim())} {Progress.MkName(previewMk)}" + (look != null ? "  ·  " + Comparison.ShortName(Looks.Title(look)) + " look" : ""));
             y += 196 + 12;
@@ -465,9 +465,9 @@ namespace PIP
                     Option[] options = type.Choices[c].Options;
                     string[] labels = options.Select(o => o.Label).ToArray();
                     float rowY = y;
+                    int choice = c;
                     int picked = Segments(x + 64, ref y, w - 64, labels, Array.FindIndex(options, o => o.Code == model[c]),
-                        i => TechUnlocks.Available(type, options[i]) ? null
-                            : "Research " + TechUnlocks.Title(TechUnlocks.Opened(type) ? options[i].Tech : type.CapTechs[0]), out bool shortened);
+                        i => LockedWhy(type, model, choice, options[i]), out bool shortened);
                     GUI.Label(new Rect(x, rowY, 62, 34), type.Choices[c].Name + (shortened ? ", m" : ""), PipSkin.SegLabel);
                     if (picked >= 0)
                     {
@@ -482,7 +482,7 @@ namespace PIP
             if (type.HasLooks)
             {
                 List<Looks.Look> all = Looks.List(type, false, model);
-                string standard = type.DefaultLook(model);
+                string standard = PartFactory.StandardSource(type, model);
                 int count = all.Count(l => l.Source != standard) + 1;
                 GUI.Label(new Rect(x, y, w, 16), "LOOK", PipSkin.Section);
                 GUI.Label(new Rect(x, y, w, 16), Count(count, "look") + " to pick from", PipSkin.SectionRight);
@@ -521,6 +521,17 @@ namespace PIP
         }
 
         static string Count(int n, string noun) => n + " " + noun + (n == 1 ? "" : "s");
+
+        // Why an option can't be picked: research still to do, or (with the rest of
+        // the design as it is) a model whose part needs a mod that isn't installed.
+        static string LockedWhy(PartType type, string[] model, int choice, Option o)
+        {
+            if (!TechUnlocks.Available(type, o))
+                return "Research " + TechUnlocks.Title(TechUnlocks.Opened(type) ? o.Tech : type.CapTechs[0]);
+            var m = (string[])model.Clone();
+            m[choice] = o.Code;
+            return type.Valid(m) && !PartFactory.Made(type, m) ? "Needs " + PartFactory.Needs(type, m) : null;
+        }
 
         // "1.25 m long" -> { "1.25 m", "long" }; null when the label isn't a size and something.
         static string[] SplitVariant(string label)
@@ -662,6 +673,7 @@ namespace PIP
             if (!string.IsNullOrEmpty(message)) { line = message; style = PipSkin.CompareBad; }
             else if (!valid) { line = "That combination isn't made. Pick another."; style = PipSkin.CompareWarn; }
             else if (!unlocked) { line = $"Locked. Research {TechUnlocks.Missing(type, model)}."; style = PipSkin.CompareWarn; }
+            else if (!PartFactory.Made(type, model)) { line = $"This model needs {PartFactory.Needs(type, model)}, which isn't installed."; style = PipSkin.CompareWarn; }
             else
             {
                 string summary = Comparison.Summary(newName, type, model, pts, PipSettings.Failures);
@@ -767,7 +779,7 @@ namespace PIP
         // The picked look, or "" (standard) when nothing valid is picked.
         static string LookOf(PartType type, string[] model)
         {
-            if (!looks.TryGetValue(type.Id, out string look) || look == type.DefaultLook(model) || !Looks.Exists(type, false, look, model)) return "";
+            if (!looks.TryGetValue(type.Id, out string look) || look == PartFactory.StandardSource(type, model) || !Looks.Exists(type, false, look, model)) return "";
             return look;
         }
 
@@ -829,7 +841,7 @@ namespace PIP
         void DrawPicker(Rect area, PartType type, string[] model)
         {
             bool side = pickerSide;
-            string standard = side ? Looks.DefaultSide(type, model) : type.DefaultLook(model);
+            string standard = side ? Looks.DefaultSide(type, model) : PartFactory.StandardSource(type, model);
             string current = side ? SideLookOf(type, model) : (LookOf(type, model) is string l && l != "" ? l : standard);
             List<Looks.Look> all = Looks.List(type, side, model);
             var entries = new List<Entry>();
@@ -932,7 +944,7 @@ namespace PIP
         void DrawProgram(PipScenario scenario, Program p, Rect area)
         {
             int mk = p.Mk;
-            string look = string.IsNullOrEmpty(p.Look) ? p.Type.DefaultLook(p.Model) : p.Look;
+            string look = string.IsNullOrEmpty(p.Look) ? PartFactory.StandardSource(p.Type, p.Model) : p.Look;
             Hero(new Rect(26, 22, 230, 230), look ?? p.ChassisPart, p.Type, look != null ? Comparison.ShortName(Looks.Title(look)) + " look" : null);
 
             float x = 282, w = area.width - x - 26, y = 24;
@@ -962,6 +974,12 @@ namespace PIP
                 : "Fully developed.";
             GUI.Label(new Rect(x, y, w, 40), xp, PipSkin.XpLine);
             y += 44;
+            // A mod its model came from was removed: say so instead of a silent gap.
+            if (PartFactory.Problem(p) is string problem)
+            {
+                GUI.Label(new Rect(x, y - 6, w, 34), problem, PipSkin.CompareWarn);
+                y += 30;
+            }
 
             var chips = new List<string>
             {

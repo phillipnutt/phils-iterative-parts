@@ -19,6 +19,7 @@ namespace PIP
         [KSPField] public bool look;
         [KSPField] public string lookKind = "";   // the look's size and shape ("125", "125-M", "125-2")
         [KSPField] public string lookFuel = "";   // a liquid look's own fuel, as installed
+        [KSPField] public string chassisSource = "";  // the installed part a standard chassis copies (its standard look)
 
         // What this engine was built to.
         [KSPField(isPersistant = true)] public string programId = "";
@@ -162,7 +163,7 @@ namespace PIP
         {
             // Speed and altitude curves come from PIP's standard jet of this type,
             // whatever the look, so a look never changes how a jet performs.
-            Part standard = PartLoader.getPartInfoByName(Type.ChassisPart(Model))?.partPrefab ?? part.partInfo?.partPrefab;
+            Part standard = PartFactory.Info(PartFactory.ChassisFor(Type, Model))?.partPrefab ?? part.partInfo?.partPrefab;
             List<ModuleEngines> prefab = standard?.FindModulesImplementing<ModuleEngines>();
             for (int i = 0; i < engines.Count; i++)
             {

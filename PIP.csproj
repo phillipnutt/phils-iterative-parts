@@ -50,6 +50,7 @@
     <Compile Include="KSP\ModulePipPart.cs" />
     <Compile Include="KSP\FlightTracker.cs" />
     <Compile Include="KSP\EditorHider.cs" />
+    <Compile Include="KSP\Requirements.cs" />
     <Compile Include="KSP\PipSkin.cs" />
     <Compile Include="KSP\PartPreview.cs" />
     <Compile Include="KSP\PipWindow.cs" />

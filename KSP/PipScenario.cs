@@ -73,6 +73,8 @@ namespace PIP
             }
             if (!PipSettings.On(type)) { error = $"{type.Title} are off in this game."; return null; }
             if (!TechUnlocks.Available(type, model)) { error = "That model isn't unlocked yet."; return null; }
+            // Never charge for a part that can't be made (DESIGN.md section 17).
+            if (!PartFactory.Made(type, model)) { error = $"That model needs {PartFactory.Needs(type, model)}, which isn't installed."; return null; }
             if (!string.IsNullOrEmpty(look) && !Looks.Exists(type, false, look, model)) { error = "That look isn't installed, or doesn't suit this model."; return null; }
             if (!string.IsNullOrEmpty(sideLook) && !Looks.Exists(type, true, sideLook, model)) { error = "That side-mount look isn't installed."; return null; }
             int gimbal = Looks.GimbalCategory(type);

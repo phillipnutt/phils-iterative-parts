@@ -15,6 +15,7 @@ namespace PIP
         [KSPField(isPersistant = true)] public string model = "";
         [KSPField] public bool look;
         [KSPField] public string lookKind = "";   // what the look's part is: "F"/"D" panel, "O"/"D" antenna...
+        [KSPField] public string chassisSource = "";  // the installed part a standard chassis copies (its standard look)
 
         // The size picked on the part; set by B9PartSwitch's subtype, or by the
         // chassis config for a look with one size. lookScale: how much a look's
@@ -146,7 +147,7 @@ namespace PIP
 
         // PIP's own chassis for this model: where numbers that aren't in the program
         // (an intake's speed curve, a shield's ablation) come from, whatever the look.
-        Part StandardPrefab => PartLoader.getPartInfoByName(Type.ChassisPart(Model))?.partPrefab ?? Prefab;
+        Part StandardPrefab => PartFactory.Info(PartFactory.ChassisFor(Type, Model))?.partPrefab ?? Prefab;
 
         #region Per type
 

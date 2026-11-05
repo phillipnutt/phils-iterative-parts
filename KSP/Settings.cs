@@ -45,6 +45,7 @@ namespace PIP
 
         public static Inclusion For(PartType t)
         {
+            if (!Requirements.Ok) return Inclusion.Off;   // a required mod is missing: PIP stays off
             PipSettings s = Current;
             PipPartSettings p = PipPartSettings.Current;
             switch (t.Id)
