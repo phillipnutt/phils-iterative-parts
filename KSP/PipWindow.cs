@@ -400,6 +400,16 @@ namespace PIP
             if (all == null) return null;
             if (!previewVariants.TryGetValue(type.Id, out string v) || !all.Any(o => o.Code == v))
                 previewVariants[type.Id] = v = type.DefaultVariant(model);
+            // A size that isn't researched yet (the 1.25 m probe core at the start of a
+            // career) moves to the nearest one that is, smaller first, of the same mount.
+            if (SizeLocked(type, type.VariantOption(model, v)) != null)
+            {
+                bool side = PartType.IsSide(v);
+                Option[] mount = all.Where(o => PartType.IsSide(o.Code) == side).ToArray();
+                int at = Math.Max(0, Array.FindIndex(mount, o => o.Code == v));
+                Option open = mount.Take(at).Reverse().Concat(mount.Skip(at + 1)).FirstOrDefault(o => SizeLocked(type, o) == null);
+                if (open != null) previewVariants[type.Id] = v = open.Code;
+            }
             return v;
         }
 
