@@ -761,13 +761,23 @@ engines unless a line here says otherwise.
 
 ### What changes for parts that aren't engines
 
-- **Size goes on the part, not the program, wherever the categories don't
-  depend on size.** One battery program covers every battery size; you pick
-  the size (and a tank's length) on the part in the VAB. Engines keep size in
-  the program, because their thrust windows are set by size. This is the big
-  call. It means far fewer programs to buy, and one PIP part replacing dozens
-  of stock ones in the parts list. Windows below are given for each size, or
-  as "× today's part of that size".
+- **Size is chosen per program, like engines (changed 2026-11-05).** Phil: "A
+  part is a part. ... if we're replacing (hiding) every part, we should build
+  back up that part count with custom parts, not just see one tank in the
+  editor." Each program is one part with one size, fixed for its life: a tank
+  program picks its diameter and length, a battery program its size, a solar
+  program its size class, and so on. In-line or side-mount is a program choice
+  too (Phil: yes, per program). The in-VAB size switch goes away.
+  - *Was:* size went on the part. One program covered every size, picked with
+    a "Size and length" switch in the VAB. Phil tested it on 2026-11-05 and
+    found one tank part in the editor "too odd".
+  - Sizes keep their research gates; a size not yet researched is padlocked
+    in the window, as engine sizes are.
+  - **Old programs in test saves aren't converted** (Phil: test saves only).
+    Non-engine programs made before this change may break or need recreating;
+    test in a new game.
+  - Windows below are given for each size. "× today's" wording is replaced by
+    real numbers (Phil's play-test notes, item 10).
 - **No failures.** Failing to light stays an engine thing.
 - **Experience:** the same. A program earns +1 for each of its parts on a
   vessel that leaves the pad, and +1 for each one recovered (section 5, "Each
@@ -1918,6 +1928,12 @@ editor broke) and the R&D unlock pictures. See section 17, "Phil's own test".
       unit, as plain percentages ("20% more heat per ablator", "30% tougher").
     - Also fix the overflow: long values were meant to shrink to fit, and
       "×1.40 today's tanks" was cut off instead.
+
+11. **Size, length and in-line/side-mount per program** for every part type
+    (section 14, "Size is chosen per program"). Found when "Test Short" and
+    "Test Medium" tank programs came out identical: the window's size and
+    length buttons were only a preview, and one program covered every size.
+    The window's preview picker becomes the real design choice.
 
 **Decided, not bugs:** the Mk1 pod sits in Start on plain KSP (Probes Before
 Crew moves it in Phil's pack; PIP never touches crewed pods); stock shows TWR in
