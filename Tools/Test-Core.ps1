@@ -270,6 +270,8 @@ Check 'the next version is II' "$($v2.Title) $($v2.Version) $($v2.PredecessorId)
 Check 'it keeps the design and gimbal' "$($v2.ModelCode) $($v2.Gimbal)" 'K-125-S 5'
 Check 'II at Mk. 1 = I at Mk. 5' ($v2.Stats(1, (Level Normal)).Item('thrustVac')) ($v1.Stats(5, (Level Normal)).Item('thrustVac')) 1e-9
 Check 'failures start over' ($v2.Stats(1, (Level Normal)).Item('fail')) 0.10
+Check 'II at Mk. 1 weighs what I did at Mk. 5' ($v2.Stats(1, (Level Normal)).Item('mass')) ($v1.Stats(5, (Level Normal)).Item('mass')) 1e-9
+Check 'II at Mk. 1 costs what I did at Mk. 5' ($v2.Stats(1, (Level Normal)).Item('price')) ($v1.Stats(5, (Level Normal)).Item('price')) 1e-6
 Check 'II at Mk. 5 uses its own points' ($v2.Stats(5, (Level Normal)).Item('thrustVac')) (Call $Liquid ThrustAt @($k125, [double]35))
 $vm = Call $Program Create @('vm', 'Kestrel', $liq, $k125, [int[]]@(100, 100, 100, 100, 100), [double]0, [double]0)
 Check 'every slider at 100 is Max' "$($vm.Title) $($vm.IsMax) $($vm.CanImprove(100))" 'Kestrel Max True False'

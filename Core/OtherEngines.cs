@@ -162,7 +162,7 @@ namespace PIP
             s[K.IspSL] = Lerp(150, 215, E(pts, 1, mk));
             s[K.IspVac] = Lerp(260, 345, E(pts, 1, mk));
             s[K.ThrustSL] = s[K.ThrustVac] * s[K.IspSL] / s[K.IspVac];
-            double light = Lerp(ThrustW[si, 0], ThrustW[si, 1], P(pts, 0)) / (25 * Engines.G0);
+            double light = Lerp(ThrustW[si, 0], ThrustW[si, 1], D(pts, 0, mk)) / (25 * Engines.G0);
             s[K.Mass] = light * (2 - E(pts, 2, mk) / 100.0);
             s[K.Fail] = FailureAt(m, P(pts, 3), mk, level);
             s[K.Price] = BuildPrice(BasePrice[si], pts, mk);
@@ -254,7 +254,7 @@ namespace PIP
             s[K.IspSL] = gas ? Lerp(500, 1200, E(pts, 1, mk)) : Lerp(150, 400, E(pts, 1, mk));
             s[K.IspVac] = gas ? Lerp(1500, 3000, E(pts, 1, mk)) : Lerp(750, 1000, E(pts, 1, mk));
             s[K.ThrustSL] = s[K.ThrustVac] * s[K.IspSL] / s[K.IspVac];
-            double light = Lerp(w[si, 0], w[si, 1], P(pts, 0)) / ((gas ? 12 : 5.5) * Engines.G0);
+            double light = Lerp(w[si, 0], w[si, 1], D(pts, 0, mk)) / ((gas ? 12 : 5.5) * Engines.G0);
             s[K.Mass] = light * (2 - E(pts, 2, mk) / 100.0);
             s[K.Fail] = FailureAt(m, P(pts, 3), mk, level);
             if (Kerbalism) s[K.Radiation] = Radiation[si] * (gas ? 2 : 1) * Math.Pow(0.1, E(pts, 4, mk) / 100.0);
@@ -350,7 +350,7 @@ namespace PIP
             s[K.IspVac] = Lerp(IspW[t, 0], IspW[t, 1], E(pts, 1, mk));
             s[K.IspSL] = s[K.IspVac] / 100;
             s[K.ThrustSL] = s[K.ThrustVac] / 100;
-            double light = Lerp(w[si, 0], w[si, 1], P(pts, 0)) / (Twr[t] * Engines.G0);
+            double light = Lerp(w[si, 0], w[si, 1], D(pts, 0, mk)) / (Twr[t] * Engines.G0);
             s[K.Mass] = light * (2 - E(pts, 2, mk) / 100.0);
             s[K.Fail] = FailureAt(m, P(pts, 3), mk, level);
             // EC/s at full thrust = kN x Isp/1000 x factor; points move the factor 6 -> 2.5.
@@ -461,7 +461,7 @@ namespace PIP
                 s[K.RocketIspSL] = Lerp(240, 300, eff);
                 s[K.RocketIspVac] = Lerp(290, 340, eff);
             }
-            double light = Lerp(ThrustW[si, 0], ThrustW[si, 1], P(pts, 0)) / (12 * Engines.G0);
+            double light = Lerp(ThrustW[si, 0], ThrustW[si, 1], D(pts, 0, mk)) / (12 * Engines.G0);
             s[K.Mass] = light * (2 - E(pts, 2, mk) / 100.0);
             s[K.Speed] = Lerp(0.8, 1.2, E(pts, 3, mk));
             s[K.TopMach] = BaseTopMach[t] * s[K.Speed];

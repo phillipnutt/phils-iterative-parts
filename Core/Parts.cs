@@ -66,7 +66,7 @@ namespace PIP
             s[K.ThrustVac] = bi ? Lerp(2, 12, E(pts, 0, mk)) : Lerp(0.25, 3, E(pts, 0, mk));
             s[K.IspVac] = bi ? Lerp(240, 300, E(pts, 1, mk)) : Lerp(220, 300, E(pts, 1, mk));
             s[K.IspSL] = bi ? Lerp(100, 160, E(pts, 1, mk)) : Lerp(70, 120, E(pts, 1, mk));
-            double designed = n * (bi ? Lerp(2, 12, P(pts, 0)) : Lerp(0.25, 3, P(pts, 0)));
+            double designed = n * (bi ? Lerp(2, 12, D(pts, 0, mk)) : Lerp(0.25, 3, D(pts, 0, mk)));
             s[K.Mass] = designed / ((bi ? 25 : 12.5) * Engines.G0) * (2 - E(pts, 2, mk) / 100.0);
             s[K.Price] = BuildPrice(n * (bi ? 150 : 50), pts, mk);
             return s;
@@ -179,7 +179,7 @@ namespace PIP
             var s = new Stats();
             s[TorqueKey] = Lerp(lo, hi, E(pts, 0, mk));
             s[K.EcRate] = s[TorqueKey] * Lerp(0.08, 0.015, E(pts, 1, mk));
-            s[K.Mass] = Lerp(lo, hi, P(pts, 0)) / Lerp(60, 180, E(pts, 2, mk));
+            s[K.Mass] = Lerp(lo, hi, D(pts, 0, mk)) / Lerp(60, 180, E(pts, 2, mk));
             s[K.Price] = BuildPrice(side ? SidePrice : PriceBySize[v], pts, mk);
             return s;
         }
@@ -285,7 +285,7 @@ namespace PIP
             int v = Index(deployableSizes, variant ?? DefaultVariant(m));
             var s = new Stats();
             s[K.EcRate] = Lerp(Output[v, 0], Output[v, 1], E(pts, 0, mk));
-            s[K.Mass] = Lerp(Output[v, 0], Output[v, 1], P(pts, 0)) / Lerp(40, 150, E(pts, 1, mk));
+            s[K.Mass] = Lerp(Output[v, 0], Output[v, 1], D(pts, 0, mk)) / Lerp(40, 150, E(pts, 1, mk));
             // Durability: how much air pressure and g-force it takes. From 50 points (as designed) it folds back up.
             s[Toughness] = Deployable(m) ? Lerp(0.5, 3, E(pts, 2, mk)) : 1;
             s[Retractable] = Deployable(m) && P(pts, 2) >= 50 ? 1 : 0;

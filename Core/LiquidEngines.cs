@@ -112,7 +112,7 @@ namespace PIP
 
         // Weight follows the thrust the program was designed for (its full thrust
         // points): 100 points = thrust ÷ (thrust-to-weight × g), 0 points = twice that.
-        public static double MassAt(string[] m, int thrustPoints, double weightPoints)
+        public static double MassAt(string[] m, double thrustPoints, double weightPoints)
         {
             double light = ThrustAt(m, thrustPoints) / (FuelTwr(FuelIndex(m)) * Engines.G0);
             return 2 * light - light * weightPoints / 100.0;
@@ -136,7 +136,7 @@ namespace PIP
             s[K.IspVac] = IspVacAt(m, E(points, Efficiency, mk));
             s[K.IspSL] = IspSLAt(m, E(points, Efficiency, mk));
             s[K.ThrustSL] = s[K.IspVac] > 0 ? s[K.ThrustVac] * s[K.IspSL] / s[K.IspVac] : 0;
-            s[K.Mass] = MassAt(m, P(points, Thrust), E(points, Weight, mk));
+            s[K.Mass] = MassAt(m, D(points, Thrust, mk), E(points, Weight, mk));
             s[K.Fail] = FailureAt(m, P(points, Reliability), mk, level);
             s[K.Price] = BuildPriceAt(m, points, mk);
             return s;

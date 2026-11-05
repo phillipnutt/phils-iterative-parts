@@ -235,12 +235,20 @@ namespace PIP
         protected static double E(int[] points, int i, int mk) =>
             start != null && i < start.Length ? Progress.Effective(P(points, i), Math.Min(P(start, i), P(points, i)), mk)
                                               : Progress.Effective(P(points, i), mk);
+        // Points a part is built to at a Mk. (what its weight and price follow): all of
+        // them for a first version; a later version's grow from where the one before
+        // ended, so its Mk. 1 weighs and costs what the old Mk. 5 did.
+        protected static double D(int[] points, int i, int mk) =>
+            start != null && i < start.Length ? Progress.Effective(P(points, i), Math.Min(P(start, i), P(points, i)), mk) : P(points, i);
         protected static double Lerp(double a, double b, double points) => a + (b - a) * points / 100.0;
         protected static int Total(int[] points) => points?.Sum(p => Pricing.Clamp(p)) ?? 0;
         // Ambition from every slider but Build cost, which then brings the price down.
-        protected double BuildPrice(double basePrice, int[] points, int mk) =>
-            basePrice * Pricing.Ambition(Total(points) - P(points, CostIndex), MaxTotal - Pricing.MaxPoints) *
-            Pricing.CostFactor(E(points, CostIndex, mk));
+        protected double BuildPrice(double basePrice, int[] points, int mk)
+        {
+            double built = 0;
+            for (int i = 0; i < CostIndex; i++) built += D(points, i, mk);
+            return basePrice * Pricing.Ambition(built, MaxTotal - Pricing.MaxPoints) * Pricing.CostFactor(E(points, CostIndex, mk));
+        }
 
         // The share of its points a design spends, over the sliders it uses (section 18.5).
         public double PointsShare(string[] model, int[] points)

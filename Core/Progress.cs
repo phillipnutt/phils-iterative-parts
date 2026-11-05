@@ -66,7 +66,7 @@ namespace PIP
 
         // Build price per part: x0.75 for a bare design up to x1.5 for a maxed one,
         // not counting the Build cost slider ...
-        public static double Ambition(int totalPoints, int maxTotal) =>
+        public static double Ambition(double totalPoints, int maxTotal) =>
             0.75 + 0.75 * Math.Min(maxTotal, Math.Max(0, totalPoints)) / (double)Math.Max(1, maxTotal);
 
         // ... which works against it: 1.5x at 0 points, 0.5x at 100 (section 18.3).

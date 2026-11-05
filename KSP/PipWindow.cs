@@ -1178,7 +1178,7 @@ namespace PIP
             // The next version: its look (it may change), its cost, and Start.
             bool ready = blocked == null;
             float textW = area.width - (ready ? 690 : 360);
-            GUI.Label(new Rect(26, fy + 6, textW, 34), $"Parts already built keep the Mk they were built at. New builds use {Progress.MkName(mk)}.", PipSkin.Small);
+            GUI.Label(new Rect(26, fy + 6, textW, 34), ready ? $"New builds use {Progress.MkName(mk)}." : $"Parts already built keep the Mk they were built at. New builds use {Progress.MkName(mk)}.", PipSkin.Small);
             if (ready && !retireArmed)
             {
                 double nextCost = PipScenario.NextCost(p);
