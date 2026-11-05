@@ -1445,6 +1445,121 @@ most of it testing.
 
 ---
 
+## 18. Versions, Mk. 1 to 5, gimbal and prices (design, 2026-11-05)
+
+Agreed with Phil on 2026-11-05 after his play-testing, item by item. **Not built
+yet** (Phil: "don't start building yet"). Where this disagrees with earlier
+sections (5, 6, 7, 14), this section wins.
+
+### 18.1 Versions (successor programs)
+
+A program family improves in versions: **Kestrel I, Kestrel II, Kestrel III ...**
+- A new program is automatically named "<name> I". Names can't be typed with a
+  numeral. Programs in old test saves show as "<name> I".
+- When a version reaches **Mk. 5**, its page offers **Start Kestrel II**:
+  - Every slider the part uses goes up **10 points**. Sliders the part doesn't
+    use stay at 0. No slider goes past **100** or past the **research cap**.
+  - The design stays as it was: type, model, size, length, mount, and gimbal.
+    Only the **look** can be changed.
+  - Its **program cost is 1/10** of what a brand-new program with those
+    points would cost.
+  - The old version is **retired automatically**: it leaves the parts list,
+    parts already built keep flying, and their launches and recoveries count
+    toward the newest version.
+  - Its stats start where the previous version's Mk. 5 ended, and Mk. 1 to 5
+    climb only through the +10. Each step is smaller than in version I, which
+    is fine because the version is cheap.
+  - **Failures start over.** Its fail-to-light chance goes back to Mk. 1's 10%
+    and falls to its mature value by Mk. 5. Phil: "new versions come with
+    challenges. If it stayed, we'd never have failures past version 1."
+- **Waiting on research:** when every slider is at the cap but not at 100, the
+  page says which research raises the cap.
+- **Max:** the version with every used slider at 100 is named
+  **"<name> Max"** instead of a numeral. It has no successor.
+- Its page has a short history: each version's points and Mk. 5 numbers.
+- A saved craft that carries an older version's parts swaps them for the
+  newest version when it's loaded in the VAB.
+
+### 18.2 Mk. 1 to Mk. 5
+
+- **There's no Mk. 0 any more.** Programs start at Mk. 1, and Mk. 5 is the
+  top. This replaces section 5's Mk. 0 to 10.
+- **Experience needed:** 1, 3, 4 and 7 for Mk. 2, 3, 4 and 5, so **1, 4, 8
+  and 15 in total**. The same for every version.
+- **Counting:** once per program per flight. +1 when one of its parts flies
+  (an engine fires after leaving the pad), and +1 when one is recovered. This
+  replaces "each part counts" (also 2026-11-05). Phil's aim: the parts on a
+  craft advance together at roughly the same rate. A heat shield, flown one
+  at a time, kept up with nothing.
+  Recoveries stay keyed by launch, not by the ship's ID, so a relaunched
+  craft's recovery counts.
+- Mk. 5 takes about 8 flights that are launched and recovered, or 15 one-way.
+- Mk. 1 performs as if half the points were spent, as Mk. 0 did. Mk. 5 uses
+  all of them. The curve keeps its big-steps-early shape over 4 steps.
+- Fail-to-light: 10% at Mk. 1, falling to the mature value at Mk. 5.
+
+### 18.3 Build cost: a slider
+
+- Every part type gets a **Build cost** slider. 0 points builds at 1.5× the
+  size's normal price; 100 points at 0.5×.
+- Like every stat it matures with Mk.: Mk. 1 builds as if half its points
+  were spent, Mk. 5 as designed. So parts get cheaper as the program matures,
+  and a successor carries its build cost on.
+- Price still depends on the part's size. Spending more points on the other
+  sliders still makes the part dearer to build ("ambition"); the Build cost
+  slider works against that.
+- This replaces the earlier idea of a 1.5× premium at Mk. 0, and the old 5%
+  price rise from Mk. 0 to Mk. 10.
+
+### 18.4 Gimbal: a free pick
+
+- The Gimbal slider goes away. Gimbal is a design choice, like fuel or nozzle,
+  of **0°, 5°, 10° or 20°**, at no point cost.
+- Research (proposed nodes, to confirm): 0° always; 5° with the type's first
+  programs; 10° at General Rocketry; 20° at Advanced Rocketry.
+- Liquid, solid, monopropellant and nuclear engines. Aerospikes and looks
+  with a fixed nozzle only offer 0°. Jets and electric engines keep the
+  gimbal they have.
+- Fixed for the whole family: successors keep it.
+
+### 18.5 Program cost: a ceiling for each type
+
+- A program with no points spent costs about **√1,000** whatever its type, so
+  early career stays affordable.
+- With every slider at 100, a brand-new program costs its type's **ceiling**,
+  set by how complex the part is, not by how many sliders it has.
+- In between, cost rises exponentially with the share of points spent:
+  cost = 1,000 × (ceiling ÷ 1,000) ^ (points ÷ (sliders used × 100)).
+- Ceilings are high on purpose (Phil: "we can really jack up the prices of a
+  brand new program with max sliders"). The cheap way to a great part is
+  through versions at 1/10 the cost.
+- The game-start "PIP prices" option still scales everything.
+
+Proposed ceilings, and what a new program costs at a quarter, half and three
+quarters of its points (to tune once played):
+
+| Type | Ceiling (all 100) | 25% | 50% | 75% |
+|---|---|---|---|---|
+| Tanks, batteries, heat shields, air intakes | √100k | √3.2k | √10k | √32k |
+| Reaction wheels, solar panels, antennas, RCS | √250k | √4.0k | √16k | √63k |
+| Probe cores, RTGs | √600k | √5.0k | √24k | √121k |
+| Solid and monopropellant engines | √500k | √4.7k | √22k | √106k |
+| Jet engines | √1M | √5.6k | √32k | √178k |
+| Liquid engines | √1.5M | √6.2k | √39k | √241k |
+| Electric engines | √2M | √6.7k | √45k | √299k |
+| Nuclear engines | √3M | √7.4k | √55k | √405k |
+
+Example: a liquid Kestrel I at 25 points in each slider costs √6.2k new.
+Kestrel II at 35 each costs √1.3k (1/10 of √12.9k).
+
+### 18.6 Old saves
+
+Not converted (Phil: "I don't want to waste time making old saves compatible
+until we get this thing more fully developed"). Programs in test saves may
+show odd numbers or need recreating; test in a new game.
+
+---
+
 ## Notes for the build (technical)
 
 Phil can skip this section.
