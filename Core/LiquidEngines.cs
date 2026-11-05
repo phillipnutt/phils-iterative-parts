@@ -1,0 +1,175 @@
+using System;
+
+namespace PIP
+{
+    // Liquid rocket engines: fuel, size and nozzle; thrust, efficiency, weight,
+    // reliability and gimbal. Numbers from DESIGN.md sections 4 and 8.
+    public sealed class LiquidEngines : PartType
+    {
+        public override string Id => "liquid";
+        public override string Title => "Liquid engines";
+        public override string Noun => "engine";
+
+        // Chassis names predate other part types: PIP-K-125-S.
+        public override string ChassisPart(string[] model) => "PIP-" + Code(model);
+
+        static readonly Choice[] choices =
+        {
+            new Choice("Fuel",
+                new Option("K", "Kerolox"),
+                new Option("H", "Hydrolox", "advFuelSystems"),
+                new Option("M", "Methalox", "highPerformanceFuelSystems")),
+            new Choice("Size",
+                new Option("0625", "0.625 m", "propulsionSystems"),
+                new Option("125", "1.25 m"),
+                new Option("1875", "1.875 m", Sizes.Tooling("1875")),
+                new Option("25", "2.5 m", Sizes.Tooling("25")),
+                new Option("375", "3.75 m", Sizes.Tooling("375")),
+                new Option("5", "5 m", Sizes.Tooling("5"))),
+            new Choice("Nozzle",
+                new Option("S", "Sea level"),
+                new Option("B", "Balanced", "precisionPropulsion"),
+                new Option("V", "Vacuum", "generalRocketry"),
+                new Option("A", "Aerospike", "experimentalRocketry")),
+        };
+
+        static readonly Category[] categories =
+        {
+            new Category("Thrust"), new Category("Efficiency"), new Category("Weight"),
+            new Category("Reliability"), new Category("Gimbal", 10),
+        };
+
+        public override Choice[] Choices => choices;
+        public override Category[] Categories => categories;
+        public override string[] CapTechs => new[] { "basicRocketry", "advRocketry", "heavierRocketry", "experimentalRocketry" };
+        public override int ReliabilityCategory => 3;
+
+        public const int Thrust = 0, Efficiency = 1, Weight = 2, Reliability = 3, Gimbal = 4;
+
+        // Looks (16): an engine at the program's own size, never scaled; aerospike
+        // looks for aerospike programs only. One look part per fuel, since the
+        // propellants are in the config. Its kind: "125", or "125-A" for an aerospike.
+        static readonly string[][] Standard =
+        {
+            new[] { "nflv-engine-rutherford-1", "liquidEngine2.v2", "LiquidEngineLV-TX87", "liquidEngineMainsail.v2", "nflv-engine-rd701-1", "nflv-engine-rd701-1" },
+            new[] { "liquidEngineMini.v2", "LiquidEngineRE-I2", "nflv-engine-rd704-1", "engineLargeSkipper.v2", "cryoengine-etna-1", "cryoengine-etna-1" },
+            new[] { "nflv-engine-rutherford-vac-1", "liquidEngine3.v2", "cryoengine-pavonis-1", "liquidEngine2-2.v2", "Size3AdvancedEngine", "Size3AdvancedEngine" },
+        };
+        public override bool HasLooks => true;
+        public override string DefaultLook(string[] m) =>
+            IsAerospike(m) ? "toroidalAerospike" : Standard[Math.Max(0, Array.FindIndex(choices[2].Options, o => o.Code == m[2]))][Math.Max(0, Sizes.IndexOf(m[1]))];
+        public override LookScale ScaleBasis(bool side, string kind) => LookScale.None;
+        public override string LookKey(string[] m) => m[0];
+        public override string[] LookKeys(string kind) => new[] { "K", "H", "M" };
+        public override bool LookFits(string[] m, string kind) => kind == m[1] + (IsAerospike(m) ? "-A" : "");
+
+        // kN, [size] = { 0 points, 100 points }
+        static readonly double[,] LiftThrust = { { 15, 110 }, { 90, 550 }, { 250, 1500 }, { 500, 2200 }, { 1500, 5000 }, { 3000, 9000 } };
+        static readonly double[,] VacuumThrust = { { 4, 30 }, { 20, 150 }, { 60, 400 }, { 110, 600 }, { 350, 1400 }, { 700, 2500 } };
+
+        // s, [fuel][nozzle] = { sea level 0, sea level 100, vacuum 0, vacuum 100 }
+        static readonly double[][][] Isp =
+        {
+            new[] { new double[] { 220, 310, 245, 340 }, new double[] { 190, 285, 270, 360 }, new double[] { 50, 100, 300, 385 }, new double[] { 240, 305, 280, 350 } },
+            new[] { new double[] { 300, 380, 340, 425 }, new double[] { 270, 355, 370, 450 }, new double[] { 60, 120, 400, 475 }, new double[] { 310, 370, 360, 440 } },
+            new[] { new double[] { 280, 340, 300, 362 }, new double[] { 255, 320, 320, 378 }, new double[] { 50, 110, 340, 395 }, new double[] { 290, 332, 315, 370 } },
+        };
+
+        static readonly double[] BasePrice = { 300, 1200, 2500, 6000, 20000, 40000 };
+
+        static int FuelIndex(string[] m) => Math.Max(0, Array.FindIndex(choices[0].Options, o => o.Code == m[0]));
+        static int SizeIndex(string[] m) => Math.Max(0, Sizes.IndexOf(m[1]));
+        static int NozzleIndex(string[] m) => Math.Max(0, Array.FindIndex(choices[2].Options, o => o.Code == m[2]));
+        public static bool IsAerospike(string[] m) => m != null && m.Length > 2 && m[2] == "A";
+        static bool IsVacuum(string[] m) => m[2] == "V";
+
+        static double FuelThrust(int f) => f == 1 ? 0.9 : f == 2 ? 1.15 : 1;
+        static double FuelTwr(int f) => f == 1 ? 22 : f == 2 ? 28 : 24.5;
+        static double FuelPrice(int f) => f == 1 ? 1.3 : f == 2 ? 1.2 : 1;
+
+        public static double ThrustAt(string[] m, double points)
+        {
+            double[,] w = IsVacuum(m) ? VacuumThrust : LiftThrust;
+            int s = SizeIndex(m);
+            return Lerp(w[s, 0], w[s, 1] * FuelThrust(FuelIndex(m)), points);
+        }
+
+        public static double IspSLAt(string[] m, double points)
+        {
+            double[] w = Isp[FuelIndex(m)][NozzleIndex(m)];
+            return Lerp(w[0], w[1], points);
+        }
+
+        public static double IspVacAt(string[] m, double points)
+        {
+            double[] w = Isp[FuelIndex(m)][NozzleIndex(m)];
+            return Lerp(w[2], w[3], points);
+        }
+
+        // Weight follows the thrust the program was designed for (its full thrust
+        // points): 100 points = thrust ÷ (thrust-to-weight × g), 0 points = twice that.
+        public static double MassAt(string[] m, int thrustPoints, double weightPoints)
+        {
+            double light = ThrustAt(m, thrustPoints) / (FuelTwr(FuelIndex(m)) * Engines.G0);
+            return 2 * light - light * weightPoints / 100.0;
+        }
+
+        public static double GimbalAt(string[] m, double points) => IsAerospike(m) ? 0 : GimbalCurve(points);
+
+        public override double FailureAt(string[] m, int reliabilityPoints, int mk, FailureLevel level)
+        {
+            bool methalox = FuelIndex(m) == 2;
+            return Failure.Chance(methalox ? 0.015 : 0.02, methalox ? 0.0005 : 0.001, reliabilityPoints, mk, level);
+        }
+
+        public double BuildPriceAt(string[] m, int[] points, int mk) =>
+            BuildPrice(BasePrice[SizeIndex(m)] * FuelPrice(FuelIndex(m)) * (IsAerospike(m) ? 2 : 1), points, mk);
+
+        public override bool CategoryUsed(string[] m, int category) => category != Gimbal || !IsAerospike(m);
+
+        public override Stats Compute(string[] m, int[] points, int mk, FailureLevel level, string variant = null)
+        {
+            var s = new Stats();
+            s[K.ThrustVac] = ThrustAt(m, E(points, Thrust, mk));
+            s[K.IspVac] = IspVacAt(m, E(points, Efficiency, mk));
+            s[K.IspSL] = IspSLAt(m, E(points, Efficiency, mk));
+            s[K.ThrustSL] = s[K.IspVac] > 0 ? s[K.ThrustVac] * s[K.IspSL] / s[K.IspVac] : 0;
+            s[K.Mass] = MassAt(m, P(points, Thrust), E(points, Weight, mk));
+            s[K.Gimbal] = GimbalAt(m, E(points, Gimbal, mk));
+            s[K.Fail] = FailureAt(m, P(points, Reliability), mk, level);
+            s[K.Price] = BuildPriceAt(m, points, mk);
+            return s;
+        }
+
+        public override Row[] Rows(string[] m) => new[]
+        {
+            new Row("Thrust, vacuum", K.ThrustVac, Thrust, Fmt.Kn),
+            new Row("  at sea level", K.ThrustSL, -1, Fmt.Kn),
+            new Row("Isp, vacuum", K.IspVac, Efficiency, Fmt.Sec),
+            new Row("  Isp at sea level", K.IspSL, -1, Fmt.Sec),
+            new Row("Weight", K.Mass, Weight, Fmt.Tons),
+            new Row("Fails to light", K.Fail, Reliability, Fmt.Pct),
+            new Row("Gimbal", K.Gimbal, Gimbal, v => IsAerospike(m) ? "none" : Fmt.Deg(v)),
+        };
+
+        public override string Label(string[] m) =>
+            Sizes.Label(m[1]) + " " + choices[0].Find(m[0])?.Label.ToLowerInvariant() + ", " +
+            (IsAerospike(m) ? "aerospike" : choices[2].Find(m[2])?.Label.ToLowerInvariant() + " nozzle");
+
+        public override string Character(string[] m)
+        {
+            switch (m[2])
+            {
+                case "S": return "Built for the pad.";
+                case "B": return "A compromise: decent low and high.";
+                case "V": return "An upper-stage engine, nearly useless at sea level.";
+                default: return "Good at any altitude, best at none, and it can't gimbal.";
+            }
+        }
+    }
+
+    public static class Engines
+    {
+        public const double G0 = 9.80665;
+    }
+}

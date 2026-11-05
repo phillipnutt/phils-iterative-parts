@@ -1,0 +1,218 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace PIP
+{
+    // One option of a free choice, e.g. Fuel = Hydrolox, and the tech node that
+    // opens it (null = open with the type's first programs).
+    public sealed class Option
+    {
+        public readonly string Code, Label, Tech;
+        public Option(string code, string label, string tech = null) { Code = code; Label = label; Tech = tech; }
+    }
+
+    // A free choice made when a program starts (fuel, size, nozzle...).
+    public sealed class Choice
+    {
+        public readonly string Name;
+        public readonly Option[] Options;
+        public Choice(string name, params Option[] options) { Name = name; Options = options; }
+        public Option Find(string code) => Options.FirstOrDefault(o => o.Code == code);
+    }
+
+    // A points category (Thrust, Efficiency...).
+    public sealed class Category
+    {
+        public readonly string Label;
+        public readonly int DefaultPoints;
+        public Category(string label, int defaultPoints = 25) { Label = label; DefaultPoints = defaultPoints; }
+    }
+
+    // Stat keys shared between the rules and the part modules.
+    public static class K
+    {
+        public const string ThrustVac = "thrustVac", ThrustSL = "thrustSL", IspVac = "ispVac", IspSL = "ispSL";
+        public const string Mass = "mass", Gimbal = "gimbal", Fail = "fail", Price = "price";
+        public const string EcRate = "ecRate", Radiation = "radiation", Speed = "speed", TopMach = "topMach";
+        public const string ThrustDry = "thrustDry", IspDry = "ispDry";
+        public const string RocketThrust = "rocketThrust", RocketIspVac = "rocketIspVac", RocketIspSL = "rocketIspSL";
+        public const string Propellant = "propellant", Burn = "burn";
+    }
+
+    // A program's numbers at one Mk, by key.
+    public sealed class Stats
+    {
+        readonly Dictionary<string, double> values = new Dictionary<string, double>();
+        public double this[string key]
+        {
+            get => values.TryGetValue(key, out double v) ? v : 0;
+            set => values[key] = value;
+        }
+        public bool Has(string key) => values.ContainsKey(key);
+        public double Mass => this[K.Mass];
+        public double BuildPrice => this[K.Price];
+        public double FailureChance => this[K.Fail];
+    }
+
+    // A line in the program window: a category's main number (Category >= 0,
+    // with -/+ buttons) or an indented detail line (Category = -1).
+    public sealed class Row
+    {
+        public readonly string Label, Key;
+        public readonly int Category;
+        public readonly Func<double, string> Format;
+        public Row(string label, string key, int category, Func<double, string> format)
+        {
+            Label = label; Key = key; Category = category; Format = format;
+        }
+    }
+
+    // A kind of part PIP makes programs for: its free choices, its categories,
+    // its tech nodes and its numbers. Models are arrays of option codes, one per
+    // choice, written "K-125-S" in saves and chassis names.
+    public abstract class PartType
+    {
+        public abstract string Id { get; }            // "liquid"
+        public abstract string Title { get; }         // "Liquid engines"
+        public abstract string Noun { get; }          // "engine"
+        public virtual string ChassisCode => Id.ToUpperInvariant();
+        public abstract Choice[] Choices { get; }
+        public abstract Category[] Categories { get; }
+
+        // [first programs (caps 25), caps 50, caps 75, caps 100]
+        public abstract string[] CapTechs { get; }
+        public virtual double PriceFactor => 1;
+        public virtual bool IsEngine => true;
+
+        public abstract Row[] Rows(string[] model);
+        public abstract Stats Compute(string[] model, int[] points, int mk, FailureLevel level, string variant = null);
+
+        // Sizes picked on the part in the VAB (B9PartSwitch), for types whose
+        // categories don't depend on size. Null for engines: their size is a choice.
+        public virtual Option[] Variants(string[] model) => null;
+        public virtual string VariantName => "Size";
+        public virtual string DefaultVariant(string[] model)
+        {
+            Option[] v = Variants(model);
+            return v == null || v.Length == 0 ? null : v[Math.Min(1, v.Length - 1)].Code;
+        }
+
+        // Side-mount parts (DESIGN.md section 15): the same program also makes a
+        // part that attaches to the side, with these sizes. Their codes start "R".
+        public virtual bool HasSideMount => false;
+        public virtual Option[] SideVariants(string[] model) => null;
+        public string DefaultSideVariant(string[] model) => SideVariants(model)?.FirstOrDefault()?.Code;
+        public static bool IsSide(string variant) => variant != null && variant.StartsWith("R", StringComparison.Ordinal);
+        public Option[] VariantsFor(string[] model, bool side) => side ? SideVariants(model) : Variants(model);
+
+        // Looks (DESIGN.md section 16): the program wears an installed part's model.
+        // The part PIP uses when no look is picked, and the side-mount looks to
+        // try first. Part names as KSP lists them ("_" becomes ".").
+        public virtual bool HasLooks => false;
+        public virtual string DefaultLook(string[] model) => null;
+        public virtual string[] SideLookPreference(string[] model) => new string[0];
+
+        // How a look's model is scaled to each size on the part: by diameter, by
+        // mass (side-mount batteries, RTGs, dishes), by output (solar panels), by
+        // diameter and length (tanks), or not at all (one size). kind: what the
+        // installed part is ("F"/"D" panel, "O"/"D" antenna, tank contents).
+        public virtual LookScale ScaleBasis(bool side, string kind) => LookScale.Diameter;
+        public virtual double NominalMass(string variant) => 0;
+        public virtual double NominalOutput(string variant) => 0;
+
+        // Some types need a separate look part per program choice, because the
+        // choice changes the part's config: a tank's propellants, an RCS block's.
+        // LookKey: which one a program uses. LookKeys: the ones an installed part
+        // of this kind is made into.
+        public virtual string LookKey(string[] model) => "";
+        public virtual string[] LookKeys(string kind) => new[] { "" };
+        // Whether a look of this kind suits the program (a fixed panel can't be a
+        // deployable program's look; a 4-nozzle block can't be a 5-way's).
+        public virtual bool LookFits(string[] model, string kind) => true;
+        // The model whose sizes a look of this kind and key is switched between.
+        public virtual string[] LookModel(string kind, string key) => DefaultModel;
+
+        // A category that does nothing for this model (an aerospike's gimbal).
+        public virtual bool CategoryUsed(string[] model, int category) => true;
+        public virtual bool Valid(string[] model) =>
+            model != null && model.Length == Choices.Length && Choices.Select((c, i) => c.Find(model[i]) != null).All(ok => ok);
+
+        public virtual string Label(string[] model) =>
+            string.Join(", ", model.Select((code, i) => Choices[i].Find(code)?.Label ?? code));
+        // "PIP-SOL-125-M"; a type with no choices has one chassis, "PIP-BAT".
+        public virtual string ChassisPart(string[] model) =>
+            "PIP-" + ChassisCode + (model == null || model.Length == 0 ? "" : "-" + Code(model));
+
+        // One line for the new-program window: what the choices mean in play.
+        public virtual string Character(string[] model) => "";
+        // Mature (Mk. 10) failure chance, for the summary line; engines only.
+        public virtual double FailureAt(string[] model, int reliabilityPoints, int mk, FailureLevel level) => 0;
+        public virtual int ReliabilityCategory => -1;
+
+        public int MaxTotal => Categories.Length * Pricing.MaxPoints;
+        public string Code(string[] model) => string.Join("-", model);
+        public string[] DefaultModel => Choices.Select(c => c.Options[0].Code).ToArray();
+        public int[] DefaultPoints => Categories.Select(c => c.DefaultPoints).ToArray();
+
+        public string[] ParseModel(string code)
+        {
+            if (Choices.Length == 0) return new string[0];
+            if (string.IsNullOrEmpty(code)) return null;
+            string[] parts = code.Split('-');
+            return Valid(parts) ? parts : null;
+        }
+
+        // Every node that must be researched to start a program of this model.
+        public IEnumerable<string> Techs(string[] model)
+        {
+            yield return CapTechs[0];
+            for (int i = 0; i < Choices.Length && i < model.Length; i++)
+            {
+                string tech = Choices[i].Find(model[i])?.Tech;
+                if (!string.IsNullOrEmpty(tech)) yield return tech;
+            }
+        }
+
+        protected static int P(int[] points, int i) => points != null && i < points.Length ? Pricing.Clamp(points[i]) : 0;
+        protected static double E(int[] points, int i, int mk) => Progress.Effective(P(points, i), mk);
+        protected static double Lerp(double a, double b, double points) => a + (b - a) * points / 100.0;
+        protected static int Total(int[] points) => points?.Sum(p => Pricing.Clamp(p)) ?? 0;
+        protected double BuildPrice(double basePrice, int[] points, int mk) =>
+            basePrice * Pricing.Ambition(Total(points), MaxTotal) * Pricing.MkPrice(mk);
+
+        // Liquid-style gimbal: 4° for the first 10 points, then a long climb to 20°.
+        protected static double GimbalCurve(double points) =>
+            points <= 10 ? 0.4 * points : 4 + (points - 10) * 16.0 / 90.0;
+    }
+
+    public enum LookScale { Diameter, Mass, Output, Tank, None }
+
+    public static class PartTypes
+    {
+        public static readonly PartType Liquid = new LiquidEngines();
+        public static readonly PartType Solid = new SolidMotors();
+        public static readonly PartType Monoprop = new MonopropEngines();
+        public static readonly PartType Nuclear = new NuclearEngines();
+        public static readonly PartType Electric = new ElectricEngines();
+        public static readonly PartType Jet = new JetEngines();
+
+        public static readonly PartType Rcs = new RcsThrusters();
+        public static readonly PartType Battery = new Batteries();
+        public static readonly PartType Wheel = new ReactionWheels();
+        public static readonly PartType Shield = new HeatShields();
+        public static readonly PartType Solar = new SolarPanels();
+        public static readonly PartType Antenna = new Antennas();
+        public static readonly PartType Probe = new ProbeCores();
+        public static readonly PartType Tank = new FuelTanks();
+        public static readonly PartType Rtg = new Rtgs();
+        public static readonly PartType Intake = new AirIntakes();
+
+        public static readonly PartType[] Engines = { Liquid, Solid, Monoprop, Nuclear, Electric, Jet };
+        public static readonly PartType[] Parts = { Rcs, Battery, Wheel, Shield, Solar, Antenna, Probe, Tank, Rtg, Intake };
+        public static readonly PartType[] All = Engines.Concat(Parts).ToArray();
+
+        public static PartType Get(string id) =>
+            string.IsNullOrEmpty(id) ? Liquid : All.FirstOrDefault(t => t.Id == id);
+    }
+}
