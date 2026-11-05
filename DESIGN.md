@@ -1784,10 +1784,7 @@ failures and tech are game choices.
 
 ### 19.3 Open questions for Phil
 
-1. **Propellant prices.** Community Resource Pack prices are near real per
-   liter. Filling an FL-T400-sized tank costs 184 for kerolox but 1,474 for
-   Aerozine, 3,619 for peroxide, 9,152 for FLOX and 19,432 for ClF5. Leave it
-   (exotics are expensive), or offset it with cheaper engines?
+1. **Propellant prices.** Settled in 19.6.
 2. **Storable vs cryogenic.** `Oxidizer` (KSP's liquid oxygen) doesn't boil, as in
    stock, so "storable" only matters against hydrogen, methane and fluorine.
 
@@ -1842,6 +1839,37 @@ Notes:
 - The cryogenic tank's description was cut off in the program window; shortened.
 - Not seen yet: hydrolox, methalox and the other fuels' plumes in flight; a
   vessel catching up on boil-off after being unloaded.
+
+### 19.6 Dense fuels and fuel prices (2026-11-05)
+
+Phil asked what a Jumbo-64 of ClF5 would cost to fill: 311,000 at Community
+Resource Pack's prices (kerolox 2,940). "That seems exorbitant ... I do like the
+price variability for better / denser / more efficient fuels, but surely not to
+that extent." And it wasn't worth much at any price: barely more Isp than
+kerolox, less than methalox, and the first tank rule (empty tank = propellant
+mass ÷ 8) gave density no advantage at all. Phil approved both changes ("yep
+perfect - make these changes"):
+
+1. **Tanks weigh by size, like stock.** Every storable or non-hydrogen recipe
+   weighs stock's 0.000625 t per unit of volume, a hydrogen mix CryoTanks'
+   0.000278904. Propellant per ton of tank: ClF5 12.2, fluorine 11.1, peroxide
+   10.9, nitric acid 10.4, FLOX 10.3, Aerozine 9.6, kerolox 8, syntin 7.6,
+   methalox 7.5, ethalox 7.4, hydrolox 7.2. Dense fuels now carry more
+   propellant per ton of tank, the real reason rockets use them.
+2. **Fuel prices up to about 4× kerolox's** to fill a tank, by performance:
+   ethalox 158, kerolox 184, nitric acid 220, peroxide 260, syntin 321, Aerozine
+   370, methalox 383, FLOX 550, ClF5 650, fluorine 740 (hydrolox 97). PIP sets the
+   prices of the Community Resource Pack resources its fuels use (UDMH,
+   IRFNA-III, HTP, Aerozine50, NTO, FLOX70, Hydrazine, ClF5, LqdFluorine) with
+   `:NEEDS[!RealFuels]:FINAL` patches, so they hold everywhere in the game
+   (launch, recovery, ISRU) and Real Fuels' economy is left alone. In Phil's
+   pack nothing else buys or sells them (Kerbalism only names hydrazine in
+   comments and the hypergolics in its engine-failure list). A Jumbo-64 of ClF5
+   now costs about 10,400 to fill.
+
+Rejected: cutting the price only in PIP's tanks (B9 tank-cost offsets). An empty
+tank would then cost less than nothing, and the fuel would refund at the full
+price when recovered from anywhere else.
 
 ## Looks and side-mount build (2026-11-04)
 

@@ -39,6 +39,10 @@ PIP contains **no code, models, textures or other files from anyone else.**
   code and configs are MIT licensed. PIP uses none of CryoTanks' art or code and
   doesn't need CryoTanks installed. Monopropellant tanks use B9PartSwitch's
   numbers. These are compatibility values, not copied code.
+- **Fuel prices:** PIP changes the price of nine Community Resource Pack
+  resources its fuels use (UDMH, IRFNA-III, HTP, Aerozine50, NTO, FLOX70,
+  Hydrazine, ClF5, LqdFluorine) with Module Manager patches in `Fuels.cfg`, for
+  every mod in the game, unless Real Fuels is installed. See FUELS.md.
 - **Real propellant data** (Isp, mixture ratios, densities) comes from public
   sources listed in [FUELS.md](FUELS.md): mainly Rocketdyne's figures as
   tabulated on Wikipedia, Braeunig's propellant tables, and Astronautix.

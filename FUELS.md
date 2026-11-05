@@ -14,22 +14,23 @@ before relying on it for anything but a game.
 Isp is at 100 Efficiency points, Mk. 5 (sea level / vacuum for the sea-level
 nozzle; vacuum for the vacuum nozzle). Thrust, engine price and thrust-to-weight
 are against kerolox's. "Fails to light" is a mature engine at 0 and 100
-Reliability points. "A full tank" is the fuel cost of a full FL-T400-sized tank
-(400 volume) at Community Resource Pack's prices.
+Reliability points. "Per ton of tank" is how many tons of propellant a full tank
+holds for each ton of empty tank. "A full tank" is what filling an FL-T400-sized
+tank (400 volume) costs.
 
-| Code | Fuel | Propellants | Unlocks at | Isp SL/vac | Vac. nozzle | Thrust | TWR | Engine price | Fails to light | Mix kg/L | A full tank | Tank |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| K | Kerolox | LiquidFuel + Oxidizer | first liquid engines | 310/340 | 385 | 1 | 24.5 | 1 | 2% → 0.1% | 1.00 | 184 | standard |
-| E | Ethalox | Ethanol75 + Oxidizer | first liquid engines | 288/317 | 358 | 0.9 | 21 | 0.7 | 1.5% → 0.08% | 0.92 | 158 | standard |
-| N | Nitric acid | UDMH + IRFNA-III | General Rocketry | 281/306 | 346 | 1.05 | 23 | 0.85 | 0.8% → 0.03% | 1.30 | 1,061 | standard |
-| P | Peroxide | LiquidFuel + HTP | Fuel Systems | 285/313 | 354 | 1 | 25 | 0.9 | 1.2% → 0.06% | 1.36 | 3,619 | standard |
-| A | Aerozine | Aerozine50 + NTO | Adv. Fuel Systems | 298/324 | 367 | 1.05 | 25 | 1.1 | 0.6% → 0.02% | 1.20 | 1,474 | standard |
-| H | Hydrolox | LqdHydrogen + Oxidizer | Adv. Fuel Systems | 380/425 | 475 | 0.9 | 22 | 1.3 | 2% → 0.1% | 0.30 | 97 | cryogenic |
-| S | Syntin | Syntin + Oxidizer | Large Volume Containment | 315/345 | 391 | 1.05 | 25.5 | 1.4 | 2% → 0.1% | 0.95 | 321 | standard |
-| M | Methalox | LqdMethane + Oxidizer | High-Performance Fuel Systems | 340/362 | 395 | 1.15 | 28 | 1.2 | 1.5% → 0.05% | 0.78 | 383 | cryogenic |
-| F | FLOX | LiquidFuel + FLOX70 | Specialized Fuel Storage | 356/383 | 434 | 1.1 | 24 | 1.6 | 1.2% → 0.06% | 1.29 | 9,152 | cryogenic |
-| C | ClF5 | Hydrazine + ClF5 | Exotic Fuel Storage | 324/347 | 393 | 1.15 | 24 | 1.8 | 0.8% → 0.03% | 1.53 | 19,432 | standard |
-| L | Fluorine | LqdHydrogen + LqdFluorine | Extreme Fuel Storage | 425/455 | 515 | 0.95 | 20 | 2.2 | 1.2% → 0.06% | 0.46 | 6,652 | cryogenic |
+| Code | Fuel | Propellants | Unlocks at | Isp SL/vac | Vac. nozzle | Thrust | TWR | Engine price | Fails to light | Mix kg/L | Per ton of tank | A full tank | Tank |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| K | Kerolox | LiquidFuel + Oxidizer | first liquid engines | 310/340 | 385 | 1 | 24.5 | 1 | 2% → 0.1% | 1.00 | 8 | 184 | standard |
+| E | Ethalox | Ethanol75 + Oxidizer | first liquid engines | 288/317 | 358 | 0.9 | 21 | 0.7 | 1.5% → 0.08% | 0.92 | 7.4 | 158 | standard |
+| N | Nitric acid | UDMH + IRFNA-III | General Rocketry | 281/306 | 346 | 1.05 | 23 | 0.85 | 0.8% → 0.03% | 1.30 | 10.4 | 220 | standard |
+| P | Peroxide | LiquidFuel + HTP | Fuel Systems | 285/313 | 354 | 1 | 25 | 0.9 | 1.2% → 0.06% | 1.36 | 10.9 | 260 | standard |
+| A | Aerozine | Aerozine50 + NTO | Adv. Fuel Systems | 298/324 | 367 | 1.05 | 25 | 1.1 | 0.6% → 0.02% | 1.20 | 9.6 | 370 | standard |
+| H | Hydrolox | LqdHydrogen + Oxidizer | Adv. Fuel Systems | 380/425 | 475 | 0.9 | 22 | 1.3 | 2% → 0.1% | 0.30 | 7.2 | 97 | cryogenic |
+| S | Syntin | Syntin + Oxidizer | Large Volume Containment | 315/345 | 391 | 1.05 | 25.5 | 1.4 | 2% → 0.1% | 0.95 | 7.6 | 321 | standard |
+| M | Methalox | LqdMethane + Oxidizer | High-Performance Fuel Systems | 340/362 | 395 | 1.15 | 28 | 1.2 | 1.5% → 0.05% | 0.78 | 7.5 | 383 | cryogenic |
+| F | FLOX | LiquidFuel + FLOX70 | Specialized Fuel Storage | 356/383 | 434 | 1.1 | 24 | 1.6 | 1.2% → 0.06% | 1.29 | 10.3 | 550 | cryogenic |
+| C | ClF5 | Hydrazine + ClF5 | Exotic Fuel Storage | 324/347 | 393 | 1.15 | 24 | 1.8 | 0.8% → 0.03% | 1.53 | 12.2 | 650 | standard |
+| L | Fluorine | LqdHydrogen + LqdFluorine | Extreme Fuel Storage | 425/455 | 515 | 0.95 | 20 | 2.2 | 1.2% → 0.06% | 0.46 | 11.1 | 740 | cryogenic |
 
 Kerolox, hydrolox and methalox keep the numbers PIP had before the table; the
 other eight are made from the real data. In KSP's own convention, `LiquidFuel` is
@@ -37,13 +38,29 @@ kerosene and `Oxidizer` is liquid oxygen, so the fuels that burn those use them.
 
 **Things worth knowing before you pick:**
 - The self-igniting fuels (nitric acid, Aerozine, ClF5) are the surest to light.
-- Dense fuels (nitric acid, peroxide, Aerozine, ClF5) put more propellant in the
-  same tank: a smaller stage for the same mass.
-- Hydrogen fuels are bulky: a hydrolox tank holds 40% of the mass a kerolox tank of the same size does.
-- **Propellant prices are Community Resource Pack's**, which are close to real
-  prices per liter. Kerolox, ethalox, syntin and the cryogenic stock-style fuels
-  are cheap to fill. Peroxide, FLOX, ClF5 and fluorine cost 20 to 100 times as
-  much. That's realistic, but it may want tuning for KSP's economy.
+- **Dense fuels win on mass.** A tank weighs what its size says, whatever it holds
+  (as stock tanks do), so dense fuels carry more propellant per ton of tank:
+  ClF5 12 tons per ton of tank, kerolox 8, ethalox 7.4. That's the real reason
+  rockets use dense fuels. Light fuels are cheap or efficient instead.
+- Hydrogen fuels are bulky: a hydrolox tank holds 40% of the mass a kerolox tank
+  of the same size does.
+- **Prices rise with performance, up to about 4 times kerolox's** to fill a tank.
+  Community Resource Pack's own prices are close to real per liter and would make
+  the exotic fuels 6 to 100 times dearer (a Jumbo-64 of ClF5: 311,000), so PIP
+  sets the prices of the resources its fuels use (below). Stock fuels, hydrogen and
+  methane keep theirs. With Real Fuels installed, Real Fuels' prices stand.
+
+| Resource | Community Resource Pack | PIP |
+|---|---|---|
+| UDMH | 0.791 | 0.164 |
+| IRFNA-III | 0.348 | 0.072 |
+| HTP | 2.147 | 0.124 |
+| Aerozine50 | 1.35 | 0.339 |
+| NTO | 0.218 | 0.055 |
+| FLOX70 | 6.185 | 0.317 |
+| Hydrazine | 2.008 | 0.067 |
+| ClF5 | 15.2 | 0.508 |
+| LqdFluorine | 9.03 | 0.918 |
 
 ### Boil-off
 
@@ -96,12 +113,15 @@ that use it (DESIGN.md 19.4).
   at 1 kg/L; Community Resource Pack's are 1 L units at their real density). The
   tank recipe holds the same mix, so both run out together.
 - **Tank size and weight:** 5 liters per unit of tank volume (stock's), or 6.66
-  for a hydrogen mix (CryoTanks'). The empty tank weighs the propellant's mass
-  divided by 8 (an FL-T400 holds 8 times its own mass), 7.5 for a cryogenic mix,
-  and 7.24 for a hydrogen mix (insulation weighs).
-- **Thrust, weight, price, failures and tech node:** game choices, not physics.
-  Denser fuels get a little more thrust; self-igniting ones fail to light less;
-  exotic ones cost more and come late in the tree.
+  for a hydrogen mix (CryoTanks'). The empty tank weighs by its size, not its
+  contents: stock's 0.000625 t per unit of volume, or CryoTanks' 0.000278904 for a
+  hydrogen mix. So propellant per ton of tank follows density.
+- **Fuel prices:** each fuel has a target cost to fill an FL-T400-sized tank;
+  its own resources' prices are scaled by one factor to hit it (stock fuels,
+  hydrogen and methane are never repriced).
+- **Thrust, weight, engine price, failures and tech node:** game choices, not
+  physics. Denser fuels get a little more thrust; self-igniting ones fail to light
+  less; exotic ones cost more and come late in the tree.
 
 ## Adding a fuel
 

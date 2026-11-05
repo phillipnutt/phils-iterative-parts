@@ -369,6 +369,22 @@ foreach ($b in $blocks) {
 }
 Check 'Fuels.cfg: windows rise with points, tanks exist, K/H/M match the code' ($problems -join '; ') ''
 
+# Section 19.6: tanks weigh by size, and filling a tank costs at most ~4x kerolox.
+$tanks = @{}
+foreach ($m in [regex]::Matches($cfg, '(?ms)^B9_TANK_TYPE\s*\{\s*name = (\S+)\s*tankMass = (\S+)(.*?)^\}')) {
+    $units = @{}; foreach ($r in [regex]::Matches($m.Groups[3].Value, 'name = (\S+)\s*unitsPerVolume = (\S+)')) { $units[$r.Groups[1].Value] = [double]$r.Groups[2].Value }
+    $tanks[$m.Groups[1].Value] = @{ mass = [double]$m.Groups[2].Value; units = $units }
+}
+$prices = @{ LiquidFuel = 0.8; Oxidizer = 0.18; LqdHydrogen = 0.03675; LqdMethane = 0.45; Ethanol75 = 0.12624; Syntin = 0.4255 }
+foreach ($m in [regex]::Matches($cfg, '(?ms)^@RESOURCE_DEFINITION\[(\S+)\]:NEEDS\[!RealFuels\]:FINAL\s*\{\s*@unitCost = (\S+)')) { $prices[$m.Groups[1].Value] = [double]$m.Groups[2].Value }
+function Fill($type) { $s = 0; foreach ($kv in $tanks[$type].units.GetEnumerator()) { $s += 400 * $kv.Value * $prices[$kv.Key] }; [Math]::Round($s) }
+Check 'storable tanks weigh by size, like stock' (($tanks.Keys | Where-Object { $_ -ne 'PIP-L-MIX' } | ForEach-Object { $tanks[$_].mass } | Sort-Object -Unique) -join ',') '0.000625'
+Check 'a hydrogen mix weighs as CryoTanks hydrolox' $tanks['PIP-L-MIX'].mass 0.000278904
+Check 'ClF5 carries 12 tons per ton of tank' ((2.0785 * 1.004 + 2.9215 * 1.9) * 5 / 5 / 0.625 / 1) 12.2 0.05
+Check 'filling an FL-T400: nitric, peroxide, Aerozine, FLOX, ClF5, fluorine' "$(Fill 'PIP-N-MIX'),$(Fill 'PIP-P-MIX'),$(Fill 'PIP-A-MIX'),$(Fill 'PIP-F-MIX'),$(Fill 'PIP-C-MIX'),$(Fill 'PIP-L-MIX')" '220,260,370,550,650,740'
+Check 'nothing costs more than ~4x kerolox to fill' (($tanks.Keys | ForEach-Object { Fill $_ } | Measure-Object -Maximum).Maximum -le 4.1 * 184) $true
+Check 'a Jumbo-64 of ClF5' ((Fill 'PIP-C-MIX') * 16) 10400
+
 Write-Host 'Plumes (section 19.4)'
 $Plumes = T 'Plumes'; $PlumeSet = T 'PlumeSet'
 function Set-Plume($code, [string[]]$match, $roles) {

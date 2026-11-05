@@ -15,14 +15,17 @@ $inv = [Globalization.CultureInfo]::InvariantCulture
 function N([double]$v, [int]$d = 4) { [Math]::Round($v, $d).ToString($inv) }
 function G([double]$v) { $v.ToString('G6', $inv) }
 
-# Resources: liters per unit (stock's are 5 L) and kg per liter. In KSP's own
-# convention LiquidFuel stands for kerosene and Oxidizer for liquid oxygen.
+# Resources: liters per unit (stock's are 5 L), kg per liter, and price per unit
+# (stock's, or Community Resource Pack's). In KSP's own convention LiquidFuel stands
+# for kerosene and Oxidizer for liquid oxygen.
 $res = @{
-    LiquidFuel = @(5, 1.0); Oxidizer = @(5, 1.0)
-    LqdHydrogen = @(1, 0.07085); LqdMethane = @(1, 0.42561); LqdFluorine = @(1, 1.505); FLOX70 = @(1, 1.3993)
-    Ethanol75 = @(1, 0.84175); UDMH = @(1, 0.791); 'IRFNA-III' = @(1, 1.658); HTP = @(1, 1.431)
-    Aerozine50 = @(1, 0.9); NTO = @(1, 1.45); Syntin = @(1, 0.851); Hydrazine = @(1, 1.004); ClF5 = @(1, 1.9)
+    LiquidFuel = @(5, 1.0, 0.8); Oxidizer = @(5, 1.0, 0.18)
+    LqdHydrogen = @(1, 0.07085, 0.03675); LqdMethane = @(1, 0.42561, 0.45); LqdFluorine = @(1, 1.505, 9.03); FLOX70 = @(1, 1.3993, 6.184906)
+    Ethanol75 = @(1, 0.84175, 0.12624); UDMH = @(1, 0.791, 0.791); 'IRFNA-III' = @(1, 1.658, 0.34818); HTP = @(1, 1.431, 2.1465)
+    Aerozine50 = @(1, 0.9, 1.35); NTO = @(1, 1.45, 0.2175); Syntin = @(1, 0.851, 0.4255); Hydrazine = @(1, 1.004, 2.008); ClF5 = @(1, 1.9, 15.2)
 }
+# Prices PIP never changes: stock's, and the hydrogen and methane CryoTanks priced.
+$keepPrice = @('LiquidFuel', 'Oxidizer', 'LqdHydrogen', 'LqdMethane')
 
 # Kerolox's Isp windows (Core/Fuels.cs): per nozzle, sea level at 0 and 100 points,
 # vacuum at 0 and 100 points. Every other fuel's are these times its real Isp over
@@ -38,21 +41,24 @@ $keroloxReal = @(299.9, 357.9)
 #  thrust (x kerolox's), engine thrust-to-weight at 100 weight points, build price (x kerolox's),
 #  fail to light at 0 / 100 reliability points (mature)
 #  tank kind (S standard, C cryogenic) and recipe name; R&D entry name and title
+#  fill: what filling an FL-T400-sized tank costs (kerolox 184), where Community
+#  Resource Pack's prices would make it 6 to 100 times kerolox's (Phil, 11/5: price
+#  should vary with how good a fuel is, "but surely not to that extent")
 $fuels = @(
     @{ code = 'E'; title = 'Ethalox'; tech = ''; note = 'Alcohol and liquid oxygen, as in the V-2 and Redstone: cheap and forgiving, but weak.'
        fuel = 'Ethanol75'; ox = 'Oxidizer'; of = 1.3; real = @(279.1, 333.2)
        thrust = 0.9; twr = 21; price = 0.7; fail = @(0.015, 0.0008); tank = 'S'; tankName = 'Ethalox'; tankTitle = 'Eth/Ox' }
     @{ code = 'N'; title = 'Nitric acid'; tech = 'generalRocketry'; note = 'Nitric acid and UDMH, as in the Agena and Scud: storable and self-igniting, so it rarely fails to light. Low Isp.'
        fuel = 'UDMH'; ox = 'IRFNA-III'; of = 3.0; real = @(272.1, 321.9)
-       thrust = 1.05; twr = 23; price = 0.85; fail = @(0.008, 0.0003); tank = 'S'; tankName = 'UDMH/IRFNA'; tankTitle = 'UDMH/IRFNA'
+       thrust = 1.05; twr = 23; price = 0.85; fail = @(0.008, 0.0003); tank = 'S'; tankName = 'UDMH/IRFNA'; tankTitle = 'UDMH/IRFNA'; fill = 220
        rd = @('PIP-NitricAcid', 'Nitric acid', 'Liquid engine programs can burn nitric acid and UDMH: storable, self-igniting, low Isp.') }
-    @{ code = 'P'; title = 'Peroxide'; tech = 'fuelSystems'; note = 'High-test peroxide and kerosene, as in Black Arrow: dense, and a catalyst lights it reliably. Below kerolox, and peroxide is dear.'
+    @{ code = 'P'; title = 'Peroxide'; tech = 'fuelSystems'; note = 'High-test peroxide and kerosene, as in Black Arrow: dense, and a catalyst lights it reliably. A little below kerolox.'
        fuel = 'LiquidFuel'; ox = 'HTP'; of = 7.0; real = @(276, 329)
-       thrust = 1.0; twr = 25; price = 0.9; fail = @(0.012, 0.0006); tank = 'S'; tankName = 'LF/HTP'; tankTitle = 'LF/HTP'
+       thrust = 1.0; twr = 25; price = 0.9; fail = @(0.012, 0.0006); tank = 'S'; tankName = 'LF/HTP'; tankTitle = 'LF/HTP'; fill = 260
        rd = @('PIP-Peroxide', 'Peroxide', 'Liquid engine programs can burn high-test peroxide and kerosene: dense and reliable to light.') }
     @{ code = 'A'; title = 'Aerozine'; tech = 'advFuelSystems'; note = 'Aerozine-50 and NTO, as in Titan II and the Apollo service engine: storable, self-igniting, the surest to light. A little below kerolox.'
        fuel = 'Aerozine50'; ox = 'NTO'; of = 1.9; real = @(288.7, 341.5)
-       thrust = 1.05; twr = 25; price = 1.1; fail = @(0.006, 0.0002); tank = 'S'; tankName = 'A50/NTO'; tankTitle = 'A-50/NTO'
+       thrust = 1.05; twr = 25; price = 1.1; fail = @(0.006, 0.0002); tank = 'S'; tankName = 'A50/NTO'; tankTitle = 'A-50/NTO'; fill = 370
        rd = @('PIP-Aerozine', 'Aerozine', 'Liquid engine programs can burn Aerozine-50 and NTO: storable, self-igniting, the surest to light.') }
     @{ code = 'S'; title = 'Syntin'; tech = 'largeVolumeContainment'; note = 'Synthetic kerosene and liquid oxygen, as in Soyuz-U2: a little more Isp and thrust than kerolox, for a price.'
        fuel = 'Syntin'; ox = 'Oxidizer'; of = 2.5; real = @(304.4, 363.3)
@@ -60,32 +66,52 @@ $fuels = @(
        rd = @('PIP-Syntin', 'Syntin', 'Liquid engine programs can burn syntin: a little better than kerolox, for a price.') }
     @{ code = 'F'; title = 'FLOX'; tech = 'specializedFuelStorage'; note = 'Kerosene and FLOX-70 (fluorine in liquid oxygen), tested for Atlas: methalox-beating Isp from kerosene. Cryogenic, costly.'
        fuel = 'LiquidFuel'; ox = 'FLOX70'; of = 3.84; real = @(344.4, 403.3)
-       thrust = 1.1; twr = 24; price = 1.6; fail = @(0.012, 0.0006); tank = 'C'; tankName = 'LF/FLOX'; tankTitle = 'LF/FLOX'
+       thrust = 1.1; twr = 24; price = 1.6; fail = @(0.012, 0.0006); tank = 'C'; tankName = 'LF/FLOX'; tankTitle = 'LF/FLOX'; fill = 550
        rd = @('PIP-Flox', 'FLOX', 'Liquid engine programs can burn kerosene and FLOX-70: better Isp than methalox, cryogenic and costly.') }
-    @{ code = 'C'; title = 'ClF5'; tech = 'exoticFuelStorage'; note = 'Hydrazine and chlorine pentafluoride: dense, storable, self-igniting and efficient. Never flown; the oxidizer is very costly.'
+    @{ code = 'C'; title = 'ClF5'; tech = 'exoticFuelStorage'; note = 'Hydrazine and chlorine pentafluoride: dense, storable, self-igniting and efficient. Never flown; the densest and most thrust per engine, at a price.'
        fuel = 'Hydrazine'; ox = 'ClF5'; of = 2.66; real = @(313.0, 365.1)
-       thrust = 1.15; twr = 24; price = 1.8; fail = @(0.008, 0.0003); tank = 'S'; tankName = 'N2H4/ClF5'; tankTitle = 'N2H4/ClF5'
-       rd = @('PIP-Clf5', 'ClF5', 'Liquid engine programs can burn hydrazine and ClF5: dense, storable and efficient, with a very costly oxidizer.') }
-    @{ code = 'L'; title = 'Fluorine'; tech = 'extremeFuelStorage'; note = 'Liquid fluorine and hydrogen: the highest Isp of any chemical rocket. Both boil off; fluorine is very costly.'
+       thrust = 1.15; twr = 24; price = 1.8; fail = @(0.008, 0.0003); tank = 'S'; tankName = 'N2H4/ClF5'; tankTitle = 'N2H4/ClF5'; fill = 650
+       rd = @('PIP-Clf5', 'ClF5', 'Liquid engine programs can burn hydrazine and ClF5: the densest and punchiest storable fuel, at a price.') }
+    @{ code = 'L'; title = 'Fluorine'; tech = 'extremeFuelStorage'; note = 'Liquid fluorine and hydrogen: the highest Isp of any chemical rocket. Both boil off, and it is costly.'
        fuel = 'LqdHydrogen'; ox = 'LqdFluorine'; of = 8.0; real = @(411.6, 479.0)
-       thrust = 0.95; twr = 20; price = 2.2; fail = @(0.012, 0.0006); tank = 'C'; tankName = 'LH2/LF2'; tankTitle = 'LH2/LF2'
+       thrust = 0.95; twr = 20; price = 2.2; fail = @(0.012, 0.0006); tank = 'C'; tankName = 'LH2/LF2'; tankTitle = 'LH2/LF2'; fill = 740
        rd = @('PIP-Fluorine', 'Fluorine', 'Liquid engine programs can burn fluorine and hydrogen: the highest Isp of any chemical rocket.') }
 )
 
 # Tank recipes hold the engine's mix, so both run out together.
 # Liters per unit of tank volume (an FL-T400 is 400): stock's 5, or CryoTanks' 6.66
-# for a hydrogen mix (hydrogen is bulky). Empty tank mass: the propellant mass
-# divided by stock's 8 (an FL-T400 holds 8x its own mass), or by CryoTanks' 7.5 for
-# a cryogenic mix and 7.24 for a hydrogen one (insulation weighs).
+# for a hydrogen mix (hydrogen is bulky). The empty tank weighs what its size says,
+# whatever is in it, as stock's do (Phil, 11/5): stock's 0.000625 t per unit of
+# volume, or CryoTanks' 0.000278904 for a hydrogen mix. So a dense fuel carries more
+# propellant per ton of tank, which is why real rockets use dense fuels: ClF5 12
+# times its tank's mass, kerolox 8, ethalox 7.4.
 function TankRecipe($f) {
     $fu = $res[$f.fuel]; $ox = $res[$f.ox]
     $lf = 1 / $fu[1]; $lo = $f.of / $ox[1]                    # liters per kg of fuel
     $hydrogen = $f.fuel -eq 'LqdHydrogen' -or $f.ox -eq 'LqdHydrogen'
     $litres = if ($hydrogen) { 6.66 } else { 5 }
-    $div = if ($hydrogen) { 7.24 } elseif ($f.tank -eq 'C') { 7.5 } else { 8 }
     $mix = (1 + $f.of) / ($lf + $lo)                           # kg per liter
-    @{ fuelUnits = $litres * $lf / ($lf + $lo) / $fu[0]; oxUnits = $litres * $lo / ($lf + $lo) / $ox[0]
-       tankMass = $litres * $mix / 1000 / $div; mix = $mix }
+    $tankMass = if ($hydrogen) { 0.000278904 } else { 0.000625 }
+    $fuelUnits = $litres * $lf / ($lf + $lo) / $fu[0]; $oxUnits = $litres * $lo / ($lf + $lo) / $ox[0]
+    @{ fuelUnits = $fuelUnits; oxUnits = $oxUnits; tankMass = $tankMass; mix = $mix
+       ratio = $litres * $mix / 1000 / $tankMass                 # propellant : empty tank, by mass
+       fillAtCrp = 400 * ($fuelUnits * $fu[2] + $oxUnits * $ox[2]) }
+}
+
+# The new prices: a fuel's own resources (not stock's, hydrogen or methane) all
+# scaled by one factor so that filling an FL-T400-sized tank costs its "fill".
+# Returns name -> new price per unit.
+function Prices($f) {
+    $t = TankRecipe $f
+    $parts = @(@($f.fuel, $t.fuelUnits), @($f.ox, $t.oxUnits))
+    $fixed = 0; $scaled = 0
+    foreach ($p in $parts) { $c = 400 * $p[1] * $res[$p[0]][2]; if ($keepPrice -contains $p[0]) { $fixed += $c } else { $scaled += $c } }
+    if (-not $f.fill -or $scaled -le 0) { return @{} }
+    $k = ($f.fill - $fixed) / $scaled
+    if ($k -le 0) { throw "$($f.code): can't fill for $($f.fill) with $($f.fuel)/$($f.ox)" }
+    $out = @{}
+    foreach ($p in $parts) { if ($keepPrice -notcontains $p[0]) { $out[$p[0]] = $res[$p[0]][2] * $k } }
+    $out
 }
 
 L '// Generated by Tools\Generate-Fuels.ps1. Edit that script, not this file.'
@@ -221,6 +247,23 @@ foreach ($tt in $tankTypes) {
 }
 L ''
 
+L '// Prices. Community Resource Pack''s are near real, which makes filling a tank with'
+L '// the exotic fuels 6 to 100 times dearer than kerolox (ClF5: 19,432 for an'
+L '// FL-T400). PIP sets these resources'' prices so a fuel costs what its'
+L '// performance is worth (FUELS.md), everywhere in the game. Real Fuels keeps its own.'
+$priced = @{}
+foreach ($f in $fuels) {
+    foreach ($kv in (Prices $f).GetEnumerator()) {
+        if ($priced.ContainsKey($kv.Key)) { throw "$($kv.Key) is priced by two fuels" }
+        $priced[$kv.Key] = $kv.Value
+        L "@RESOURCE_DEFINITION[$($kv.Key)]:NEEDS[!RealFuels]:FINAL"
+        L '{'
+        L "    @unitCost = $($kv.Value.ToString('0.#####', $inv))"
+        L '}'
+    }
+}
+L ''
+
 L '// R&D shows each fuel at its tech node.'
 foreach ($f in $fuels) {
     if (-not $f.rd) { continue }
@@ -248,4 +291,13 @@ Write-Host '| Fuel | Tech | Isp SL/vac, sea-level nozzle | vacuum nozzle | mix k
 foreach ($f in $fuels) {
     $rs = $f.real[0] / $keroloxReal[0]; $rv = $f.real[1] / $keroloxReal[1]; $t = TankRecipe $f
     Write-Host "| $($f.title) | $($f.tech) | $([Math]::Round(310 * $rs))/$([Math]::Round(340 * $rv)) | $([Math]::Round(385 * $rv)) | $(N $t.mix 2) | $($f.thrust) | $($f.twr) | $($f.price) | $($f.fail[0] * 100)% to $($f.fail[1] * 100)% |"
+}
+
+# Tanks and prices, for FUELS.md: propellant per ton of tank, and filling an FL-T400.
+Write-Host ''
+Write-Host '| Fuel | propellant : tank | fill at CRP prices | fill at PIP prices | new prices |'
+foreach ($f in $fuels) {
+    $t = TankRecipe $f; $p = Prices $f
+    $now = if ($f.fill) { $f.fill } else { [Math]::Round($t.fillAtCrp) }
+    Write-Host "| $($f.title) | $(N $t.ratio 1) | $([Math]::Round($t.fillAtCrp)) | $now | $(($p.GetEnumerator() | ForEach-Object { "$($_.Key) $($_.Value.ToString('0.###', $inv))" }) -join ', ') |"
 }
