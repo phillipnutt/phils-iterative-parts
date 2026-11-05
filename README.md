@@ -1,5 +1,11 @@
 # Phil's Iterative Parts (PIP)
 
+> **This mod was written by an AI.** Every line of code, every config and these
+> docs were written by Claude, Anthropic's AI, at Phil Nutt's direction. Phil
+> designed it and play-tests it, but he isn't a programmer and no human has
+> reviewed the code. It's experimental: back up your saves. Details in
+> [NOTICE.md](NOTICE.md).
+
 A Kerbal Space Program 1.12 mod. Instead of unlocking finished parts, you start
 **development programs**: pick a design (fuel, size, nozzle…), spend points on
 what matters (thrust, efficiency, weight, reliability…), and the program gets
@@ -52,6 +58,19 @@ charges for a program it can't make a part for.
 - A save that was already under way before PIP was installed gets every type
   **Off**, so its stock parts stay as they are. Switch types on there if you
   want them.
+
+## License and credits
+
+- **License:** MIT, see [LICENSE](LICENSE). It applies to the extent the work can
+  be copyrighted; AI-written work may have limited copyright protection.
+- **Written by:** Claude (Anthropic), directed by Phil Nutt. Phil designed the
+  mod and tests it; the code is entirely AI-written and hasn't been reviewed by
+  a human programmer.
+- **Includes nothing from anyone else:** no other mod's code, models or
+  textures, and no KSP assets. The mods PIP needs are installed separately.
+  Parts copy what's already installed in your game. See [NOTICE.md](NOTICE.md).
+- Unofficial fan-made mod; not affiliated with the makers of Kerbal Space
+  Program or of the mods it works with.
 
 ## Building
 

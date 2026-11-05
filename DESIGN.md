@@ -1,5 +1,9 @@
 # PIP: Phil's Iterative Parts — Engine Spec (v1)
 
+> Written by an AI: this design log, and all of PIP's code, were written by
+> Claude (Anthropic) at Phil Nutt's direction. The decisions recorded here are
+> Phil's; the wording and the code are Claude's. See [NOTICE.md](NOTICE.md).
+
 Status: **first draft built and flight-tested**, 2026-11-03 (see "First draft
 status" at the end). This replaces the old "Iterative Development" design
 (design blocks and development points); that version is retired.

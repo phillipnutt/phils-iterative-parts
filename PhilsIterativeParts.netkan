@@ -2,12 +2,13 @@
     "spec_version": "v1.4",
     "identifier": "PhilsIterativeParts",
     "name": "Phil's Iterative Parts",
-    "abstract": "Parts as development programs that improve as you fly them, Mk. 1 to Mk. 5, version after version.",
+    "abstract": "Parts as development programs that improve as you fly them, Mk. 1 to Mk. 5, version after version. AI-written (Claude).",
+    "description": "Written entirely by an AI (Claude, by Anthropic) at the author's direction; the author designed and play-tests it but is not a programmer, and the code has not been reviewed by a human. Experimental: back up your saves. Includes no other mod's files or KSP assets.",
     "author": "phillipnutt",
     "$kref": "#/ckan/github/phillipnutt/phils-iterative-parts",
     "ksp_version_min": "1.12.3",
     "ksp_version_max": "1.12.5",
-    "license": "restricted",
+    "license": "MIT",
     "install": [
         { "find": "PIP", "install_to": "GameData" }
     ],
