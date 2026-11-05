@@ -156,15 +156,23 @@ Cheap up front, then a long climb.
 
 | Event | Experience |
 |---|---|
-| A launch where this program's engine fires after leaving the pad | +1 |
-| A recovery of a vessel carrying an engine from this program that fired that flight | +1 |
+| Each engine from this program that fires after leaving the pad | +1 |
+| Each of those engines recovered | +1 |
 
-- One launch counts **once per program**, however many of its engines are
-  aboard (nine engines on a booster = +1).
+- **Each part counts** (Phil, 2026-11-05: "Each part counts"). Nine engines on
+  a booster = +9 for the launch and +9 if they're recovered. This replaces
+  "once per program per launch", which Claude had proposed and Phil never
+  decided. Other PIP parts (batteries, tanks, probes...) count the same way:
+  each one that leaves the pad, and each one recovered.
+- Each part counts once per launch, however many times it fires.
 - A static fire on the pad doesn't count.
 - **Boosters recovered by StageRecovery count** as recoveries.
 - Reverting a flight takes back its experience, the same way revert takes back
   everything else.
+- **Not built yet.** The build still counts once per program per launch, and
+  recoveries are de-duplicated by the ship's ID, which KSP reuses when the same
+  craft is relaunched, so a relaunch's recovery is lost. Both are fixed together:
+  count per part, keyed by launch.
 
 ### Experience needed (Fibonacci)
 
@@ -173,8 +181,9 @@ Cheap up front, then a long climb.
 | Step | 1 | 1 | 2 | 3 | 5 | 8 | 13 | 21 | 34 | 55 |
 | Total | 1 | 2 | 4 | 7 | 12 | 20 | 33 | 54 | 88 | 143 |
 
-Mk. 10 is about 72 flights that are launched and recovered, or 143 one-way
-launches.
+For a single engine, Mk. 10 is about 72 flights that are launched and
+recovered, or 143 one-way launches. Clusters get there faster: a recovered
+9-engine booster earns 18 a flight, so about 8 flights.
 
 ### How good each Mk. is
 
@@ -760,8 +769,9 @@ engines unless a line here says otherwise.
   of stock ones in the parts list. Windows below are given for each size, or
   as "× today's part of that size".
 - **No failures.** Failing to light stays an engine thing.
-- **Experience:** the same. A program earns +1 when its part is on a vessel
-  that leaves the pad (once per launch), and +1 when one is recovered.
+- **Experience:** the same. A program earns +1 for each of its parts on a
+  vessel that leaves the pad, and +1 for each one recovered (section 5, "Each
+  part counts", 2026-11-05).
 - **Price:** the same rule, 1,000 × 1.01^points, with no family factor. Fewer
   categories means a cheaper maxed program:
 
