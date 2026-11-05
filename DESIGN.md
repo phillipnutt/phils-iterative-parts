@@ -1697,7 +1697,8 @@ Left as is: the PIP unlock entries ("PIP: Liquid-Fuel Engines" and so on) still
 appear in R&D nodes in such a game; they cost nothing and unlock nothing there.
 
 **Repository:** the source is in Git and pushed to the private GitHub repo
-https://github.com/phillipnutt/phils-iterative-parts (first commit 66ed3ec).
+https://github.com/phillipnutt/phils-iterative-parts, on Phil's personal account
+(phillipnutt). Commits use his personal GitHub no-reply email.
 
 ## First draft status (2026-11-03)
 
