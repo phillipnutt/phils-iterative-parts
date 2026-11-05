@@ -57,11 +57,12 @@ namespace PIP
             Free ? 0 : Math.Round(Pricing.ProgramCost(points.Sum(), type.PriceFactor, PipSettings.Prices));
 
         public Program Create(string name, PartType type, string[] model, int[] points, out string error) =>
-            Create(name, type, model, points, "", "", out error);
+            Create(name, type, model, points, "", "", type.DefaultVariant(model), out error);
 
         // look / sideLook: the installed parts the program wears (empty: PIP's own model,
-        // and the default side-mount look). Fixed for the program's life.
-        public Program Create(string name, PartType type, string[] model, int[] points, string look, string sideLook, out string error)
+        // and the default side-mount look). variant: its size, in-line or side-mount
+        // ("R..."), for types that have sizes. All fixed for the program's life.
+        public Program Create(string name, PartType type, string[] model, int[] points, string look, string sideLook, string variant, out string error)
         {
             error = null;
             name = (name ?? "").Replace("{", "").Replace("}", "").Replace("//", "/").Replace(",", "").Trim();
@@ -73,6 +74,14 @@ namespace PIP
             }
             if (!PipSettings.On(type)) { error = $"{type.Title} are off in this game."; return null; }
             if (!TechUnlocks.Available(type, model)) { error = "That model isn't unlocked yet."; return null; }
+            bool sized = type.Variants(model) != null, side = sized && PartType.IsSide(variant);
+            if (sized)
+            {
+                if (type.VariantOption(model, variant) == null) { error = "Pick a size."; return null; }
+                if (!TechUnlocks.Available(type, model, variant)) { error = $"Research {TechUnlocks.Missing(type, model, variant)} for that size."; return null; }
+                if (side && (string.IsNullOrEmpty(sideLook) || !Looks.Exists(type, true, sideLook, model))) { error = "No side-mount look is installed for this."; return null; }
+            }
+            else variant = "";
             // Never charge for a part that can't be made (DESIGN.md section 17).
             if (!PartFactory.Made(type, model)) { error = $"That model needs {PartFactory.Needs(type, model)}, which isn't installed."; return null; }
             if (!string.IsNullOrEmpty(look) && !Looks.Exists(type, false, look, model)) { error = "That look isn't installed, or doesn't suit this model."; return null; }
@@ -99,8 +108,10 @@ namespace PIP
             if (cost > 0) Funding.Instance?.AddFunds(-cost, TransactionReasons.RnDPartPurchase);
 
             Program program = Program.Create(Program.NewId(), name, type, model, points, Planetarium.GetUniversalTime(), cost);
-            program.Look = look ?? "";
-            program.SideLook = sideLook ?? "";
+            // A side-mount program wears only its side look, an in-line one only its look.
+            program.Look = side ? "" : look ?? "";
+            program.SideLook = side ? sideLook ?? "" : "";
+            program.Variant = variant ?? "";
             Programs.Add(program);
             PartFactory.EnsurePurchased(new[] { program });
             RefreshEditor();
@@ -137,30 +148,30 @@ namespace PIP
             }
         }
 
-        // A recovered vessel is worth 1 to each program with a part aboard that
-        // flew on that flight (an engine that fired after leaving the pad).
-        // StageRecovery recoveries arrive through the same event.
+        // Each recovered part is worth 1 to its program, if it flew on that flight
+        // (an engine that fired after leaving the pad), once per part per flight
+        // (DESIGN.md section 5). Keyed by the part's launch, not the vessel: KSP
+        // gives a relaunched craft the same vessel ID. StageRecovery recoveries
+        // arrive through the same event.
         void OnVesselRecovered(ProtoVessel vessel, bool quick)
         {
             if (vessel?.protoPartSnapshots == null) return;
-            var ids = new HashSet<string>();
+            var gained = new Dictionary<Program, int[]>();   // { Mk before, parts counted }
             foreach (ProtoPartSnapshot part in vessel.protoPartSnapshots)
                 foreach (ProtoPartModuleSnapshot m in part.modules)
                 {
                     if (m.moduleValues == null) continue;
                     string flag = m.moduleName == nameof(ModulePipEngine) ? "fired" : m.moduleName == nameof(ModulePipPart) ? "flew" : null;
-                    if (flag == null) continue;
-                    string id = m.moduleValues.GetValue("programId");
-                    if (!string.IsNullOrEmpty(id) && string.Equals(m.moduleValues.GetValue(flag), "True", StringComparison.OrdinalIgnoreCase))
-                        ids.Add(id);
+                    if (flag == null || !string.Equals(m.moduleValues.GetValue(flag), "True", StringComparison.OrdinalIgnoreCase)) continue;
+                    Program p = Find(m.moduleValues.GetValue("programId"));
+                    if (p == null) continue;
+                    int before = p.Mk;
+                    if (!p.RecordRecovery(Program.PartKey(part.launchID, part.flightID))) continue;
+                    if (gained.TryGetValue(p, out int[] g)) g[1]++;
+                    else gained[p] = new[] { before, 1 };
                 }
-            foreach (string id in ids)
-            {
-                Program p = Find(id);
-                if (p == null) continue;
-                int before = p.Mk;
-                if (p.RecordRecovery(vessel.persistentId)) Announce(p, before, "recovery logged");
-            }
+            foreach (KeyValuePair<Program, int[]> g in gained)
+                Announce(g.Key, g.Value[0], g.Value[1] == 1 ? "recovery logged" : $"{g.Value[1]} parts recovered");
         }
 
         #endregion

@@ -99,7 +99,7 @@ namespace PIP
         // Why a program has no part right now, or null when it has one.
         public static string Problem(Program p)
         {
-            if (p == null || made.ContainsKey(p.PartName)) return null;
+            if (p == null || made.ContainsKey(p.PartName) || made.ContainsKey(p.SidePartName)) return null;
             return Made(p.Type, p.Model) ? null : $"Its model needs {Needs(p.Type, p.Model)}, which isn't installed, so it has no part right now.";
         }
 
@@ -125,23 +125,39 @@ namespace PIP
             return dot < 0 ? rest : rest.Substring(0, dot);
         }
 
-        // The variant a part shows in the parts list: the side-mount part's own sizes.
+        // The size a part is: its program's own; for programs from before sizes were
+        // fixed, the side-mount part's first size (the in-line part's is picked on it).
         public static string ListVariant(Program p, string partName) =>
-            IsSidePart(partName) ? p.Type.DefaultSideVariant(p.Model) : null;
+            p.FixedSize ? p.Variant : IsSidePart(partName) ? p.Type.DefaultSideVariant(p.Model) : null;
 
         // Makes (or refreshes) the parts for a program. Safe to call repeatedly.
+        // A program with its own size makes one part, in-line or side-mount
+        // (DESIGN.md section 14); older programs make both, sized on the part.
         public static AvailablePart Ensure(Program p)
         {
             if (p == null || PartLoader.Instance == null) return null;
-            AvailablePart ap = Make(p, p.PartName, InlineChassis(p));
-            if (p.Type.HasSideMount && p.Type.HasLooks)
+            if (p.FixedSize && p.IsSide)
             {
-                // A program without a side-mount look gets the default one, kept from then on.
-                if (string.IsNullOrEmpty(p.SideLook)) p.SideLook = Looks.DefaultSide(p.Type, p.Model) ?? "";
-                string side = Looks.Chassis(p.Type, true, p.SideLook, p.Model);
+                string sideOnly = SideChassis(p);
+                if (sideOnly != null) return Make(p, p.SidePartName, sideOnly);
+                Debug.LogError($"[PIP] No side-mount chassis for program {p.Name}");
+                return null;
+            }
+            AvailablePart ap = Make(p, p.PartName, InlineChassis(p));
+            if (!p.FixedSize && p.Type.HasSideMount && p.Type.HasLooks)
+            {
+                string side = SideChassis(p);
                 if (side != null) Make(p, p.SidePartName, side);
             }
             return ap;
+        }
+
+        // A program without a side-mount look gets the default one, kept from then on.
+        static string SideChassis(Program p)
+        {
+            if (!p.Type.HasSideMount || !p.Type.HasLooks) return null;
+            if (string.IsNullOrEmpty(p.SideLook)) p.SideLook = Looks.DefaultSide(p.Type, p.Model) ?? "";
+            return Looks.Chassis(p.Type, true, p.SideLook, p.Model);
         }
 
         // Every part a program has made (one, or two with a side-mount part).
@@ -247,7 +263,7 @@ namespace PIP
             ap.cost = (float)Math.Round(s.BuildPrice);
             string chassis = chassisOf.TryGetValue(ap.name, out string c) ? c : ChassisFor(p.Type, p.Model) ?? p.ChassisPart;
             ap.moduleInfos = PartInfo.ModuleInfos(PartLoader.getPartInfoByName(chassis), p, s, side);
-            ap.description = $"{p.Label}{(side ? ", side-mount" : "")}. Program {p.Name}, now at {Progress.MkName(mk)}.\n" + Describe(p.Type, p.Model, s);
+            ap.description = $"{p.Label}{(side && !p.FixedSize ? ", side-mount" : "")}. Program {p.Name}, now at {Progress.MkName(mk)}.\n" + Describe(p.Type, p.Model, s);
         }
 
         // "Thrust, vacuum 205 kN. Isp, vacuum 300 s. ..." from the type's main rows.

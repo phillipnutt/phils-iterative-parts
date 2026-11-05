@@ -26,6 +26,7 @@ namespace PIP
         public static GUIStyle Window, Title, TitleSub, Close, Pill,
             NewProgram, NewProgramOn, Row, RowOn, Group, Name, Meta, MkBadge, MkBadgeZero, BigMk,
             Eyebrow, Section, SectionRight, NameField, Dice, Tile, TileOn, TileSym, TileSymOn, TileLabel,
+            TileLocked, TileSymLocked, TileLabelLocked, GoOff,
             SegBox, Seg, SegOn, SegLocked, SegLabel, LookCard, CardTitle, CardSub, Hint, Chevron,
             Caption, MkStrip, MkStripPast, MkStripOn, StripLabel,
             PointLabel, PointLabelOff, Stepper, StepButton, StepValue, Value, ValueTight, ValueSmall, SubLabel, SubValue,
@@ -95,6 +96,10 @@ namespace PIP
             TileSym = Text(Display, 16, Ink, FontStyle.Bold, TextAnchor.MiddleCenter);
             TileSymOn = Text(Display, 16, Amber, FontStyle.Bold, TextAnchor.MiddleCenter);
             TileLabel = Text(Body, 11, Ink3, align: TextAnchor.MiddleCenter);
+            // Types not researched yet: dimmed, still clickable to look around.
+            TileLocked = Button(Round(Void, Line, 7), Round(Void, Line2, 7), 7, new GUIStyle());
+            TileSymLocked = Text(Display, 16, new Color(Ink3.r, Ink3.g, Ink3.b, 0.55f), FontStyle.Bold, TextAnchor.MiddleCenter);
+            TileLabelLocked = Text(Body, 11, new Color(Ink3.r, Ink3.g, Ink3.b, 0.55f), align: TextAnchor.MiddleCenter);
 
             SegBox = Box(Round(Void, Line, 8), 8);
             Seg = Button(null, null, 5, Text(Body, 13, Ink2, align: TextAnchor.MiddleCenter));
@@ -137,6 +142,11 @@ namespace PIP
                 Text(Display, 17, AmberInk, FontStyle.Bold, TextAnchor.MiddleCenter));
             Go.active.background = Round(Color.Lerp(Amber, Color.black, 0.1f), Color.Lerp(Amber, Color.black, 0.1f), 9);
             Go.active.textColor = AmberInk;
+            // Start while the design can't be started: gray, no hover.
+            GoOff = Button(Round(Panel3, Line2, 9), Round(Panel3, Line2, 9), 9, Text(Display, 17, Ink3, FontStyle.Bold, TextAnchor.MiddleCenter));
+            GoOff.hover.textColor = Ink3;
+            GoOff.active.background = GoOff.normal.background;
+            GoOff.active.textColor = Ink3;
 
             PickerTitle = Text(Display, 20, Ink, FontStyle.Bold);
             Search = Field(Text(Body, 14, Ink), 8);

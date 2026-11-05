@@ -37,6 +37,13 @@ namespace PIP
         Stats stats = new Stats();
         bool statsReady, started;
 
+        // The size the program fixed (DESIGN.md section 14), or "" for programs from
+        // before that, which still pick it on the part. In the VAB the size switch is
+        // kept on it and hidden.
+        string fixedSize = "";
+        PartModule sizeSwitch;
+        bool sizeSwitchSearched;
+
         public PartType Type => PartTypes.Get(typeId) ?? PartTypes.Battery;
         string[] Model => Type.ParseModel(model) ?? (Type.Choices.Length == 0 ? new string[0] : null);
         string Variant => string.IsNullOrEmpty(variant) ? Type.DefaultVariant(Model) : variant;
@@ -88,8 +95,40 @@ namespace PIP
             mk = program.Mk;
             points = Program.PointsToText(program.Points);
             pointValues = (int[])program.Points.Clone();
+            fixedSize = program.FixedSize ? program.Variant : "";
             statsReady = false;
         }
+
+        void Update()
+        {
+            if (started && HighLogic.LoadedSceneIsEditor && fixedSize.Length > 0) KeepSize();
+        }
+
+        // B9PartSwitch's "pipSize" module: switched to the program's size, its picker hidden.
+        void KeepSize()
+        {
+            if (!sizeSwitchSearched)
+            {
+                sizeSwitchSearched = true;
+                foreach (PartModule m in part.Modules)
+                    if (m.moduleName == "ModuleB9PartSwitch" && ModuleIdOf(m) == "pipSize") { sizeSwitch = m; break; }
+            }
+            if (sizeSwitch == null) return;
+            BaseField pick = sizeSwitch.Fields["currentSubtypeIndex"];
+            if (pick != null && (pick.guiActiveEditor || pick.guiActive)) pick.guiActiveEditor = pick.guiActive = false;
+            foreach (BaseEvent e in sizeSwitch.Events) if (e.guiActiveEditor) e.guiActiveEditor = false;
+            System.Type t = sizeSwitch.GetType();
+            if (t.GetProperty("CurrentSubtypeName")?.GetValue(sizeSwitch, null) as string == fixedSize) return;
+            try { t.GetMethod("SwitchSubtype", new[] { typeof(string) })?.Invoke(sizeSwitch, new object[] { fixedSize }); }
+            catch (Exception e)
+            {
+                Debug.LogError($"[PIP] Couldn't set {part.partInfo?.name} to size {fixedSize}: {e.InnerException?.Message ?? e.Message}");
+                fixedSize = "";
+            }
+        }
+
+        static string ModuleIdOf(PartModule m) =>
+            m.Fields["moduleID"]?.GetValue(m) as string ?? m.GetType().GetField("moduleID")?.GetValue(m) as string;
 
         Stats Stats
         {

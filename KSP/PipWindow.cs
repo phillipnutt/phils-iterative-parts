@@ -64,7 +64,7 @@ namespace PIP
         static int filter;    // 0 all, 1 same fuel, 2 gimbals
 
         ApplicationLauncherButton button;
-        bool visible, heroShown, retiredOpen;
+        bool visible, wasVisible, heroShown, retiredOpen;
         Vector2 listScroll, cfgScroll, pointsScroll, pickerScroll;
         float listHeight, cfgHeight, pointsHeight;
         string message;
@@ -154,6 +154,10 @@ namespace PIP
 
         void OnGUI()
         {
+            // Opening on a type that can't be built yet: show one that can instead.
+            if (visible && !wasVisible && PipScenario.Instance != null && !TechUnlocks.Opened(newType))
+                newType = PartTypes.All.FirstOrDefault(t => PipSettings.On(t) && TechUnlocks.Opened(t)) ?? newType;
+            wasVisible = visible;
             if (!visible || PipScenario.Instance == null)
             {
                 InputLockManager.RemoveControlLock(LockId);
@@ -325,7 +329,10 @@ namespace PIP
             string[] model = ModelOf(type);
             int[] pts = PointsOf(type);
             bool valid = type.Valid(model);
-            bool unlocked = valid && TechUnlocks.Available(type, model);
+            // The size, for types that have sizes: part of the design (DESIGN.md section 14).
+            string variant = valid ? SizeOf(type, model) : null;
+            bool side = PartType.IsSide(variant);
+            bool unlocked = valid && TechUnlocks.Available(type, model, variant);
 
             // The look decides whether Gimbal does anything.
             int gimbal = Looks.GimbalCategory(type);
@@ -337,59 +344,21 @@ namespace PIP
             DrawConfig(new Rect(0, 0, CfgW, area.height - FootH), type, model);
             PipSkin.Fill(new Rect(CfgW, 0, 1, area.height - FootH), PipSkin.Line);
 
-            string variant = null;
             Stats s0 = null, sN = null, s10 = null;
             FailureLevel level = PipSettings.Failures;
             var right = new Rect(CfgW + 1 + Pad, 18, area.width - CfgW - 1 - 2 * Pad, area.height - FootH - 18);
             float y = right.y;
 
-            // The part, turning.
-            string look = type.HasLooks ? (LookOf(type, model) is string l && l != "" ? l : PartFactory.StandardSource(type, model)) : null;
+            // The part, turning: the side-mount look for a side-mount program.
+            string look = !type.HasLooks ? null
+                : side ? SideLookOf(type, model)
+                : LookOf(type, model) is string l && l != "" ? l : PartFactory.StandardSource(type, model);
+            string sizeNote = variant != null && type.Variants(model)?.Length + (type.SideVariants(model)?.Length ?? 0) > 1
+                ? "  ·  " + type.VariantLabel(model, variant) : "";
             Hero(new Rect(right.x, y, right.width, 196), look ?? (valid ? type.ChassisPart(model) : null), type,
-                $"{(string.IsNullOrWhiteSpace(newName) ? "Unnamed" : newName.Trim())} {Progress.MkName(previewMk)}" + (look != null ? "  ·  " + Comparison.ShortName(Looks.Title(look)) + " look" : ""));
+                $"{(string.IsNullOrWhiteSpace(newName) ? "Unnamed" : newName.Trim())} {Progress.MkName(previewMk)}" + sizeNote +
+                (look != null ? "  ·  " + Comparison.ShortName(Looks.Title(look)) + " look" : ""));
             y += 196 + 12;
-
-            // Types whose size is picked on the part: preview one size here.
-            Option[] variants = valid ? type.Variants(model) : null;
-            if (variants != null && type.HasSideMount && Looks.List(type, true, model).Count > 0)
-                variants = variants.Concat(type.SideVariants(model).Select(o =>
-                    new Option(o.Code, o.Label == "Side-mount" ? o.Label : "Side " + o.Label.ToLowerInvariant(), o.Tech))).ToArray();
-            if (variants != null && variants.Length > 1)
-            {
-                if (!previewVariants.TryGetValue(type.Id, out variant) || !variants.Any(v => v.Code == variant))
-                    previewVariants[type.Id] = variant = type.DefaultVariant(model);
-                GUI.Label(new Rect(right.x, y, 200, 16), new GUIContent("PREVIEW " + type.VariantName.ToUpperInvariant(),
-                    $"One program covers every {type.VariantName.ToLowerInvariant()}: you pick it on the part in the VAB."), PipSkin.StripLabel);
-                y += 20;
-                // "1.25 m long" and the like: one control for the size, one for the rest.
-                string[][] split = variants.Select(v => SplitVariant(v.Label)).ToArray();
-                if (split.All(s => s != null) && split.Select(s => s[0]).Distinct().Count() > 1 && split.Select(s => s[1]).Distinct().Count() > 1)
-                {
-                    string[] sizes = split.Select(s => s[0]).Distinct().ToArray(), kinds = split.Select(s => s[1]).Distinct().ToArray();
-                    int Find(string a, string b) => Array.FindIndex(split, s => s[0] == a && s[1] == b);
-                    int cur = Math.Max(0, Array.FindIndex(variants, v => v.Code == variant));
-                    string size = split[cur][0], kind = split[cur][1];
-                    int ps = Segments(right.x, ref y, right.width, sizes, Array.IndexOf(sizes, size), i => null, out _);
-                    if (ps >= 0)
-                    {
-                        size = sizes[ps];
-                        int k = Find(size, kind);
-                        if (k < 0) k = Array.FindIndex(split, s => s[0] == size);
-                        kind = split[k][1];
-                        previewVariants[type.Id] = variant = variants[k].Code;
-                    }
-                    int pk = Segments(right.x, ref y, right.width, kinds, Array.IndexOf(kinds, kind),
-                        i => Find(size, kinds[i]) < 0 ? "Not made at " + size : null, out _);
-                    if (pk >= 0) previewVariants[type.Id] = variant = variants[Find(size, kinds[pk])].Code;
-                }
-                else
-                {
-                    int picked = Segments(right.x, ref y, right.width, variants.Select(v => v.Label).ToArray(),
-                        Array.FindIndex(variants, v => v.Code == variant), i => null, out _);
-                    if (picked >= 0) previewVariants[type.Id] = variant = variants[picked].Code;
-                }
-                y += 2;
-            }
 
             // Which Mk to preview.
             GUI.Label(new Rect(right.x, y, 84, 24), "PREVIEW AT", PipSkin.StripLabel);
@@ -410,7 +379,84 @@ namespace PIP
                 DrawPoints(new Rect(right.x, y, right.width, right.yMax - y - 8), type, model, pts, cap, Used, fixedNozzle ? gimbal : -1, s0, sN, s10);
             }
 
-            DrawFooter(scenario, new Rect(0, area.height - FootH, area.width, FootH), type, model, pts, valid, unlocked, s0, sN, s10);
+            DrawFooter(scenario, new Rect(0, area.height - FootH, area.width, FootH), type, model, variant, pts, valid, unlocked, s0, sN, s10);
+        }
+
+        // Every size a new program of this type can have: in-line, then side-mount
+        // when a side-mount look is installed. Null for types without sizes.
+        static Option[] SizeChoices(PartType type, string[] model)
+        {
+            if (!type.Valid(model)) return null;
+            Option[] inline = type.Variants(model);
+            if (inline == null) return null;
+            Option[] sides = type.HasSideMount && type.HasLooks && Looks.List(type, true, model).Count > 0 ? type.SideVariants(model) : null;
+            return sides == null ? inline : inline.Concat(sides).ToArray();
+        }
+
+        // The size picked for a new program of this type (kept while switching types).
+        static string SizeOf(PartType type, string[] model)
+        {
+            Option[] all = SizeChoices(type, model);
+            if (all == null) return null;
+            if (!previewVariants.TryGetValue(type.Id, out string v) || !all.Any(o => o.Code == v))
+                previewVariants[type.Id] = v = type.DefaultVariant(model);
+            return v;
+        }
+
+        // Why a size can't be picked yet, or null.
+        static string SizeLocked(PartType type, Option o) =>
+            o == null || TechUnlocks.Available(type, o) ? null : "Research " + TechUnlocks.Title(TechUnlocks.Opened(type) ? o.Tech : type.CapTechs[0]);
+
+        // The size rows of the design: mount (in-line or side-mount), then size, then a
+        // tank's length. Each is fixed for the program's life.
+        float DrawSize(float x, float y, float w, PartType type, string[] model, Option[] all)
+        {
+            string current = SizeOf(type, model);
+            Option[] sides = all.Where(o => PartType.IsSide(o.Code)).ToArray(), inline = all.Where(o => !PartType.IsSide(o.Code)).ToArray();
+            bool side = PartType.IsSide(current);
+            void SizeRow(string label, string[] labels, int selected, Func<int, string> locked, Action<int> pick)
+            {
+                float rowY = y;
+                int picked = Segments(x + 64, ref y, w - 64, labels, selected, locked, out bool shortened);
+                GUI.Label(new Rect(x, rowY, 62, 34), label + (shortened ? ", m" : ""), PipSkin.SegLabel);
+                if (picked >= 0) { pick(picked); message = null; }
+            }
+
+            if (sides.Length > 0)
+                SizeRow("Mount", new[] { "In-line", "Side-mount" }, side ? 1 : 0, i => null, i =>
+                {
+                    if ((i == 1) == side) return;
+                    previewVariants[type.Id] = i == 1 ? sides[0].Code : type.DefaultVariant(model);
+                });
+            current = SizeOf(type, model);
+            side = PartType.IsSide(current);
+            Option[] list = side ? sides : inline;
+            if (list.Length <= 1) return y;
+
+            // "1.25 m long": a row for the diameter, one for the length.
+            string[][] split = list.Select(v => SplitVariant(v.Label)).ToArray();
+            if (split.All(s => s != null) && split.Select(s => s[0]).Distinct().Count() > 1 && split.Select(s => s[1]).Distinct().Count() > 1)
+            {
+                string[] diameters = split.Select(s => s[0]).Distinct().ToArray(), lengths = split.Select(s => s[1]).Distinct().ToArray();
+                int Find(string a, string b) => Array.FindIndex(split, s => s[0] == a && s[1] == b);
+                int cur = Math.Max(0, Array.FindIndex(list, v => v.Code == current));
+                string size = split[cur][0], length = split[cur][1];
+                SizeRow("Size", diameters, Array.IndexOf(diameters, size), i => SizeLocked(type, list[Array.FindIndex(split, s => s[0] == diameters[i])]), i =>
+                {
+                    int k = Find(diameters[i], length);
+                    if (k < 0) k = Array.FindIndex(split, s => s[0] == diameters[i]);
+                    previewVariants[type.Id] = list[k].Code;
+                });
+                cur = Math.Max(0, Array.FindIndex(list, v => v.Code == SizeOf(type, model)));
+                size = split[cur][0];
+                SizeRow("Length", lengths.Select(l => char.ToUpperInvariant(l[0]) + l.Substring(1)).ToArray(), Array.IndexOf(lengths, split[cur][1]),
+                    i => Find(size, lengths[i]) < 0 ? "Not made at " + size : SizeLocked(type, list[Find(size, lengths[i])]),
+                    i => previewVariants[type.Id] = list[Find(size, lengths[i])].Code);
+            }
+            else
+                SizeRow(type.VariantName == "Class" ? "Class" : "Size", list.Select(v => v.Label).ToArray(), Array.FindIndex(list, v => v.Code == current),
+                    i => SizeLocked(type, list[i]), i => previewVariants[type.Id] = list[i].Code);
+            return y;
         }
 
         void DrawConfig(Rect area, PartType type, string[] model)
@@ -442,21 +488,27 @@ namespace PIP
                     var r = new Rect(x + (i % cols) * (tw + gap), y + (i / cols) * (th + gap), tw, th);
                     PartType t = group[i];
                     bool on = t == newType;
-                    if (GUI.Button(r, new GUIContent("", t.Title), on ? PipSkin.TileOn : PipSkin.Tile) && !on)
+                    // Not researched yet: dimmed with a padlock, still there to look at.
+                    bool locked = !TechUnlocks.Opened(t);
+                    string tip = locked ? $"{t.Title}: research {TechUnlocks.Title(t.CapTechs[0])} first" : t.Title;
+                    if (GUI.Button(r, new GUIContent("", tip), on ? PipSkin.TileOn : locked ? PipSkin.TileLocked : PipSkin.Tile) && !on)
                     {
                         newType = t;
                         message = null;
                         pickerOpen = false;
                     }
-                    GUI.Label(new Rect(r.x, r.y + 7, r.width, 22), Sym(t), on ? PipSkin.TileSymOn : PipSkin.TileSym);
-                    GUI.Label(new Rect(r.x, r.y + 30, r.width, 14), ShortName(t), PipSkin.TileLabel);
+                    GUI.Label(new Rect(r.x, r.y + 7, r.width, 22), Sym(t), on ? PipSkin.TileSymOn : locked ? PipSkin.TileSymLocked : PipSkin.TileSym);
+                    GUI.Label(new Rect(r.x, r.y + 30, r.width, 14), ShortName(t), locked ? PipSkin.TileLabelLocked : PipSkin.TileLabel);
+                    if (locked && Event.current.type == EventType.Repaint) GUI.DrawTexture(new Rect(r.xMax - 13, r.y + 5, 8, 10), PipSkin.Lock);
                 }
                 y += ((group.Length + cols - 1) / cols) * (th + gap) + 6;
             }
             y += 12;
 
-            // Design
-            if (type.Choices.Length > 0)
+            // Design: the type's choices, then its size.
+            Option[] sizes = SizeChoices(type, model);
+            bool hasSize = sizes != null && sizes.Length > 1;
+            if (type.Choices.Length > 0 || hasSize)
             {
                 GUI.Label(new Rect(x, y, w, 16), "DESIGN", PipSkin.Section);
                 y += 22;
@@ -475,43 +527,38 @@ namespace PIP
                         message = null;
                     }
                 }
+                if (hasSize) y = DrawSize(x, y, w, type, model, sizes);
                 y += 12;
             }
 
-            // Look
+            // Look: the in-line look, or the side-mount look for a side-mount program.
             if (type.HasLooks)
             {
-                List<Looks.Look> all = Looks.List(type, false, model);
-                string standard = PartFactory.StandardSource(type, model);
+                bool sideNow = PartType.IsSide(SizeOf(type, model));
+                List<Looks.Look> all = Looks.List(type, sideNow, model);
+                string standard = sideNow ? Looks.DefaultSide(type, model) : PartFactory.StandardSource(type, model);
                 int count = all.Count(l => l.Source != standard) + 1;
                 GUI.Label(new Rect(x, y, w, 16), "LOOK", PipSkin.Section);
                 GUI.Label(new Rect(x, y, w, 16), Count(count, "look") + " to pick from", PipSkin.SectionRight);
                 y += 22;
-                string current = LookOf(type, model);
-                string source = current == "" ? standard : current;
-                string sub = ModOf(source) + (current == "" ? "  ·  standard" : "");
-                if (type == PartTypes.Liquid) sub += "  ·  burns " + FuelName(all.Find(l => l.Source == source)?.Fuel ?? model[0]).ToLowerInvariant();
-                if (Looks.GimbalCategory(type) >= 0 && !Looks.Gimbals(type, current, model)) sub += "  ·  fixed nozzle";
-                if (LookCard(new Rect(x, y, w, 72), source, sub)) OpenPicker(false);
-                y += 72 + 8;
-
-                if (type.HasSideMount)
+                if (sideNow)
                 {
-                    List<Looks.Look> sides = Looks.List(type, true, model);
-                    if (sides.Count == 0)
-                    {
-                        GUI.Label(new Rect(x, y, w, 34), "No side-mount look is installed, so there's no side-mount part.", PipSkin.Hint);
-                        y += 38;
-                    }
-                    else
-                    {
-                        string side = SideLookOf(type, model);
-                        if (LookCard(new Rect(x, y, w, 72), side, "Side-mount part  ·  " + ModOf(side))) OpenPicker(true);
-                        y += 72 + 8;
-                    }
+                    string sideLook = SideLookOf(type, model);
+                    if (LookCard(new Rect(x, y, w, 72), sideLook, ModOf(sideLook) + (sideLook == standard ? "  ·  default" : ""))) OpenPicker(true);
                 }
+                else
+                {
+                    string current = LookOf(type, model);
+                    string source = current == "" ? standard : current;
+                    string sub = ModOf(source) + (current == "" ? "  ·  standard" : "");
+                    if (type == PartTypes.Liquid) sub += "  ·  burns " + FuelName(all.Find(l => l.Source == source)?.Fuel ?? model[0]).ToLowerInvariant();
+                    if (Looks.GimbalCategory(type) >= 0 && !Looks.Gimbals(type, current, model)) sub += "  ·  fixed nozzle";
+                    if (LookCard(new Rect(x, y, w, 72), source, sub)) OpenPicker(false);
+                }
+                y += 72 + 8;
                 string hint = "Fixed for the program's life. It changes the model, never the numbers." +
-                              (type.HasSideMount ? " One program makes both parts: inline and side-mount." : "");
+                              (type.HasSideMount && !(sizes ?? new Option[0]).Any(o => PartType.IsSide(o.Code))
+                                  ? " No side-mount look is installed, so there's no side-mount version." : "");
                 float hh = PipSkin.Hint.CalcHeight(new GUIContent(hint), w);
                 GUI.Label(new Rect(x, y, w, hh), hint, PipSkin.Hint);
                 y += hh + 18;
@@ -599,8 +646,15 @@ namespace PIP
                 if (y > 0) PipSkin.Fill(new Rect(0, y, w, 1), PipSkin.Line);
                 string cat = type.Categories[i].Label;
                 GUI.Label(new Rect(0, y + 5, LabelW, 20), cat, on ? PipSkin.PointLabel : PipSkin.PointLabelOff);
+                // A caption that wraps ("Output in Kerbin's sunlight") makes its row taller rather than clip.
+                float rowH = 48;
                 if (!string.Equals(row.Label.Trim(), cat, StringComparison.OrdinalIgnoreCase))
-                    GUI.Label(new Rect(0, y + 24, LabelW, 24), new GUIContent(row.Label.Trim(), row.Label.Trim()), PipSkin.RowCaption);
+                {
+                    var caption = new GUIContent(row.Label.Trim(), row.Label.Trim());
+                    float ch = PipSkin.RowCaption.CalcHeight(caption, LabelW);
+                    GUI.Label(new Rect(0, y + 24, LabelW, ch), caption, PipSkin.RowCaption);
+                    rowH = Mathf.Max(rowH, 24 + ch + 4);
+                }
 
                 var sr = new Rect(LabelW + Gap, y + 16, sliderW, 16);
                 PointsSlider(sr, pts, i, cap, on);
@@ -617,17 +671,23 @@ namespace PIP
                 var val = new Rect(w - ValueW, y + 4, ValueW, 24);
                 if (on)
                 {
-                    // Long values ("×1.40 today's tanks") step down a size rather than clip.
+                    // A long value steps down a size; the Mk. 0 → Mk. 10 line may reach further left.
                     GUIStyle vs = PipSkin.Width(PipSkin.Value, vN) > ValueW + 28 ? PipSkin.ValueTight : PipSkin.Value;
                     GUI.Label(new Rect(val.x - 30, val.y, ValueW + 30, val.height), new GUIContent(vN, vN), vs);
-                    GUI.Label(new Rect(val.x - 30, y + 28, ValueW + 30, 16), new GUIContent(v0 + "  →  " + v10, "Mk. 0 → Mk. 10"), PipSkin.ValueSmall);
+                    string range = v0 + "  →  " + v10;
+                    var rangeContent = new GUIContent(range, "Mk. 0 → Mk. 10");
+                    float rw = PipSkin.Width(PipSkin.ValueSmall, range);
+                    float rx = Mathf.Min(val.x - 30, w - rw - 2);
+                    GUI.Label(new Rect(rx, y + 28, w - rx, 16), rangeContent, PipSkin.ValueSmall);
                 }
                 else GUI.Label(new Rect(val.x - 30, y, ValueW + 30, 48), i == fixedGimbal ? "fixed nozzle" : "does nothing here", PipSkin.ValueSmall);
-                y += 48;
+                y += rowH;
             }
             y += 4;
-            GUI.Label(new Rect(0, y, w, 18), $"Points are capped at {cap} for now; research raises the cap.  − and + change 5, or 1 with Shift.", PipSkin.Small);
-            y += 22;
+            var note = new GUIContent($"Points are capped at {cap} for now; research raises the cap.  − and + change 5, or 1 with Shift.");
+            float nh = PipSkin.Small.CalcHeight(note, w);
+            GUI.Label(new Rect(0, y, w, nh), note, PipSkin.Small);
+            y += nh + 6;
             if (Event.current.type == EventType.Repaint) pointsHeight = y;
             GUI.EndScrollView();
         }
@@ -649,7 +709,7 @@ namespace PIP
             if (n != pts[i]) pts[i] = n;
         }
 
-        void DrawFooter(PipScenario scenario, Rect r, PartType type, string[] model, int[] pts, bool valid, bool unlocked, Stats s0, Stats sN, Stats s10)
+        void DrawFooter(PipScenario scenario, Rect r, PartType type, string[] model, string variant, int[] pts, bool valid, bool unlocked, Stats s0, Stats sN, Stats s10)
         {
             PipSkin.Draw(new Rect(0, r.y, r.width, r.height), PipSkin.FootBox);
             PipSkin.Fill(new Rect(0, r.y, r.width, 30), PipSkin.Panel2);
@@ -672,7 +732,7 @@ namespace PIP
             string line, tip = null;
             if (!string.IsNullOrEmpty(message)) { line = message; style = PipSkin.CompareBad; }
             else if (!valid) { line = "That combination isn't made. Pick another."; style = PipSkin.CompareWarn; }
-            else if (!unlocked) { line = $"Locked. Research {TechUnlocks.Missing(type, model)}."; style = PipSkin.CompareWarn; }
+            else if (!unlocked) { line = $"Locked. Research {TechUnlocks.Missing(type, model, variant)}."; style = PipSkin.CompareWarn; }
             else if (!PartFactory.Made(type, model)) { line = $"This model needs {PartFactory.Needs(type, model)}, which isn't installed."; style = PipSkin.CompareWarn; }
             else
             {
@@ -682,10 +742,14 @@ namespace PIP
             }
             GUI.Label(text, new GUIContent(line, tip), style);
 
-            if (GUI.Button(new Rect(r.width - Pad - goW, r.y + 15, goW, 46), "Start program  →", PipSkin.Go))
+            // Gray, and does nothing, while the design can't be started; the line beside it says why.
+            bool ready = valid && unlocked && PartFactory.Made(type, model);
+            var go = new Rect(r.width - Pad - goW, r.y + 15, goW, 46);
+            if (!ready) GUI.Label(go, new GUIContent("Start program  →", line), PipSkin.GoOff);
+            else if (GUI.Button(go, "Start program  →", PipSkin.Go))
             {
                 Program p = scenario.Create(newName, type, model, (int[])pts.Clone(),
-                    type.HasLooks ? LookOf(type, model) : "", type.HasLooks && type.HasSideMount ? SideLookOf(type, model) ?? "" : "", out string error);
+                    type.HasLooks ? LookOf(type, model) : "", type.HasLooks && type.HasSideMount ? SideLookOf(type, model) ?? "" : "", variant, out string error);
                 if (p == null) message = error;
                 else
                 {
@@ -930,7 +994,7 @@ namespace PIP
             GUI.EndScrollView();
 
             PipSkin.Fill(new Rect(0, area.height - 44, area.width, 1), PipSkin.Line);
-            string note = side ? "Side-mount looks are scaled to each size on the part."
+            string note = side ? "Side-mount looks are scaled to the size you picked."
                 : (type.IsEngine ? "Only engines of this size are listed: a look is never scaled. " : "") +
                   (type == PartTypes.Liquid ? "Looks that burn your fuel come first; the flame comes from the look. " : "") +
                   "The look changes the model, never the numbers.";
@@ -944,7 +1008,9 @@ namespace PIP
         void DrawProgram(PipScenario scenario, Program p, Rect area)
         {
             int mk = p.Mk;
-            string look = string.IsNullOrEmpty(p.Look) ? PartFactory.StandardSource(p.Type, p.Model) : p.Look;
+            // A side-mount program wears its side look; everything else its look.
+            string look = p.FixedSize && p.IsSide && !string.IsNullOrEmpty(p.SideLook) ? p.SideLook
+                : string.IsNullOrEmpty(p.Look) ? PartFactory.StandardSource(p.Type, p.Model) : p.Look;
             Hero(new Rect(26, 22, 230, 230), look ?? p.ChassisPart, p.Type, look != null ? Comparison.ShortName(Looks.Title(look)) + " look" : null);
 
             float x = 282, w = area.width - x - 26, y = 24;
@@ -970,7 +1036,7 @@ namespace PIP
             }
             y += 34;
             string xp = mk < Progress.MaxMk
-                ? $"{p.Xp} of {Progress.XpForMk(mk + 1)} experience for {Progress.MkName(mk + 1)}. Each launch where it works, and each recovery, is worth 1."
+                ? $"{p.Xp} of {Progress.XpForMk(mk + 1)} experience for {Progress.MkName(mk + 1)}. Each part that flies, and each one recovered, is worth 1."
                 : "Fully developed.";
             GUI.Label(new Rect(x, y, w, 40), xp, PipSkin.XpLine);
             y += 44;
@@ -988,7 +1054,8 @@ namespace PIP
                 $"{p.Total} points  ·  " + (p.FundsPaid > 0 ? $"cost √ {p.FundsPaid:N0}" : "started free"),
             };
             if (p.Type.HasLooks) chips.Add("Look: " + (look != null ? Looks.Title(look) : "standard"));
-            if (p.Type.HasSideMount) chips.Add(string.IsNullOrEmpty(p.SideLook) ? "No side-mount part" : "Side-mount: " + Looks.Title(p.SideLook));
+            // Programs from before sizes were fixed still make a side-mount part too.
+            if (p.Type.HasSideMount && !p.FixedSize) chips.Add(string.IsNullOrEmpty(p.SideLook) ? "No side-mount part" : "Side-mount: " + Looks.Title(p.SideLook));
             float cx = x;
             foreach (string c in chips)
             {

@@ -4,13 +4,17 @@ using System.Linq;
 
 namespace PIP
 {
-    // Part types that aren't engines (DESIGN.md section 14). Most pick their size
-    // on the part in the VAB (Variants); one program covers every size. No failures.
+    // Part types that aren't engines (DESIGN.md section 14). Each program picks one
+    // size for life (Variants, in-line or side-mount). No failures.
     public abstract class PartKind : PartType
     {
         public override bool IsEngine => false;
 
         protected static double Log(double a, double b, double points) => a * Math.Pow(b / a, points / 100.0);
+
+        // A factor on today's part as plain words: 1.2 -> "20% more", 0.6 -> "40% less".
+        public static string Percent(double factor, string more, string less) =>
+            Math.Abs(factor - 1) < 0.005 ? "as stock" : factor > 1 ? $"{(factor - 1) * 100:0}% {more}" : $"{(1 - factor) * 100:0}% {less}";
 
         protected static int Index(Option[] options, string code) => Math.Max(0, Array.FindIndex(options, o => o.Code == code));
 
@@ -131,8 +135,8 @@ namespace PIP
             new Row("  weight", K.Mass, -1, Fmt.Tons),
         };
 
-        public override string Label(string[] m) => "Batteries, every size";
-        public override string Character(string[] m) => "Pick the size on the part in the VAB.";
+        public override string Label(string[] m) => "Batteries";
+        public override string Character(string[] m) => "Stores electric charge.";
     }
 
     // Reaction wheels: torque, power and weight; size on the part.
@@ -184,7 +188,7 @@ namespace PIP
             new Row("Weight", K.Mass, 2, Fmt.Tons),
         };
 
-        public override string Label(string[] m) => "Reaction wheels, every size";
+        public override string Label(string[] m) => "Reaction wheels";
     }
 
     // Heat shields: ablator efficiency, weight and heat tolerance; size on the part.
@@ -223,13 +227,13 @@ namespace PIP
 
         public override Row[] Rows(string[] m) => new[]
         {
-            new Row("Heat soaked per unit of ablator", AblatorFactor, 0, v => $"×{v:0.00} today's"),
+            new Row("Heat soaked per unit of ablator", AblatorFactor, 0, v => Percent(v, "more", "less")),
             new Row("  ablator", AblatorAmount, -1, v => $"{v:N0}"),
             new Row("Weight (the shield)", K.Mass, 1, Fmt.Tons),
             new Row("Heat tolerance", MaxTemp, 2, v => $"{v:N0} K"),
         };
 
-        public override string Label(string[] m) => "Heat shields, every size";
+        public override string Label(string[] m) => "Heat shields";
     }
 
     // Solar panels: fixed or deployable; output, weight, durability; size on the part.
@@ -288,7 +292,7 @@ namespace PIP
         {
             new Row("Output in Kerbin's sunlight", K.EcRate, 0, Fmt.Ec),
             new Row("Weight", K.Mass, 1, Fmt.Tons),
-            new Row("Durability", Toughness, 2, v => $"×{v:0.0} today's"),
+            new Row("Durability", Toughness, 2, v => Percent(v, "tougher", "weaker")),
             new Row("  folds back up", Retractable, -1, v => v > 0 ? "yes" : "no"),
         };
 
@@ -427,11 +431,11 @@ namespace PIP
             new Row("  battery", BatteryKey, -1, v => $"{v:N0} EC"),
         };
 
-        public override string Label(string[] m) => "Probe cores, every size";
+        public override string Label(string[] m) => "Probe cores";
         public override string Character(string[] m) => "Autopilot comes in steps: 10, 25, 50 and 75 points.";
     }
 
-    // Fuel tanks: kind; size, length and propellant on the part. Weight is a
+    // Fuel tanks: kind, size and length per program; propellant on the part. Weight is a
     // factor on today's tanks; insulation only for cryogenic tanks (CryoTanks).
     public sealed class FuelTanks : PartKind
     {
@@ -488,6 +492,24 @@ namespace PIP
         }
 
         public const string WeightFactor = "weightFactor", Crash = "crash", MaxTemp = "maxTemp", Boiloff = "boiloff", VolumeKey = "volume";
+        public const string BoiloffRate = "boiloffRate";
+
+        // Today's empty tank, per unit of volume, with each kind's standard contents
+        // (the B9PartSwitch tank types: LF/Ox, LH2/Ox, monopropellant, xenon), plus
+        // the chassis's own 0.001 t. On the part, the contents actually picked count.
+        public const double ChassisMass = 0.001;
+        public static double MassPerVolume(string[] m)
+        {
+            switch (m != null && m.Length > 0 ? m[0] : "S")
+            {
+                case "C": return 0.000278904;
+                case "M": return 0.0004;
+                case "E": return 0.00123046875;
+                default: return 0.000625;
+            }
+        }
+        // CryoTanks' liquid hydrogen boil-off, % of the fuel per hour, before Insulation.
+        public const double HydrogenBoiloff = 0.05;
 
         public override Stats Compute(string[] m, int[] pts, int mk, FailureLevel level, string variant = null)
         {
@@ -496,7 +518,9 @@ namespace PIP
             s[Crash] = Lerp(4, 20, E(pts, 1, mk));
             s[MaxTemp] = Lerp(1400, 2600, E(pts, 1, mk));
             s[Boiloff] = Cryogenic(m) ? Lerp(2, 0.2, E(pts, 2, mk)) : 1;
+            s[BoiloffRate] = HydrogenBoiloff * s[Boiloff];
             s[VolumeKey] = Volume(variant ?? "125-L");
+            s[K.Mass] = ChassisMass + s[VolumeKey] * MassPerVolume(m) * s[WeightFactor];
             // Dry price: about 0.8 a unit of volume (an FL-T400 is ~500 with its fuel).
             s[K.Price] = BuildPrice(0.8 * s[VolumeKey], pts, mk);
             return s;
@@ -504,10 +528,10 @@ namespace PIP
 
         public override Row[] Rows(string[] m) => new[]
         {
-            new Row("Empty weight", WeightFactor, 0, v => $"×{v:0.00} today's tanks"),
+            new Row("Empty weight", K.Mass, 0, Fmt.Tons),
             new Row("Survives impacts to", Crash, 1, v => $"{v:0} m/s"),
             new Row("  and heat to", MaxTemp, -1, v => $"{v:N0} K"),
-            new Row("Boil-off and cooling", Boiloff, 2, v => $"×{v:0.00} today's"),
+            new Row("Hydrogen boil-off", BoiloffRate, 2, v => $"{v:0.###}% an hour"),
             new Row("  holds", VolumeKey, -1, v => $"{v:N0} units"),
         };
 
@@ -568,7 +592,7 @@ namespace PIP
             new Row("Lifetime (half-life)", HalfLife, 1, v => $"{v:0.#} years"),
         };
 
-        public override string Label(string[] m) => "RTGs, both sizes";
+        public override string Label(string[] m) => "RTGs";
     }
 
     // Air intakes: speed type matched to the jets; airflow, top speed, weight; size on the part.
@@ -636,10 +660,9 @@ namespace PIP
 
         public override Row[] Rows(string[] m) => new[]
         {
-            new Row("Airflow", AreaFactor, 0, v => $"×{v:0.00} today's"),
+            new Row("Intake area", Area, 0, v => $"{v:0.0000} m²"),
             new Row("Top speed", K.TopMach, 1, Fmt.Mach),
-            new Row("Weight", MassFactor, 2, v => $"×{v:0.00} today's"),
-            new Row("  weight", K.Mass, -1, Fmt.Tons),
+            new Row("Weight", K.Mass, 2, Fmt.Tons),
         };
 
         public override string Label(string[] m) => choices[0].Find(m[0])?.Label + " intakes";

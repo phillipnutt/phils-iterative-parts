@@ -24,14 +24,23 @@ namespace PIP
         // own model (programs from before looks).
         public string Look = "";
         public string SideLook = "";
-        public readonly HashSet<uint> CountedLaunches = new HashSet<uint>();    // part launch IDs
-        public readonly HashSet<uint> CountedRecoveries = new HashSet<uint>();  // vessel persistent IDs
+        // The size, for part types that have sizes (DESIGN.md section 14): fixed
+        // for the program's life, in-line or side-mount ("R..."). Empty for engines,
+        // and for programs from before sizes were fixed, which still cover every size.
+        public string Variant = "";
+        // What has been counted, so nothing counts twice: "launch:part" keys, one
+        // per part per flight (older saves hold bare launch and vessel IDs).
+        public readonly HashSet<string> CountedLaunches = new HashSet<string>();
+        public readonly HashSet<string> CountedRecoveries = new HashSet<string>();
 
         public int Total => Points.Sum();
         public int Xp => Launches + Recoveries;
         public int Mk => Progress.Mk(Xp);
         public string ModelCode => Type.Code(Model);
-        public string Label => Type.Label(Model);
+        public bool FixedSize => !string.IsNullOrEmpty(Variant);
+        public bool IsSide => PartType.IsSide(Variant);
+        public string Label => Type.Label(Model) + (FixedSize ? ", " + Type.VariantLabel(Model, Variant).ToLowerInvariant()
+                                                    : Type.Variants(Model) != null ? ", every size" : "");
 
         // The part this program shows up as in the parts list, and its side-mount
         // part for types that have one.
@@ -41,19 +50,23 @@ namespace PIP
         public string DisplayName(int mk) => Name + " " + Progress.MkName(mk);
         public string DisplayName() => DisplayName(Mk);
 
-        public Stats Stats(int mk, FailureLevel level, string variant = null) => Type.Compute(Model, Points, mk, level, variant);
+        public Stats Stats(int mk, FailureLevel level, string variant = null) =>
+            Type.Compute(Model, Points, mk, level, variant ?? (FixedSize ? Variant : null));
 
-        // A launch counts once per program, however many of its parts fly.
-        public bool RecordLaunch(uint launchId)
+        // Each part counts (DESIGN.md section 5, Phil 2026-11-05): +1 for every part
+        // of the program that flies, +1 for every one recovered, once per flight each.
+        public static string PartKey(uint launchId, uint flightId) => launchId.ToString(Inv) + ":" + flightId.ToString(Inv);
+
+        public bool RecordLaunch(string partKey)
         {
-            if (!CountedLaunches.Add(launchId)) return false;
+            if (string.IsNullOrEmpty(partKey) || !CountedLaunches.Add(partKey)) return false;
             Launches++;
             return true;
         }
 
-        public bool RecordRecovery(uint vesselId)
+        public bool RecordRecovery(string partKey)
         {
-            if (!CountedRecoveries.Add(vesselId)) return false;
+            if (string.IsNullOrEmpty(partKey) || !CountedRecoveries.Add(partKey)) return false;
             Recoveries++;
             return true;
         }
@@ -104,6 +117,7 @@ namespace PIP
             Add("retired", Retired ? "True" : "False");
             if (!string.IsNullOrEmpty(Look)) Add("look", Look);
             if (!string.IsNullOrEmpty(SideLook)) Add("sideLook", SideLook);
+            if (FixedSize) Add("size", Variant);
             if (CountedLaunches.Count > 0) Add("launchIds", string.Join(",", CountedLaunches));
             if (CountedRecoveries.Count > 0) Add("recoveryIds", string.Join(",", CountedRecoveries));
             return v;
@@ -123,15 +137,17 @@ namespace PIP
             p.Retired = string.Equals(get("retired"), "True", StringComparison.OrdinalIgnoreCase);
             p.Look = get("look") ?? "";
             p.SideLook = get("sideLook") ?? "";
-            foreach (uint x in Ids(get("launchIds"))) p.CountedLaunches.Add(x);
-            foreach (uint x in Ids(get("recoveryIds"))) p.CountedRecoveries.Add(x);
+            string size = get("size");
+            if (!string.IsNullOrEmpty(size) && type.VariantOption(model, size) != null) p.Variant = size;
+            foreach (string x in Ids(get("launchIds"))) p.CountedLaunches.Add(x);
+            foreach (string x in Ids(get("recoveryIds"))) p.CountedRecoveries.Add(x);
             return p;
         }
 
-        static IEnumerable<uint> Ids(string text)
+        static IEnumerable<string> Ids(string text)
         {
             foreach (string s in (text ?? "").Split(','))
-                if (uint.TryParse(s, NumberStyles.Integer, Inv, out uint v)) yield return v;
+                if (s.Trim().Length > 0) yield return s.Trim();
         }
 
         static double D(string s) => double.TryParse(s, NumberStyles.Float, Inv, out double v) ? v : 0;

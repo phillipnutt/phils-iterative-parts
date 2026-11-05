@@ -17,8 +17,8 @@ namespace PIP
         public static List<AvailablePart.ModuleInfo> ModuleInfos(AvailablePart chassis, Program p, Stats s, bool side = false)
         {
             Option[] sizes = p.Type.VariantsFor(p.Model, side);
-            string listed = side ? p.Type.DefaultSideVariant(p.Model) : p.Type.DefaultVariant(p.Model);
-            Option shown = sizes?.FirstOrDefault(v => v.Code == listed);
+            string listed = p.FixedSize ? p.Variant : side ? p.Type.DefaultSideVariant(p.Model) : p.Type.DefaultVariant(p.Model);
+            Option shown = p.FixedSize ? null : sizes?.FirstOrDefault(v => v.Code == listed);
             var list = new List<AvailablePart.ModuleInfo>();
             if (chassis?.moduleInfos == null) return list;
             bool engineDone = false;

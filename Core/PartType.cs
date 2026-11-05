@@ -88,8 +88,9 @@ namespace PIP
         public abstract Row[] Rows(string[] model);
         public abstract Stats Compute(string[] model, int[] points, int mk, FailureLevel level, string variant = null);
 
-        // Sizes picked on the part in the VAB (B9PartSwitch), for types whose
-        // categories don't depend on size. Null for engines: their size is a choice.
+        // Sizes of a part type that isn't an engine (B9PartSwitch on the chassis).
+        // Each program picks one for life, in-line or side-mount (DESIGN.md
+        // section 14, changed 2026-11-05). Null for engines: their size is a choice.
         public virtual Option[] Variants(string[] model) => null;
         public virtual string VariantName => "Size";
         public virtual string DefaultVariant(string[] model)
@@ -105,6 +106,20 @@ namespace PIP
         public string DefaultSideVariant(string[] model) => SideVariants(model)?.FirstOrDefault()?.Code;
         public static bool IsSide(string variant) => variant != null && variant.StartsWith("R", StringComparison.Ordinal);
         public Option[] VariantsFor(string[] model, bool side) => side ? SideVariants(model) : Variants(model);
+
+        // A size code, in-line or side-mount, or null when this model has no such size.
+        public Option VariantOption(string[] model, string code) =>
+            string.IsNullOrEmpty(code) ? null
+            : (Variants(model) ?? new Option[0]).Concat(SideVariants(model) ?? new Option[0]).FirstOrDefault(o => o.Code == code);
+
+        // "1.25 m long", "Small", "Side-mount", "Side-mount, small".
+        public string VariantLabel(string[] model, string code)
+        {
+            Option o = VariantOption(model, code);
+            if (o == null) return code ?? "";
+            if (!IsSide(code)) return o.Label;
+            return o.Label == "Side-mount" ? o.Label : "Side-mount, " + o.Label.ToLowerInvariant();
+        }
 
         // Looks (DESIGN.md section 16): the program wears an installed part's model.
         // The part PIP uses when no look is picked, and the side-mount looks to
@@ -163,8 +178,9 @@ namespace PIP
             return Valid(parts) ? parts : null;
         }
 
-        // Every node that must be researched to start a program of this model.
-        public IEnumerable<string> Techs(string[] model)
+        // Every node that must be researched to start a program of this model
+        // (and size, for types that have sizes).
+        public IEnumerable<string> Techs(string[] model, string variant = null)
         {
             yield return CapTechs[0];
             for (int i = 0; i < Choices.Length && i < model.Length; i++)
@@ -172,6 +188,8 @@ namespace PIP
                 string tech = Choices[i].Find(model[i])?.Tech;
                 if (!string.IsNullOrEmpty(tech)) yield return tech;
             }
+            string sizeTech = VariantOption(model, variant)?.Tech;
+            if (!string.IsNullOrEmpty(sizeTech)) yield return sizeTech;
         }
 
         protected static int P(int[] points, int i) => points != null && i < points.Length ? Pricing.Clamp(points[i]) : 0;

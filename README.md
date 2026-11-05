@@ -20,7 +20,7 @@ which is missing at the main menu.
 |---|---|
 | Harmony 2 | PIP's plugin patches the game with it |
 | Module Manager | builds PIP's parts |
-| B9PartSwitch | sizes on the part, tank volumes, looks |
+| B9PartSwitch | part sizes, tank volumes and propellants, looks |
 | Community Tech Tree | where PIP's unlocks live |
 | CryoTanks | hydrogen and methane fuels, and the tank switch PIP's tanks use |
 

@@ -29,9 +29,9 @@ namespace PIP
 
         public static bool Available(PartType t, Option o) => Opened(t) && Researched(o.Tech);
 
-        public static bool Available(PartType t, string[] model) => t.Valid(model) && t.Techs(model).All(Researched);
+        public static bool Available(PartType t, string[] model, string variant = null) => t.Valid(model) && t.Techs(model, variant).All(Researched);
 
-        public static string Missing(PartType t, string[] model) =>
-            string.Join(", ", t.Techs(model).Distinct().Where(x => !Researched(x)).Select(Title));
+        public static string Missing(PartType t, string[] model, string variant = null) =>
+            string.Join(", ", t.Techs(model, variant).Distinct().Where(x => !Researched(x)).Select(Title));
     }
 }

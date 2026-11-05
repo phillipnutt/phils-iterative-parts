@@ -128,7 +128,13 @@ namespace PIP
                 !modules.Overlaps(new[] { "ModuleGenerator", "ModuleResourceConverter", "ModuleDeployableSolarPanel" }))
                 return PartTypes.Battery;
             // Round stack tanks only: plane fuselages, radial and odd shapes stay.
-            if (ap.category == PartCategories.FuelTank && resources.Count > 0 && resources.All(TankResources.Contains) &&
+            // CryoTanks gives stock tanks a B9PartSwitch fuel switch instead of
+            // resources, and B9 only adds the resources to parts in the VAB, so the
+            // prefab is empty: the switch itself marks them as tanks (as for looks).
+            bool switched = resources.Count == 0 && HasFuelSwitch(ap);
+            // The stock 3.75 m tanks are filed under Propulsion (this method never sees engines).
+            if ((ap.category == PartCategories.FuelTank || ap.category == PartCategories.Propulsion) &&
+                (switched || resources.Count > 0 && resources.All(TankResources.Contains)) &&
                 prefab.attachNodes.Count >= 2)
             {
                 string[] profiles = (ap.bulkheadProfiles ?? "").Split(',').Select(x => x.Trim()).Where(x => x.Length > 0).ToArray();
@@ -136,6 +142,9 @@ namespace PIP
             }
             return null;
         }
+
+        static bool HasFuelSwitch(AvailablePart ap) =>
+            ap.partConfig != null && ap.partConfig.GetNodes("MODULE").Any(m => m.GetValue("name") == "ModuleB9PartSwitch" && m.GetValue("moduleID") == "fuelSwitch");
 
         static PartType ClassifyEngine(AvailablePart ap)
         {

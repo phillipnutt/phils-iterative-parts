@@ -132,7 +132,7 @@ Check 'combined rocket thrust x1.7' (Stat $jet 'C-125' $jmax 10 'rocketThrust') 
 Check 'ramjet top speed at 0 points' (Stat $jet 'R-125' $jzero 0 'topMach') 4.4 1e-9
 Check 'ramjet top speed at 100 points' (Stat $jet 'R-125' $jmax 10 'topMach') 6.6 1e-9
 
-Write-Host 'Part types (size on the part)'
+Write-Host 'Part types (size per program)'
 function PStat($name, [string]$model, [int[]]$pts, [int]$mk, $key, $variant) { $t = TypeOf $name; $m = $(if ($model) { M $model } else { , [string[]]@() }); ($t.Compute($m, $pts, $mk, (Level 'Normal'), $variant)).Item($key) }
 Check 'sixteen types' $Types.GetField('All').GetValue($null).Length 16
 Check 'battery: stock capacity at ~45 points' (PStat 'Battery' '' @(45) 10 'capacity' '125') 20100
@@ -155,6 +155,10 @@ Check 'probe: 50-point core at Mk. 10 has level 2' (PStat 'Probe' '' @(50, 0, 0,
 Check 'tank: FL-T400 volume' ([PIP.FuelTanks]::Volume('125-L')) 400
 Check 'tank: long 2.5 m is an X200-32' ([PIP.FuelTanks]::Volume('25-L')) 3200
 Check 'tank: weight factor at 100' (PStat 'Tank' 'S' @(100, 0, 0) 10 'weightFactor' '125-L') 0.8
+Check 'tank: empty FL-T400 at factor 1 is stock' (0.001 + 400 * 0.000625) 0.251
+Check 'tank: empty weight in tonnes at 100' (PStat 'Tank' 'S' @(100, 0, 0) 10 'mass' '125-L') 0.201 1e-9
+Check 'tank: hydrogen boil-off at 0 insulation' (PStat 'Tank' 'C' @(0, 0, 0) 10 'boiloffRate' '125-L') 0.1 1e-9
+Check 'plain percentages' "$([PIP.PartKind]::Percent(1.2, 'more', 'less'))|$([PIP.PartKind]::Percent(0.6, 'more', 'less'))|$([PIP.PartKind]::Percent(1, 'more', 'less'))" '20% more|40% less|as stock'
 Check 'tank: insulation only for cryogenic' "$((TypeOf 'Tank').CategoryUsed((M 'S'), 2)),$((TypeOf 'Tank').CategoryUsed((M 'C'), 2))" 'False,True'
 Check 'tank: 24 size-and-length variants' ((TypeOf 'Tank').Variants((M 'S')).Length) 24
 Check 'rtg: large output at 100' (PStat 'Rtg' '' @(100, 0) 10 'ecRate' 'L') 4.5 1e-9
@@ -221,10 +225,14 @@ $p = Call $Program Create @('abc123', 'Kestrel', $liq, $k125, [int[]]@(25, 120, 
 Check 'points are clamped to 0..100' ($p.Points -join ',') '25,100,0,50,10'
 Check 'part name' $p.PartName 'PIP.abc123'
 Check 'chassis for a liquid' $p.ChassisPart 'PIP-K-125-S'
-Check 'first launch counts' ($p.RecordLaunch([uint32]7)) $true
-Check 'same launch counts once' ($p.RecordLaunch([uint32]7)) $false
-[void]$p.RecordRecovery([uint32]99); [void]$p.RecordLaunch([uint32]8); [void]$p.RecordLaunch([uint32]9); [void]$p.RecordLaunch([uint32]10)
-Check 'xp from 4 launches and 1 recovery' $p.Xp 5
+function Key([uint32]$launch, [uint32]$part) { $Program.GetMethod('PartKey').Invoke($null, @($launch, $part)) }
+Check 'part key' (Key 7 1234) '7:1234'
+Check 'first part of a launch counts' ($p.RecordLaunch((Key 7 1))) $true
+Check 'the same part counts once' ($p.RecordLaunch((Key 7 1))) $false
+Check 'a second part of the same launch counts too' ($p.RecordLaunch((Key 7 2))) $true
+Check 'a relaunch recovers again (same vessel, new launch)' "$($p.RecordRecovery((Key 8 5))),$($p.RecordRecovery((Key 9 5))),$($p.RecordRecovery((Key 9 5)))" 'True,True,False'
+[void]$p.RecordLaunch((Key 10 1))
+Check 'xp from 3 parts launched and 2 recovered' $p.Xp 5
 Check 'display name' $p.DisplayName() 'Kestrel Mk. 3'
 $p.Retired = $true
 $values = $p.ToValues(); $map = @{}; foreach ($kv in $values) { $map[$kv.Key] = $kv.Value }
@@ -233,7 +241,8 @@ Check 'save keeps the type' $back.Type.Id 'liquid'
 Check 'save keeps the model' $back.ModelCode 'K-125-S'
 Check 'save keeps points' ($back.Points -join ',') '25,100,0,50,10'
 Check 'save keeps experience' $back.Xp 5
-Check 'save keeps counted launches' ($back.RecordLaunch([uint32]8)) $false
+Check 'save keeps counted launches' ($back.RecordLaunch((Key 7 2))) $false
+Check 'save keeps counted recoveries' ($back.RecordRecovery((Key 9 5))) $false
 Check 'save keeps retired' $back.Retired $true
 $map.Remove('type')
 $old = $Program.GetMethod('FromValues').Invoke($null, @([Func[string, string]] { param($k) $map[$k] }))
@@ -251,6 +260,18 @@ Check 'a save keeps the looks' "$($bb.Look) $($bb.SideLook)" 'battery-125 ksp.r.
 Check 'a program with no look saves none' ($j.ToValues() | Where-Object { $_.Key -like '*ook' }).Count 0
 Check 'a save from before looks has none' "[$($jb.Look)][$($jb.SideLook)]" '[][]'
 Check 'side stats use the side size' ($bb.Stats(10, (Level Normal), 'R-L').Item('mass')) 0.04
+Check 'an older program covers every size' "$($b.FixedSize) $($b.Label)" 'False Batteries, every size'
+$b.Variant = 'R-M'
+$bm = @{}; foreach ($kv in $b.ToValues()) { $bm[$kv.Key] = $kv.Value }
+$bs = $Program.GetMethod('FromValues').Invoke($null, @([Func[string, string]] { param($k) $bm[$k] }))
+Check 'a program keeps its size' "$($bs.Variant) $($bs.FixedSize) $($bs.IsSide)" 'R-M True True'
+Check 'a sized program is labelled with it' $bs.Label 'Batteries, side-mount, medium'
+Check 'a sized program computes at its size' ($bs.Stats(10, (Level Normal)).Item('mass')) 0.02
+$bm['size'] = 'nonsense'
+$bx = $Program.GetMethod('FromValues').Invoke($null, @([Func[string, string]] { param($k) $bm[$k] }))
+Check 'an unknown size is dropped' $bx.FixedSize $false
+Check 'a size needs its research' (($bat.Techs((M ''), '1875')) -join ',') 'start,heavyRocketry'
+Check 'tank label with size' "$((TypeOf 'Tank').VariantLabel((M 'S'), '25-X'))" '2.5 m extra long'
 Check 'a bad model does not load' ($Program.GetMethod('FromValues').Invoke($null, @([Func[string, string]] { param($k) @{ id = 'x'; type = 'nuclear'; model = 'G-0625' }[$k] }))) $null
 
 Write-Host 'Tooltip and summary text'
