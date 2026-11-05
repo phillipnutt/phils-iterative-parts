@@ -28,6 +28,7 @@ namespace PIP
         [KSPField(isPersistant = true)] public string programName = "";
         [KSPField(isPersistant = true)] public int mk = -1;
         [KSPField(isPersistant = true)] public string points = "";
+        [KSPField(isPersistant = true)] public string startPoints = "";   // a later version's start (DESIGN.md 18.1)
         [KSPField(isPersistant = true)] public bool flew;   // left the pad on this flight (counts recoveries)
 
         [KSPField(guiName = "Program", guiActive = true, guiActiveEditor = true)]
@@ -67,7 +68,7 @@ namespace PIP
         }
 
         Program FindProgram() =>
-            PipScenario.Instance?.Find(programId) ?? PipScenario.Instance?.Find(PartFactory.ProgramIdOf(part.partInfo?.name));
+            PipScenario.Instance?.Latest(PipScenario.Instance.Find(programId) ?? PipScenario.Instance.Find(PartFactory.ProgramIdOf(part.partInfo?.name)));
 
         public override void OnStart(StartState state)
         {
@@ -76,6 +77,8 @@ namespace PIP
             pointValues = Program.PointsFromText(points, Type.Categories.Length);
             Program program = PipScenario.Instance?.Find(programId)
                 ?? PipScenario.Instance?.Find(PartFactory.ProgramIdOf(part.partInfo?.name));
+            // New builds use the family's newest version.
+            if (HighLogic.LoadedSceneIsEditor) program = PipScenario.Instance?.Latest(program);
             if (HighLogic.LoadedSceneIsEditor || (program != null && !Assigned)) Assign(program);
             if (HighLogic.LoadedSceneIsEditor) flew = false;
             started = true;
@@ -90,11 +93,12 @@ namespace PIP
         {
             if (program == null) return;
             programId = program.Id;
-            programName = program.Name;
+            programName = program.Title;
             model = program.ModelCode;
             mk = program.Mk;
             points = Program.PointsToText(program.Points);
             pointValues = (int[])program.Points.Clone();
+            startPoints = program.StartPoints == null ? "" : Program.PointsToText(program.StartPoints);
             fixedSize = program.FixedSize ? program.Variant : "";
             statsReady = false;
         }
@@ -141,7 +145,8 @@ namespace PIP
 
         void Recompute()
         {
-            stats = Assigned ? Type.Compute(Model, pointValues, mk, PipSettings.Failures, Variant) : new Stats();
+            int[] start = string.IsNullOrEmpty(startPoints) ? null : Program.PointsFromText(startPoints, Type.Categories.Length);
+            stats = Assigned ? Type.Compute(Model, pointValues, mk, PipSettings.Failures, Variant, start, 0) : new Stats();
             statsReady = true;
         }
 

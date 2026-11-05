@@ -28,29 +28,32 @@ function Level($l) { [Enum]::Parse($LevelT, $l) }
 function M([string]$code) { , [string[]]($code -split '-') }   # the comma stops PowerShell unrolling the array
 function Stat($type, [string]$model, [int[]]$pts, [int]$mk, $key, $level = 'Normal') { ($type.Compute((M $model), $pts, $mk, (Level $level))).Item($key) }
 
-Write-Host 'Mk progression'
-Check 'xp for Mk. 1' (Call $Progress XpForMk @(1)) 1
-Check 'xp for Mk. 4' (Call $Progress XpForMk @(4)) 7
-Check 'xp for Mk. 10' (Call $Progress XpForMk @(10)) 143
-Check 'Mk at 6 xp' (Call $Progress Mk @(6)) 3
-Check 'Mk at 7 xp' (Call $Progress Mk @(7)) 4
-Check 'Mk at 143 xp' (Call $Progress Mk @(143)) 10
-Check 'Mk never passes 10' (Call $Progress Mk @(5000)) 10
-Check 'share at Mk. 0' (Call $Progress Share @(0)) 0.5
-Check 'share at Mk. 4' (Call $Progress Share @(4)) 0.8832 1e-3
-Check 'share at Mk. 10' (Call $Progress Share @(10)) 1.0
+Write-Host 'Mk. 1 to 5 (section 18.2)'
+Check 'experience to Mk. 2..5' "$((2..5 | ForEach-Object { Call $Progress XpForMk @([int]$_) }) -join ',')" '2,7,14,25'
+Check 'programs start at Mk. 1' (Call $Progress Mk @(0)) 1
+Check 'Mk at 6 xp' (Call $Progress Mk @(6)) 2
+Check 'Mk at 7 xp' (Call $Progress Mk @(7)) 3
+Check 'Mk at 25 xp' (Call $Progress Mk @(25)) 5
+Check 'Mk never passes 5' (Call $Progress Mk @(5000)) 5
+Check 'a flight 1, a recovery 3' "$($Progress.GetField('LaunchXp').GetValue($null)),$($Progress.GetField('RecoveryXp').GetValue($null))" '1,3'
+Check 'Mk. 1 delivers half the points' ($Progress.GetMethod('Effective', [type[]]@([int], [int])).Invoke($null, [object[]]@([int]60, [int]1))) 30
+Check 'Mk. 5 delivers all of them' ($Progress.GetMethod('Effective', [type[]]@([int], [int])).Invoke($null, [object[]]@([int]60, [int]5))) 60
+Check 'a later version starts from the one before' ($Progress.GetMethod('Effective', [type[]]@([int], [double], [int])).Invoke($null, [object[]]@([int]35, [double]25, [int]1))) 25
+Check 'front-loaded: Mk. 2 is about half the way' ($Progress.GetMethod('Curve').Invoke($null, [object[]]@([int]2))) 0.4602 1e-3
 
-Write-Host 'Program cost: 1,000 and 1% per point'
+Write-Host 'Program cost: 1,000 to a ceiling by type (section 18.5)'
 $normal = [Enum]::Parse($PriceT, 'Normal')
-Check 'bare program' (Call $Pricing ProgramCost @(0, [double]1, $normal)) 1000
-Check 'start caps (125)' (Call $Pricing ProgramCost @(125, [double]1, $normal)) 3468.7 1
-Check 'stock level (250)' (Call $Pricing ProgramCost @(250, [double]1, $normal)) 12032.3 1
-Check 'maxed (500)' (Call $Pricing ProgramCost @(500, [double]1, $normal)) 144772.7 1
-Check '70 points doubles it' ((Call $Pricing ProgramCost @(170, [double]1, $normal)) / (Call $Pricing ProgramCost @(100, [double]1, $normal))) 2.0068 1e-3
-Check 'solid factor x0.5' (Call $Pricing ProgramCost @(0, [double]0.5, $normal)) 500
-Check 'PIP prices: quarter' (Call $Pricing ProgramCost @(250, [double]1, [Enum]::Parse($PriceT, 'Quarter'))) 3008.1 1
-Check 'PIP prices: double' (Call $Pricing ProgramCost @(0, [double]2, [Enum]::Parse($PriceT, 'Double'))) 4000
-Check 'type factors' "$($sol.PriceFactor),$($mon.PriceFactor),$($liq.PriceFactor),$($jet.PriceFactor),$($ele.PriceFactor),$($nuc.PriceFactor)" '0.5,0.5,1,1,1.5,2'
+function PC([double]$ceiling, [double]$share, $lvl = $normal) { $Pricing.GetMethod('ProgramCost').Invoke($null, @($ceiling, $share, $lvl)) }
+Check 'no points spent' (PC 1.5e6 0) 1000
+Check 'liquid at a quarter' (PC 1.5e6 0.25) 6223.3 1
+Check 'liquid at half' (PC 1.5e6 0.5) 38729.8 1
+Check 'liquid maxed' (PC 1.5e6 1) 1500000 1
+Check 'tank at half' (PC 1e5 0.5) 10000 1e-6
+Check 'PIP prices: double' (PC 1e5 0.5 ([Enum]::Parse($PriceT, 'Double'))) 20000 1e-6
+Check 'ceilings by type' "$($sol.CostCeiling),$($mon.CostCeiling),$($jet.CostCeiling),$($liq.CostCeiling),$($ele.CostCeiling),$($nuc.CostCeiling)" '500000,500000,1000000,1500000,2000000,3000000'
+Check 'a successor costs a tenth' ($Pricing.GetField('SuccessorShare').GetValue($null)) 0.1
+Check 'share over the sliders used' ($liq.PointsShare((M 'K-125-S'), [int[]]@(25, 25, 25, 25, 25))) 0.25 1e-9
+Check 'unused sliders don''t count' ((TypeOf 'Tank').PointsShare((M 'S'), [int[]]@(50, 50, 0, 50))) 0.5 1e-9
 
 Write-Host 'Family caps'
 Check 'liquid cap nodes' ($liq.CapTechs -join ',') 'basicRocketry,advRocketry,heavierRocketry,experimentalRocketry'
@@ -67,21 +70,26 @@ Check 'Isp sea level, 0 points' (Call $Liquid IspSLAt @($k125, [double]0)) 220
 Check 'Isp vacuum nozzle, 100 points' (Call $Liquid IspVacAt @((M 'K-125-V'), [double]100)) 385
 Check 'vacuum nozzle stays bad at sea level' (Call $Liquid IspSLAt @((M 'K-125-V'), [double]100)) 100
 Check 'weight: 25 thrust, 25 weight' (Call $Liquid MassAt @($k125, 25, [double]25)) 1.4932 1e-3
-Check 'gimbal 10 points' (Call $Liquid GimbalAt @($k125, [double]10)) 4
-Check 'gimbal 100 points' (Call $Liquid GimbalAt @($k125, [double]100)) 20
-Check 'aerospike has no gimbal' (Call $Liquid GimbalAt @((M 'K-125-A'), [double]100)) 0
+function GStat($type, [string]$model, [int[]]$pts, [int]$mk, $key, [int]$gimbal) { ($type.Compute((M $model), $pts, $mk, (Level 'Normal'), $null, $null, $gimbal)).Item($key) }
+Check 'gimbal is a pick, not points' "$($liq.HasGimbalPick) $(GStat $liq 'K-125-S' @(0, 0, 0, 0, 0) 1 'gimbal' 10)" 'True 10'
+Check 'gimbal options and research' ((($Types.Assembly.GetType('PIP.PartType')).GetField('GimbalOptions').GetValue($null) | ForEach-Object { "$($_.Code):$($_.Tech)" }) -join ',') '0:,5:,10:generalRocketry,20:advRocketry'
+Check 'aerospike has no gimbal' (GStat $liq 'K-125-A' @(0, 0, 0, 0, 0) 1 'gimbal' 20) 0
+Check 'no Gimbal slider left' ((@($liq, $sol, $mon) | ForEach-Object { ($_.Categories | Where-Object { $_.Label -eq 'Gimbal' }).Count }) -join ',') '0,0,0'
 Check 'failure at Mk. 0' ($liq.FailureAt($k125, 50, 0, (Level Normal))) 0.10
 Check 'failure at Mk. 10, 50 points' ($liq.FailureAt($k125, 50, 10, (Level Normal))) 0.004472 1e-5
 Check 'methalox mature failure, 100 points' ($liq.FailureAt((M 'M-125-S'), 100, 10, (Level Normal))) 0.0005
 Check 'light failures are half' ($liq.FailureAt($k125, 50, 0, (Level Light))) 0.05
-Check 'build price, 100 points, Mk. 0' ($liq.BuildPriceAt($k125, [int[]]@(20, 20, 20, 20, 20), 0)) 1080
-Check 'build price, 100 points, Mk. 10' ($liq.BuildPriceAt($k125, [int[]]@(20, 20, 20, 20, 20), 10)) 1134
-Check 'aerospike builds at x2' ($liq.BuildPriceAt((M 'K-125-A'), [int[]]@(20, 20, 20, 20, 20), 0)) 2160
-$pts = [int[]]@(25, 25, 25, 25, 10)
-Check 'Mk. 0 thrust uses half the points' (Stat $liq 'K-125-S' $pts 0 'thrustVac') 147.5
-Check 'Mk. 10 thrust uses all of them' (Stat $liq 'K-125-S' $pts 10 'thrustVac') 205
-Check 'Mk. 0 weight' (Stat $liq 'K-125-S' $pts 0 'mass') 1.5999 1e-3
-Check 'aerospike gimbal category unused' ($liq.CategoryUsed((M 'K-125-A'), 4)) $false
+Check 'every type has Build cost last' ((@($liq, $jet, (TypeOf 'Tank')) | ForEach-Object { $_.Categories[$_.CostIndex].Label }) -join ',') 'Build cost,Build cost,Build cost'
+# Build price: 1,200 base x ambition (80 of 400 other points: x0.9) x cost factor (1.5 at 0 points, 0.5 at 100).
+Check 'build price, Build cost 0' ($liq.BuildPriceAt($k125, [int[]]@(20, 20, 20, 20, 0), 1)) 1620
+Check 'build price, Build cost 100 at Mk. 5' ($liq.BuildPriceAt($k125, [int[]]@(20, 20, 20, 20, 100), 5)) 540
+Check 'build price falls as it matures' ($liq.BuildPriceAt($k125, [int[]]@(20, 20, 20, 20, 100), 1)) 1080
+Check 'aerospike builds at x2' ($liq.BuildPriceAt((M 'K-125-A'), [int[]]@(20, 20, 20, 20, 0), 1)) 3240
+$pts = [int[]]@(25, 25, 25, 25, 25)
+Check 'Mk. 1 thrust uses half the points' (Stat $liq 'K-125-S' $pts 1 'thrustVac') 147.5
+Check 'Mk. 5 thrust uses all of them' (Stat $liq 'K-125-S' $pts 5 'thrustVac') 205
+Check 'Mk. 1 weight' (Stat $liq 'K-125-S' $pts 1 'mass') 1.5999 1e-3
+Check 'failures start over each version: 10% at Mk. 1' ($liq.FailureAt($k125, 50, 1, (Level Normal))) 0.10
 
 Write-Host 'Solid boosters'
 $max = [int[]]@(100, 100, 100, 100, 100); $zero = [int[]]@(0, 0, 0, 0, 0)
@@ -92,8 +100,7 @@ Check 'Thumper-size propellant' (Stat $sol '125-M' $zero 0 'propellant') 6.15
 Check 'casing at 0 points' (Stat $sol '125-M' $zero 0 'mass') (6.15 * 0.27) 1e-6
 Check 'casing at 100 points' (Stat $sol '125-M' $max 10 'mass') (6.15 * 0.13) 1e-6
 Check 'Isp window' "$(Stat $sol '125-M' $zero 0 'ispSL')/$(Stat $sol '125-M' $max 10 'ispVac')" '150/265'
-Check 'gimbal fixed at 0 points' (Stat $sol '125-M' $zero 0 'gimbal') 0
-Check 'gimbal 8 degrees at 100' (Stat $sol '125-M' $max 10 'gimbal') 8
+Check 'solid gimbal is a pick' (GStat $sol '125-M' $max 5 'gimbal' 5) 5
 Check 'mature failure 0.05%' (Stat $sol '125-M' $max 10 'fail') 0.0005
 Check 'burn time' (Stat $sol '125-M' $max 10 'burn') (6.15 * 265 * 9.80665 / 480) 1e-6
 Check 'chassis name' ($sol.ChassisPart((M '375-L'))) 'PIP-SOL-375-L'
@@ -111,11 +118,10 @@ Check 'gas core Isp at 100' (Stat $nuc 'G-25' $max 10 'ispVac') 3000
 Check 'radiation at 0 points (Nerv level)' (Stat $nuc 'S-125' $zero 0 'radiation') 0.25
 Check 'radiation at 100 points is a tenth' (Stat $nuc 'S-125' $max 10 'radiation') 0.025 1e-9
 Check 'gas core radiates twice' (Stat $nuc 'G-125' $zero 0 'radiation') 0.5
-Check 'gimbal fixed at 3 with Kerbalism' (Stat $nuc 'S-125' $zero 0 'gimbal') 3
 Check 'fifth category is Shielding' ($nuc.Categories[4].Label) 'Shielding'
+Check 'gimbal is a pick with Kerbalism too' (GStat $nuc 'S-125' $zero 1 'gimbal' 10) 10
 $Nuclear.GetField('Kerbalism').SetValue($null, $false)
-Check 'fifth category is Gimbal without Kerbalism' ($nuc.Categories[4].Label) 'Gimbal'
-Check 'gimbal from points without Kerbalism' (Stat $nuc 'S-125' $max 10 'gimbal') 20
+Check 'without Kerbalism: four sliders and Build cost' (($nuc.Categories | ForEach-Object { $_.Label }) -join ',') 'Thrust,Efficiency,Weight,Reliability,Build cost'
 
 Write-Host 'Electric engines'
 Check 'ion 0.625 m, 100 points' (Stat $ele 'I-0625' $max 10 'thrustVac') 5
@@ -125,7 +131,7 @@ Check 'MPD 2.5 m ceiling' (Stat $ele 'M-25' $max 10 'thrustVac') 320
 
 Write-Host 'Jet engines'
 $jmax = [int[]]@(100, 100, 100, 100); $jzero = [int[]]@(0, 0, 0, 0)
-Check 'four categories' $jet.Categories.Length 4
+Check 'four categories and Build cost' $jet.Categories.Length 5
 Check 'jets never fail' (Stat $jet 'F-125' $jmax 0 'fail') 0
 Check 'turbojet dry thrust is two-thirds' (Stat $jet 'J-125' $jmax 10 'thrustDry') (200 * 2 / 3) 1e-6
 Check 'combined rocket thrust x1.7' (Stat $jet 'C-125' $jmax 10 'rocketThrust') 340
@@ -138,7 +144,7 @@ Check 'sixteen types' $Types.GetField('All').GetValue($null).Length 16
 Check 'battery: stock capacity at ~45 points' (PStat 'Battery' '' @(45) 10 'capacity' '125') 20100
 Check 'battery: 1.25 m holds 600 EC at 0 points' (PStat 'Battery' '' @(0) 0 'ec' '125') 600
 Check 'battery: 1.25 m holds 1,500 EC at 100' (PStat 'Battery' '' @(100) 10 'ec' '125') 1500
-Check 'battery: one category, maxed costs 2.7k' (Call $Pricing ProgramCost @(100, [double]1, $normal)) 2704.8 1
+Check 'battery: Capacity and Build cost' (((TypeOf 'Battery').Categories | ForEach-Object { $_.Label }) -join ',') 'Capacity,Build cost'
 Check 'wheel: 1.25 m torque at 100' (PStat 'Wheel' '' @(100, 0, 0) 10 'torque' '125') 25
 Check 'wheel: 3.75 m torque at 100' (PStat 'Wheel' '' @(100, 0, 0) 10 'torque' '375') 100
 Check 'heat shield: 5 m ablator' (PStat 'Shield' '' @(0, 0, 0) 0 'ablator' '5') 3200
@@ -227,24 +233,21 @@ $p = Call $Program Create @('abc123', 'Kestrel', $liq, $k125, [int[]]@(25, 120, 
 Check 'points are clamped to 0..100' ($p.Points -join ',') '25,100,0,50,10'
 Check 'part name' $p.PartName 'PIP.abc123'
 Check 'chassis for a liquid' $p.ChassisPart 'PIP-K-125-S'
-function Key([uint32]$launch, [uint32]$part) { $Program.GetMethod('PartKey').Invoke($null, @($launch, $part)) }
-Check 'part key' (Key 7 1234) '7:1234'
-Check 'first part of a launch counts' ($p.RecordLaunch((Key 7 1))) $true
-Check 'the same part counts once' ($p.RecordLaunch((Key 7 1))) $false
-Check 'a second part of the same launch counts too' ($p.RecordLaunch((Key 7 2))) $true
-Check 'a relaunch recovers again (same vessel, new launch)' "$($p.RecordRecovery((Key 8 5))),$($p.RecordRecovery((Key 9 5))),$($p.RecordRecovery((Key 9 5)))" 'True,True,False'
-[void]$p.RecordLaunch((Key 10 1))
-Check 'xp from 3 parts launched and 2 recovered' $p.Xp 5
-Check 'display name' $p.DisplayName() 'Kestrel Mk. 3'
+function Key([uint32]$launch) { $Program.GetMethod('FlightKey').Invoke($null, @($launch)) }
+Check 'a flight counts once, however many parts' "$($p.RecordLaunch((Key 7))),$($p.RecordLaunch((Key 7)))" 'True,False'
+Check 'a relaunch recovers again (same vessel, new launch)' "$($p.RecordRecovery((Key 8))),$($p.RecordRecovery((Key 9))),$($p.RecordRecovery((Key 9)))" 'True,True,False'
+[void]$p.RecordLaunch((Key 8)); [void]$p.RecordLaunch((Key 9))
+Check 'xp: 3 flights x1, 2 recoveries x3' $p.Xp 9
+Check 'display name with version' $p.DisplayName() 'Kestrel I Mk. 3'
 $p.Retired = $true
 $values = $p.ToValues(); $map = @{}; foreach ($kv in $values) { $map[$kv.Key] = $kv.Value }
 $back = $Program.GetMethod('FromValues').Invoke($null, @([Func[string, string]] { param($k) $map[$k] }))
 Check 'save keeps the type' $back.Type.Id 'liquid'
 Check 'save keeps the model' $back.ModelCode 'K-125-S'
 Check 'save keeps points' ($back.Points -join ',') '25,100,0,50,10'
-Check 'save keeps experience' $back.Xp 5
-Check 'save keeps counted launches' ($back.RecordLaunch((Key 7 2))) $false
-Check 'save keeps counted recoveries' ($back.RecordRecovery((Key 9 5))) $false
+Check 'save keeps experience' $back.Xp 9
+Check 'save keeps counted launches' ($back.RecordLaunch((Key 7))) $false
+Check 'save keeps counted recoveries' ($back.RecordRecovery((Key 9))) $false
 Check 'save keeps retired' $back.Retired $true
 $map.Remove('type')
 $old = $Program.GetMethod('FromValues').Invoke($null, @([Func[string, string]] { param($k) $map[$k] }))
@@ -252,7 +255,28 @@ Check 'a save from before types loads as liquid' $old.Type.Id 'liquid'
 $j = Call $Program Create @('j1', 'Swift', $jet, (M 'J-125'), [int[]]@(50, 50, 50, 50), [double]0, [double]0)
 $jm = @{}; foreach ($kv in $j.ToValues()) { $jm[$kv.Key] = $kv.Value }
 $jb = $Program.GetMethod('FromValues').Invoke($null, @([Func[string, string]] { param($k) $jm[$k] }))
-Check 'a jet program round-trips' "$($jb.Type.Id) $($jb.ModelCode) $($jb.Points -join ',')" 'jet J-125 50,50,50,50'
+Check 'a jet program round-trips' "$($jb.Type.Id) $($jb.ModelCode) $($jb.Points -join ',')" 'jet J-125 50,50,50,50,0'
+
+Write-Host 'Versions (section 18.1)'
+$v1 = Call $Program Create @('v1', 'Kestrel', $liq, $k125, [int[]]@(25, 25, 25, 25, 25), [double]0, [double]0)
+$v1.Gimbal = '5'
+Check 'a first version is I' "$($v1.Title) $($v1.Version)" 'Kestrel I 1'
+Check 'next points: +10 each' ($v1.NextPoints(100) -join ',') '35,35,35,35,35'
+Check 'never past the research cap' ($v1.NextPoints(25) -join ',') '25,25,25,25,25'
+Check 'at the cap: waiting on research' "$($v1.CanImprove(25)) $($v1.WaitingOnResearch(25))" 'False True'
+Check 'never past 100' (((Call $Program Create @('x', 'X', $liq, $k125, [int[]]@(95, 100, 0, 50, 50), [double]0, [double]0)).NextPoints(100)) -join ',') '100,100,10,60,60'
+$v2 = $v1.NextVersion('v2', 100, [double]0, [double]0)
+Check 'the next version is II' "$($v2.Title) $($v2.Version) $($v2.PredecessorId)" 'Kestrel II 2 v1'
+Check 'it keeps the design and gimbal' "$($v2.ModelCode) $($v2.Gimbal)" 'K-125-S 5'
+Check 'II at Mk. 1 = I at Mk. 5' ($v2.Stats(1, (Level Normal)).Item('thrustVac')) ($v1.Stats(5, (Level Normal)).Item('thrustVac')) 1e-9
+Check 'failures start over' ($v2.Stats(1, (Level Normal)).Item('fail')) 0.10
+Check 'II at Mk. 5 uses its own points' ($v2.Stats(5, (Level Normal)).Item('thrustVac')) (Call $Liquid ThrustAt @($k125, [double]35))
+$vm = Call $Program Create @('vm', 'Kestrel', $liq, $k125, [int[]]@(100, 100, 100, 100, 100), [double]0, [double]0)
+Check 'every slider at 100 is Max' "$($vm.Title) $($vm.IsMax) $($vm.CanImprove(100))" 'Kestrel Max True False'
+Check 'roman numerals' "$([PIP.Program]::Roman(4)) $([PIP.Program]::Roman(9)) $([PIP.Program]::Roman(12))" 'IV IX XII'
+$vmap = @{}; foreach ($kv in $v2.ToValues()) { $vmap[$kv.Key] = $kv.Value }
+$vb = $Program.GetMethod('FromValues').Invoke($null, @([Func[string, string]] { param($k) $vmap[$k] }))
+Check 'a version round-trips' "$($vb.Version) $($vb.StartPoints -join ',') $($vb.PredecessorId) $($vb.Gimbal)" '2 25,25,25,25,25 v1 5'
 $b = Call $Program Create @('b1', 'Volta', $bat, (M ''), [int[]]@(40), [double]0, [double]0)
 Check 'side part name' $b.SidePartName 'PIP.b1.side'
 $b.Look = 'battery-125'; $b.SideLook = 'ksp.r.largeBatteryPack'
@@ -278,6 +302,7 @@ Check 'a bad model does not load' ($Program.GetMethod('FromValues').Invoke($null
 
 Write-Host 'Tooltip and summary text'
 $PartInfo = T 'PartInfo'; $Comparison = T 'Comparison'
+$pts = [int[]]@(25, 25, 25, 25, 10)
 $s0 = $liq.Compute($k125, $pts, 0, (Level Normal))
 $plain = "Mass: 1.5 t`nThrust (ASL): 167.969 kN`nThrust (Vac.): 215.0 kN"
 $out = $PartInfo.GetMethod('Stats').Invoke($null, @($plain, $s0))
@@ -285,7 +310,7 @@ Check 'tooltip mass rewritten' ($out -match 'Mass: 1\.6 t') $true
 Check 'tooltip sea-level thrust rewritten' ($out -match 'Thrust \(ASL\): 132\.786 kN') $true
 Check 'tooltip vacuum thrust rewritten' ($out -match 'Thrust \(Vac\.\): 147\.5 kN') $true
 $sum = $Comparison.GetMethod('Summary').Invoke($null, @('Kestrel', $liq, $k125, [int[]]@(25, 25, 25, 25, 10), (Level Normal)))
-Check 'summary line' $sum 'Kestrel: Built for the pad. No standout strengths. Under 3% failures from Mk. 5.'
+Check 'summary line' $sum 'Kestrel: Built for the pad. No standout strengths. Under 3% failures from Mk. 4.'
 $sum2 = $Comparison.GetMethod('Summary').Invoke($null, @('Talon', $liq, (M 'K-125-V'), [int[]]@(0, 60, 0, 25, 0), (Level Off)))
 Check 'summary for a vacuum engine' $sum2 'Talon: An upper-stage engine, nearly useless at sea level. Strong on efficiency. Neglects weight. Failures are off in this game.'
 $sum3 = $Comparison.GetMethod('Summary').Invoke($null, @('Swift', $jet, (M 'F-125'), [int[]]@(60, 25, 0, 25), (Level Normal)))

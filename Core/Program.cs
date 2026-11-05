@@ -5,12 +5,13 @@ using System.Linq;
 
 namespace PIP
 {
-    // One development program: its part type and model, its points (fixed for
-    // life), and the experience that carries it from Mk. 0 to Mk. 10.
+    // One version of a development program: its part type and model, its points
+    // (fixed for life), and the experience that carries it from Mk. 1 to Mk. 5.
+    // At Mk. 5 a family moves on to its next version (DESIGN.md section 18.1).
     public sealed class Program
     {
         public string Id;
-        public string Name;
+        public string Name;            // the family's name, "Kestrel"; the version is added for display
         public PartType Type;
         public string[] Model;
         public int[] Points;
@@ -28,14 +29,58 @@ namespace PIP
         // for the program's life, in-line or side-mount ("R..."). Empty for engines,
         // and for programs from before sizes were fixed, which still cover every size.
         public string Variant = "";
-        // What has been counted, so nothing counts twice: "launch:part" keys, one
-        // per part per flight (older saves hold bare launch and vessel IDs).
+        // Gimbal, degrees, for engine types with the pick ("" for others). Fixed
+        // for the whole family (DESIGN.md section 18.4).
+        public string Gimbal = "";
+        // Versions (section 18.1): 1 for Kestrel I. A later version starts from the
+        // points of the one before it (StartPoints; null for a first version).
+        public int Version = 1;
+        public int[] StartPoints;
+        public string PredecessorId = "", SuccessorId = "";
+        // What has been counted, so nothing counts twice: one key per flight
+        // (its launch ID; older saves hold other keys).
         public readonly HashSet<string> CountedLaunches = new HashSet<string>();
         public readonly HashSet<string> CountedRecoveries = new HashSet<string>();
 
         public int Total => Points.Sum();
-        public int Xp => Launches + Recoveries;
+        // +1 a flight, +3 a recovery (section 18.2).
+        public int Xp => Launches * Progress.LaunchXp + Recoveries * Progress.RecoveryXp;
         public int Mk => Progress.Mk(Xp);
+
+        // Every slider it uses at 100: the family's last version, "Kestrel Max".
+        public bool IsMax => Enumerable.Range(0, Points.Length).All(i => !Type.CategoryUsed(Model, i) || Points[i] >= Pricing.MaxPoints);
+        public string Title => Name + " " + (IsMax ? "Max" : Roman(Version));
+
+        public static string Roman(int n)
+        {
+            if (n <= 0) return n.ToString(Inv);
+            var vals = new[] { 10, 9, 5, 4, 1 };
+            var syms = new[] { "X", "IX", "V", "IV", "I" };
+            var sb = new System.Text.StringBuilder();
+            for (int i = 0; i < vals.Length && n > 0; i++) while (n >= vals[i]) { sb.Append(syms[i]); n -= vals[i]; }
+            return n > 0 ? sb + "+" : sb.ToString();
+        }
+
+        // The next version's points: +10 on every slider it uses, never past the
+        // research cap or 100; sliders it doesn't use stay at 0.
+        public int[] NextPoints(int cap) =>
+            Points.Select((v, i) => !Type.CategoryUsed(Model, i) ? 0 : Math.Max(v, Math.Min(Math.Min(cap, Pricing.MaxPoints), v + 10))).ToArray();
+
+        // Whether a next version would be any better at this cap, and whether more
+        // research would make one (every slider at the cap, not all at 100).
+        public bool CanImprove(int cap) => !IsMax && NextPoints(cap).Where((v, i) => v > Points[i]).Any();
+        public bool WaitingOnResearch(int cap) => !IsMax && !CanImprove(cap);
+
+        // Kestrel II: same design, the next points, starting where this one ends.
+        public Program NextVersion(string id, int cap, double ut, double funds)
+        {
+            var p = Create(id, Name, Type, Model, NextPoints(cap), ut, funds);
+            p.Version = Version + 1;
+            p.StartPoints = (int[])Points.Clone();
+            p.PredecessorId = Id;
+            p.Look = Look; p.SideLook = SideLook; p.Variant = Variant; p.Gimbal = Gimbal;
+            return p;
+        }
         public string ModelCode => Type.Code(Model);
         public bool FixedSize => !string.IsNullOrEmpty(Variant);
         public bool IsSide => PartType.IsSide(Variant);
@@ -47,26 +92,27 @@ namespace PIP
         public string PartName => "PIP." + Id;
         public string SidePartName => "PIP." + Id + ".side";
         public string ChassisPart => Type.ChassisPart(Model);
-        public string DisplayName(int mk) => Name + " " + Progress.MkName(mk);
+        public string DisplayName(int mk) => Title + " " + Progress.MkName(mk);
         public string DisplayName() => DisplayName(Mk);
+        public int GimbalDegrees => PartType.GimbalDegrees(Gimbal);
 
         public Stats Stats(int mk, FailureLevel level, string variant = null) =>
-            Type.Compute(Model, Points, mk, level, variant ?? (FixedSize ? Variant : null));
+            Type.Compute(Model, Points, mk, level, variant ?? (FixedSize ? Variant : null), StartPoints, GimbalDegrees);
 
-        // Each part counts (DESIGN.md section 5, Phil 2026-11-05): +1 for every part
-        // of the program that flies, +1 for every one recovered, once per flight each.
-        public static string PartKey(uint launchId, uint flightId) => launchId.ToString(Inv) + ":" + flightId.ToString(Inv);
+        // Once per program per flight (DESIGN.md section 18.2): a flight is keyed by
+        // its launch ID, however many of the program's parts were aboard.
+        public static string FlightKey(uint launchId) => launchId.ToString(Inv);
 
-        public bool RecordLaunch(string partKey)
+        public bool RecordLaunch(string flightKey)
         {
-            if (string.IsNullOrEmpty(partKey) || !CountedLaunches.Add(partKey)) return false;
+            if (string.IsNullOrEmpty(flightKey) || !CountedLaunches.Add(flightKey)) return false;
             Launches++;
             return true;
         }
 
-        public bool RecordRecovery(string partKey)
+        public bool RecordRecovery(string flightKey)
         {
-            if (string.IsNullOrEmpty(partKey) || !CountedRecoveries.Add(partKey)) return false;
+            if (string.IsNullOrEmpty(flightKey) || !CountedRecoveries.Add(flightKey)) return false;
             Recoveries++;
             return true;
         }
@@ -118,6 +164,11 @@ namespace PIP
             if (!string.IsNullOrEmpty(Look)) Add("look", Look);
             if (!string.IsNullOrEmpty(SideLook)) Add("sideLook", SideLook);
             if (FixedSize) Add("size", Variant);
+            if (!string.IsNullOrEmpty(Gimbal)) Add("gimbal", Gimbal);
+            if (Version != 1) Add("version", Version.ToString(Inv));
+            if (StartPoints != null) Add("startPoints", PointsToText(StartPoints));
+            if (!string.IsNullOrEmpty(PredecessorId)) Add("predecessor", PredecessorId);
+            if (!string.IsNullOrEmpty(SuccessorId)) Add("successor", SuccessorId);
             if (CountedLaunches.Count > 0) Add("launchIds", string.Join(",", CountedLaunches));
             if (CountedRecoveries.Count > 0) Add("recoveryIds", string.Join(",", CountedRecoveries));
             return v;
@@ -139,6 +190,11 @@ namespace PIP
             p.SideLook = get("sideLook") ?? "";
             string size = get("size");
             if (!string.IsNullOrEmpty(size) && type.VariantOption(model, size) != null) p.Variant = size;
+            p.Gimbal = type.HasGimbalPick ? get("gimbal") ?? "" : "";
+            p.Version = Math.Max(1, I(get("version")));
+            if (!string.IsNullOrEmpty(get("startPoints"))) p.StartPoints = PointsFromText(get("startPoints"), type.Categories.Length);
+            p.PredecessorId = get("predecessor") ?? "";
+            p.SuccessorId = get("successor") ?? "";
             foreach (string x in Ids(get("launchIds"))) p.CountedLaunches.Add(x);
             foreach (string x in Ids(get("recoveryIds"))) p.CountedRecoveries.Add(x);
             return p;

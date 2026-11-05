@@ -55,7 +55,7 @@ namespace PIP
                 {
                     int mk = p.Mk;
                     copy.info =
-                        $"<b>Program:</b> {p.Name}, {Progress.MkName(mk)}\n" +
+                        $"<b>Program:</b> {p.Title}, {Progress.MkName(mk)}\n" +
                         $"{p.Label}\n" +
                         (mk < Progress.MaxMk
                             ? $"<b>Experience:</b> {p.Xp} of {Progress.XpForMk(mk + 1)} for {Progress.MkName(mk + 1)}\n"

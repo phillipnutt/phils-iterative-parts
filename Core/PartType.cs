@@ -78,15 +78,53 @@ namespace PIP
         public abstract string Noun { get; }          // "engine"
         public virtual string ChassisCode => Id.ToUpperInvariant();
         public abstract Choice[] Choices { get; }
-        public abstract Category[] Categories { get; }
+
+        // The type's own sliders, then Build cost, which every type has (DESIGN.md
+        // section 18.3): it brings the build price down as the program matures.
+        protected abstract Category[] OwnCategories { get; }
+        public Category[] Categories => OwnCategories.Concat(new[] { BuildCost }).ToArray();
+        public int CostIndex => OwnCategories.Length;
+        static readonly Category BuildCost = new Category("Build cost");
 
         // [first programs (caps 25), caps 50, caps 75, caps 100]
         public abstract string[] CapTechs { get; }
-        public virtual double PriceFactor => 1;
+        // A brand-new program with every slider at 100 costs this (section 18.5).
+        public abstract double CostCeiling { get; }
         public virtual bool IsEngine => true;
 
-        public abstract Row[] Rows(string[] model);
+        protected abstract Row[] OwnRows(string[] model);
+        public Row[] Rows(string[] model) =>
+            OwnRows(model).Concat(new[] { new Row("Build price, each", K.Price, CostIndex, v => "√ " + v.ToString("N0")) }).ToArray();
+
         public abstract Stats Compute(string[] model, int[] points, int mk, FailureLevel level, string variant = null);
+
+        // A program's numbers: Compute, for a version that starts from the points
+        // of the one before it (null: a first version, from half its points), with
+        // its gimbal pick (degrees; ignored by types without one).
+        public Stats Compute(string[] model, int[] points, int mk, FailureLevel level, string variant, int[] startPoints, int gimbal)
+        {
+            int[] was = start;
+            start = startPoints;
+            try
+            {
+                Stats s = Compute(model, points, mk, level, variant);
+                if (HasGimbalPick) s[K.Gimbal] = CanGimbal(model) ? gimbal : 0;
+                return s;
+            }
+            finally { start = was; }
+        }
+
+        // The starting points of the version being computed (see E). Set only
+        // around one Compute call, on KSP's single thread.
+        [ThreadStatic] static int[] start;
+
+        // Gimbal is a free pick, not a slider (section 18.4): 0, 5, 10 or 20
+        // degrees, opened by research. Fixed for a program family's life.
+        public virtual bool HasGimbalPick => false;
+        public virtual bool CanGimbal(string[] model) => HasGimbalPick;
+        public static readonly Option[] GimbalOptions =
+            { new Option("0", "0°"), new Option("5", "5°"), new Option("10", "10°", "generalRocketry"), new Option("20", "20°", "advRocketry") };
+        public static int GimbalDegrees(string code) => int.TryParse(code, out int d) ? d : 0;
 
         // Sizes of a part type that isn't an engine (B9PartSwitch on the chassis).
         // Each program picks one for life, in-line or side-mount (DESIGN.md
@@ -193,15 +231,26 @@ namespace PIP
         }
 
         protected static int P(int[] points, int i) => points != null && i < points.Length ? Pricing.Clamp(points[i]) : 0;
-        protected static double E(int[] points, int i, int mk) => Progress.Effective(P(points, i), mk);
+        // Points delivered at a Mk.: from the version's starting points to its own.
+        protected static double E(int[] points, int i, int mk) =>
+            start != null && i < start.Length ? Progress.Effective(P(points, i), Math.Min(P(start, i), P(points, i)), mk)
+                                              : Progress.Effective(P(points, i), mk);
         protected static double Lerp(double a, double b, double points) => a + (b - a) * points / 100.0;
         protected static int Total(int[] points) => points?.Sum(p => Pricing.Clamp(p)) ?? 0;
+        // Ambition from every slider but Build cost, which then brings the price down.
         protected double BuildPrice(double basePrice, int[] points, int mk) =>
-            basePrice * Pricing.Ambition(Total(points), MaxTotal) * Pricing.MkPrice(mk);
+            basePrice * Pricing.Ambition(Total(points) - P(points, CostIndex), MaxTotal - Pricing.MaxPoints) *
+            Pricing.CostFactor(E(points, CostIndex, mk));
 
-        // Liquid-style gimbal: 4° for the first 10 points, then a long climb to 20°.
-        protected static double GimbalCurve(double points) =>
-            points <= 10 ? 0.4 * points : 4 + (points - 10) * 16.0 / 90.0;
+        // The share of its points a design spends, over the sliders it uses (section 18.5).
+        public double PointsShare(string[] model, int[] points)
+        {
+            int used = 0, total = 0;
+            for (int i = 0; i < Categories.Length; i++)
+                if (model == null || CategoryUsed(model, i)) { used++; total += P(points, i); }
+            return used == 0 ? 0 : total / (used * (double)Pricing.MaxPoints);
+        }
+
     }
 
     public enum LookScale { Diameter, Mass, Output, Tank, None }

@@ -186,9 +186,11 @@ namespace PIP
             GUI.BeginGroup(main);
             var area = new Rect(0, 0, main.width, main.height);
             Program selected = scenario.Find(selectedId);
-            if (creating || selected == null)
+            if (pickerOpen && pickerFor != null && !creating && selected != null && selected.Id == pickerFor)
+                DrawPicker(area, selected.Type, selected.Model, selected);
+            else if (creating || selected == null)
             {
-                if (pickerOpen) DrawPicker(area, newType, ModelOf(newType));
+                if (pickerOpen && pickerFor == null) DrawPicker(area, newType, ModelOf(newType));
                 else DrawNew(scenario, area);
             }
             else DrawProgram(scenario, selected, area);
@@ -288,7 +290,7 @@ namespace PIP
             string mk = "Mk " + p.Mk;
             float mw = PipSkin.Width(PipSkin.MkBadge, mk) + 14;
             PipSkin.Draw(new Rect(r.xMax - 8 - mw, r.y + 10, mw, 20), p.Mk > 0 ? PipSkin.MkBadge : PipSkin.MkBadgeZero, mk);
-            GUI.Label(new Rect(r.x + 48, r.y + 7, r.width - 60 - mw, 20), p.Name, PipSkin.Name);
+            GUI.Label(new Rect(r.x + 48, r.y + 7, r.width - 60 - mw, 20), p.Title, PipSkin.Name);
             GUI.Label(new Rect(r.x + 48, r.y + 26, r.width - 56, 16), p.Label, PipSkin.Meta);
             var bar = new Rect(r.x + 48, r.y + 46, r.width - 56, 3);
             PipSkin.Fill(bar, PipSkin.Panel3);
@@ -332,12 +334,12 @@ namespace PIP
             // The size, for types that have sizes: part of the design (DESIGN.md section 14).
             string variant = valid ? SizeOf(type, model) : null;
             bool side = PartType.IsSide(variant);
-            bool unlocked = valid && TechUnlocks.Available(type, model, variant);
+            // Gimbal, a free pick for some engines (DESIGN.md 18.4).
+            string gimbal = valid ? GimbalOf(type, model) : "";
+            bool unlocked = valid && TechUnlocks.Available(type, model, variant) &&
+                            (!type.HasGimbalPick || TechUnlocks.Available(type, PartType.GimbalOptions.First(o => o.Code == gimbal)));
 
-            // The look decides whether Gimbal does anything.
-            int gimbal = Looks.GimbalCategory(type);
-            bool fixedNozzle = gimbal >= 0 && type.HasLooks && valid && !Looks.Gimbals(type, LookOf(type, model), model);
-            bool Used(int i) => valid && type.CategoryUsed(model, i) && !(fixedNozzle && i == gimbal);
+            bool Used(int i) => valid && type.CategoryUsed(model, i);
             int cap = TechUnlocks.Cap(type);
             for (int i = 0; i < pts.Length; i++) pts[i] = Used(i) ? Math.Min(pts[i], cap) : 0;
 
@@ -362,25 +364,44 @@ namespace PIP
 
             // Which Mk to preview.
             GUI.Label(new Rect(right.x, y, 84, 24), "PREVIEW AT", PipSkin.StripLabel);
-            float sw = (right.width - 84 - 3 * Progress.MaxMk) / (Progress.MaxMk + 1);
-            for (int mk = 0; mk <= Progress.MaxMk; mk++)
+            previewMk = Mathf.Clamp(previewMk, Progress.MinMk, Progress.MaxMk);
+            int count = Progress.MaxMk - Progress.MinMk + 1;
+            float sw = (right.width - 84 - 3 * (count - 1)) / count;
+            for (int mk = Progress.MinMk; mk <= Progress.MaxMk; mk++)
             {
-                var r = new Rect(right.x + 84 + mk * (sw + 3), y, sw, 24);
+                var r = new Rect(right.x + 84 + (mk - Progress.MinMk) * (sw + 3), y, sw, 24);
                 GUIStyle st = mk == previewMk ? PipSkin.MkStripOn : mk < previewMk ? PipSkin.MkStripPast : PipSkin.MkStrip;
-                if (GUI.Button(r, new GUIContent(mk.ToString(), "Preview " + Progress.MkName(mk)), st)) previewMk = mk;
+                if (GUI.Button(r, new GUIContent("Mk " + mk, "Preview " + Progress.MkName(mk)), st)) previewMk = mk;
             }
             y += 24 + 10;
 
             if (valid)
             {
-                s0 = type.Compute(model, pts, 0, level, variant);
-                sN = type.Compute(model, pts, previewMk, level, variant);
-                s10 = type.Compute(model, pts, Progress.MaxMk, level, variant);
-                DrawPoints(new Rect(right.x, y, right.width, right.yMax - y - 8), type, model, pts, cap, Used, fixedNozzle ? gimbal : -1, s0, sN, s10);
+                int deg = PartType.GimbalDegrees(gimbal);
+                s0 = type.Compute(model, pts, Progress.MinMk, level, variant, null, deg);
+                sN = type.Compute(model, pts, previewMk, level, variant, null, deg);
+                s10 = type.Compute(model, pts, Progress.MaxMk, level, variant, null, deg);
+                DrawPoints(new Rect(right.x, y, right.width, right.yMax - y - 8), type, model, pts, cap, Used, -1, s0, sN, s10);
             }
 
-            DrawFooter(scenario, new Rect(0, area.height - FootH, area.width, FootH), type, model, variant, pts, valid, unlocked, s0, sN, s10);
+            DrawFooter(scenario, new Rect(0, area.height - FootH, area.width, FootH), type, model, variant, gimbal, pts, valid, unlocked, s0, sN, s10);
         }
+
+        // The gimbal picked for a new program of this type: one that's researched,
+        // and 0° when the model or look can't gimbal.
+        static readonly Dictionary<string, string> gimbals = new Dictionary<string, string>();
+        static string GimbalOf(PartType type, string[] model)
+        {
+            if (!type.HasGimbalPick) return "";
+            if (!CanGimbalNow(type, model)) return "0";
+            if (!gimbals.TryGetValue(type.Id, out string g) || PartType.GimbalOptions.All(o => o.Code != g)) gimbals[type.Id] = g = "5";
+            if (!TechUnlocks.Available(type, PartType.GimbalOptions.First(o => o.Code == g)))
+                g = PartType.GimbalOptions.Where(o => TechUnlocks.Available(type, o)).Select(o => o.Code).LastOrDefault() ?? "0";
+            return g;
+        }
+
+        static bool CanGimbalNow(PartType type, string[] model) =>
+            type.CanGimbal(model) && (!type.HasLooks || Looks.Gimbals(type, LookOf(type, model), model));
 
         // Every size a new program of this type can have: in-line, then side-mount
         // when a side-mount look is installed. Null for types without sizes.
@@ -548,6 +569,19 @@ namespace PIP
                     }
                 }
                 if (hasSize) y = DrawSize(x, y, w, type, model, sizes);
+                // Gimbal: a free pick, opened by research; 0° when the model or look can't.
+                if (type.HasGimbalPick && type.Valid(model))
+                {
+                    bool can = CanGimbalNow(type, model);
+                    string current = GimbalOf(type, model);
+                    Option[] go = PartType.GimbalOptions;
+                    float rowY = y;
+                    int picked = Segments(x + 64, ref y, w - 64, go.Select(o => o.Label).ToArray(), Array.FindIndex(go, o => o.Code == current),
+                        i => i > 0 && !can ? (type.CanGimbal(model) ? "This look has a fixed nozzle" : "Can't gimbal")
+                            : TechUnlocks.Available(type, go[i]) ? null : "Research " + TechUnlocks.Title(go[i].Tech), out _);
+                    GUI.Label(new Rect(x, rowY, 62, 34), "Gimbal", PipSkin.SegLabel);
+                    if (picked >= 0) { gimbals[type.Id] = go[picked].Code; message = null; }
+                }
                 y += 12;
             }
 
@@ -572,7 +606,7 @@ namespace PIP
                     string source = current == "" ? standard : current;
                     string sub = ModOf(source) + (current == "" ? "  ·  standard" : "");
                     if (type == PartTypes.Liquid) sub += "  ·  burns " + FuelName(all.Find(l => l.Source == source)?.Fuel ?? model[0]).ToLowerInvariant();
-                    if (Looks.GimbalCategory(type) >= 0 && !Looks.Gimbals(type, current, model)) sub += "  ·  fixed nozzle";
+                    if (type.HasGimbalPick && !Looks.Gimbals(type, current, model)) sub += "  ·  fixed nozzle";
                     if (LookCard(new Rect(x, y, w, 72), source, sub)) OpenPicker(false);
                 }
                 y += 72 + 8;
@@ -655,7 +689,7 @@ namespace PIP
                 if (!main)
                 {
                     GUI.Label(new Rect(12, y, LabelW + sliderW, 22), row.Label.Trim(), PipSkin.SubLabel);
-                    GUI.Label(new Rect(LabelW + Gap, y, sliderW + Gap + StepW, 22), new GUIContent(v0 + "  →  " + v10, "Mk. 0 → Mk. 10"), PipSkin.ValueSmall);
+                    GUI.Label(new Rect(LabelW + Gap, y, sliderW + Gap + StepW, 22), new GUIContent(v0 + "  →  " + v10, "Mk. 1 → Mk. 5"), PipSkin.ValueSmall);
                     GUI.Label(new Rect(w - ValueW, y, ValueW, 22), vN, PipSkin.SubValue);
                     y += 24;
                     continue;
@@ -691,11 +725,11 @@ namespace PIP
                 var val = new Rect(w - ValueW, y + 4, ValueW, 24);
                 if (on)
                 {
-                    // A long value steps down a size; the Mk. 0 → Mk. 10 line may reach further left.
+                    // A long value steps down a size; the Mk. 1 → Mk. 5 line may reach further left.
                     GUIStyle vs = PipSkin.Width(PipSkin.Value, vN) > ValueW + 28 ? PipSkin.ValueTight : PipSkin.Value;
                     GUI.Label(new Rect(val.x - 30, val.y, ValueW + 30, val.height), new GUIContent(vN, vN), vs);
                     string range = v0 + "  →  " + v10;
-                    var rangeContent = new GUIContent(range, "Mk. 0 → Mk. 10");
+                    var rangeContent = new GUIContent(range, "Mk. 1 → Mk. 5");
                     float rw = PipSkin.Width(PipSkin.ValueSmall, range);
                     float rx = Mathf.Min(val.x - 30, w - rw - 2);
                     GUI.Label(new Rect(rx, y + 28, w - rx, 16), rangeContent, PipSkin.ValueSmall);
@@ -729,7 +763,7 @@ namespace PIP
             if (n != pts[i]) pts[i] = n;
         }
 
-        void DrawFooter(PipScenario scenario, Rect r, PartType type, string[] model, string variant, int[] pts, bool valid, bool unlocked, Stats s0, Stats sN, Stats s10)
+        void DrawFooter(PipScenario scenario, Rect r, PartType type, string[] model, string variant, string gimbal, int[] pts, bool valid, bool unlocked, Stats s0, Stats sN, Stats s10)
         {
             PipSkin.Draw(new Rect(0, r.y, r.width, r.height), PipSkin.FootBox);
             PipSkin.Fill(new Rect(0, r.y, r.width, 30), PipSkin.Panel2);
@@ -738,11 +772,11 @@ namespace PIP
 
             float x = Pad, y = r.y + 14;
             int total = pts.Sum();
-            double cost = PipScenario.Cost(type, pts);
+            double cost = PipScenario.Cost(type, model, pts);
             Stat(ref x, y, "POINTS", total.ToString(), 62, PipSkin.Ink);
             bool short_ = !PipScenario.Free && Funding.Instance != null && Funding.Instance.Funds < cost;
             Stat(ref x, y, "PROGRAM COST", PipScenario.Free ? "Free" : "√ " + cost.ToString("N0"), 118, short_ ? PipSkin.Bad : PipSkin.Ink,
-                PipScenario.Free ? "Programs are free in this game mode." : $"About √ {(PipScenario.Cost(type, pts.Select((v, i) => i == 0 ? v + 10 : v).ToArray()) - cost):N0} more for 10 more points.");
+                PipScenario.Free ? "Programs are free in this game mode." : $"About √ {(PipScenario.Cost(type, model, pts.Select((v, i) => i == 0 ? v + 10 : v).ToArray()) - cost):N0} more for 10 more points.");
             if (s0 != null)
                 Stat(ref x, y, "BUILD PRICE, EACH", $"√ {s0.BuildPrice:N0}–{s10.BuildPrice:N0}", 150, PipSkin.Ink, $"Each {type.Noun} costs this to build: Mk. 0 to Mk. 10.");
 
@@ -769,7 +803,7 @@ namespace PIP
             else if (GUI.Button(go, "Start program  →", PipSkin.Go))
             {
                 Program p = scenario.Create(newName, type, model, (int[])pts.Clone(),
-                    type.HasLooks ? LookOf(type, model) : "", type.HasLooks && type.HasSideMount ? SideLookOf(type, model) ?? "" : "", variant, out string error);
+                    type.HasLooks ? LookOf(type, model) : "", type.HasLooks && type.HasSideMount ? SideLookOf(type, model) ?? "" : "", variant, gimbal, out string error);
                 if (p == null) message = error;
                 else
                 {
@@ -777,7 +811,7 @@ namespace PIP
                     creating = false;
                     selectedId = p.Id;
                     newName = SuggestName();
-                    ScreenMessages.PostScreenMessage($"Program {p.Name} started. {p.DisplayName()} is in the parts list.", 6f, ScreenMessageStyle.UPPER_CENTER);
+                    ScreenMessages.PostScreenMessage($"Program {p.Title} started. {p.DisplayName()} is in the parts list.", 6f, ScreenMessageStyle.UPPER_CENTER);
                 }
             }
         }
@@ -907,8 +941,21 @@ namespace PIP
 
         #region Look picker
 
-        void OpenPicker(bool side)
+        // The look a program wears now, and the one its next version will (it may change).
+        static readonly Dictionary<string, string> nextLooks = new Dictionary<string, string>();
+        static string pickerFor;   // the program whose next version's look is being picked; null: a new program's
+
+        static string CurrentLookOf(Program p)
         {
+            if (p.FixedSize && p.IsSide) return string.IsNullOrEmpty(p.SideLook) ? Looks.DefaultSide(p.Type, p.Model) : p.SideLook;
+            return string.IsNullOrEmpty(p.Look) ? PartFactory.StandardSource(p.Type, p.Model) : p.Look;
+        }
+
+        static string NextLookOf(Program p) => nextLooks.TryGetValue(p.Id, out string l) ? l : CurrentLookOf(p);
+
+        void OpenPicker(bool side, string forProgram = null)
+        {
+            pickerFor = forProgram;
             pickerOpen = true;
             pickerSide = side;
             search = "";
@@ -922,11 +969,11 @@ namespace PIP
             public bool Standard;
         }
 
-        void DrawPicker(Rect area, PartType type, string[] model)
+        void DrawPicker(Rect area, PartType type, string[] model, Program forProgram = null)
         {
             bool side = pickerSide;
             string standard = side ? Looks.DefaultSide(type, model) : PartFactory.StandardSource(type, model);
-            string current = side ? SideLookOf(type, model) : (LookOf(type, model) is string l && l != "" ? l : standard);
+            string current = forProgram != null ? NextLookOf(forProgram) : side ? SideLookOf(type, model) : (LookOf(type, model) is string l && l != "" ? l : standard);
             List<Looks.Look> all = Looks.List(type, side, model);
             var entries = new List<Entry>();
             if (!string.IsNullOrEmpty(standard))
@@ -935,7 +982,7 @@ namespace PIP
             if (type == PartTypes.Liquid)
                 entries = entries.OrderBy(e => e.Standard ? 0 : 1).ThenBy(e => e.Fuel == model[0] ? 0 : 1).ToList();
 
-            int gimbal = Looks.GimbalCategory(type);
+            bool gimbal = type.HasGimbalPick;
             bool Gimbals(string s)
             {
                 string key = type.Id + "/" + string.Join("-", model) + "/" + s;
@@ -945,7 +992,7 @@ namespace PIP
 
             float x = Pad, w = area.width - 2 * Pad;
             GUI.Label(new Rect(x, 14, w, 30), side ? "Pick a side-mount look" : "Pick a look", PipSkin.PickerTitle);
-            if (GUI.Button(new Rect(area.width - Pad - 30, 14, 30, 30), new GUIContent("×", "Back to the program"), PipSkin.Close)) pickerOpen = false;
+            if (GUI.Button(new Rect(area.width - Pad - 30, 14, 30, 30), new GUIContent("×", "Back to the program"), PipSkin.Close)) { pickerOpen = false; pickerFor = null; }
 
             GUI.SetNextControlName("pipSearch");
             var sr = new Rect(x, 54, 300, 34);
@@ -955,7 +1002,7 @@ namespace PIP
 
             var chips = new List<string> { "All" };
             if (!side && type == PartTypes.Liquid) chips.Add("Burns " + FuelName(model[0]).ToLowerInvariant());
-            if (!side && gimbal >= 0) chips.Add("Gimbals");
+            if (!side && gimbal) chips.Add("Gimbals");
             float cx = sr.xMax + 12;
             for (int i = 0; i < chips.Count; i++)
             {
@@ -985,7 +1032,8 @@ namespace PIP
                 {
                     if (GUI.Button(r, GUIContent.none, e.Source == current ? PipSkin.LookRowOn : PipSkin.LookRow))
                     {
-                        if (side) sideLooks[type.Id] = e.Source;
+                        if (forProgram != null) nextLooks[forProgram.Id] = e.Source;
+                        else if (side) sideLooks[type.Id] = e.Source;
                         else looks[type.Id] = e.Standard ? "" : e.Source;
                         pickerOpen = false;
                         message = null;
@@ -998,7 +1046,7 @@ namespace PIP
                     if (e.Standard) tags.Add(new KeyValuePair<string, GUIStyle>(side ? "Default" : "Standard", PipSkin.Tag));
                     if (type == PartTypes.Liquid && !side && e.Fuel != "")
                         tags.Add(new KeyValuePair<string, GUIStyle>(FuelName(e.Fuel), e.Fuel == model[0] ? PipSkin.TagGood : PipSkin.TagWarn));
-                    if (!side && gimbal >= 0 && !Gimbals(e.Source)) tags.Add(new KeyValuePair<string, GUIStyle>("Fixed nozzle", PipSkin.TagBad));
+                    if (!side && gimbal && !Gimbals(e.Source)) tags.Add(new KeyValuePair<string, GUIStyle>("Fixed nozzle", PipSkin.TagBad));
                     float tx = r.xMax - 12;
                     foreach (KeyValuePair<string, GUIStyle> t in tags)
                     {
@@ -1036,18 +1084,19 @@ namespace PIP
             float x = 282, w = area.width - x - 26, y = 24;
             GUI.Label(new Rect(x, y, w, 18), $"{p.Type.Title}  ·  {p.Label}", PipSkin.Eyebrow);
             y += 20;
-            GUI.Label(new Rect(x, y, w, 54), p.Name, PipSkin.Big);
+            GUI.Label(new Rect(x, y, w, 54), p.Title, PipSkin.Big);
             string badge = "Mk " + mk;
-            float nameW = Mathf.Min(w - 100, PipSkin.Width(PipSkin.Big, p.Name));
+            float nameW = Mathf.Min(w - 100, PipSkin.Width(PipSkin.Big, p.Title));
             PipSkin.Draw(new Rect(x + nameW + 14, y + 12, PipSkin.Width(PipSkin.BigMk, badge) + 22, 34), PipSkin.BigMk, badge);
             y += 66;
 
-            // The experience track: one segment per Mk.
+            // The experience track: one segment for each Mk. after the first.
             const float SegGap = 4;
-            float segW = (w - SegGap * (Progress.MaxMk - 1)) / Progress.MaxMk;
-            for (int i = 1; i <= Progress.MaxMk; i++)
+            int steps = Progress.MaxMk - Progress.MinMk;
+            float segW = (w - SegGap * (steps - 1)) / steps;
+            for (int i = Progress.MinMk + 1; i <= Progress.MaxMk; i++)
             {
-                var r = new Rect(x + (i - 1) * (segW + SegGap), y, segW, 8);
+                var r = new Rect(x + (i - Progress.MinMk - 1) * (segW + SegGap), y, segW, 8);
                 PipSkin.Bar(r, PipSkin.Panel3);
                 float share = i <= mk ? 1 : i == mk + 1 ? XpShare(p) : 0;
                 if (share > 0) PipSkin.Bar(new Rect(r.x, r.y, r.width * share, r.height), PipSkin.Amber);
@@ -1055,9 +1104,16 @@ namespace PIP
                     i == mk + 1 ? PipSkin.TrackLabelOn : PipSkin.TrackLabel);
             }
             y += 34;
+            // At Mk. 5: what comes next (DESIGN.md section 18.1).
+            string blocked = PipScenario.NextBlocked(p);
+            int cap = TechUnlocks.Cap(p.Type);
+            int[] nextPts = p.NextPoints(cap);
+            bool nextMax = Enumerable.Range(0, nextPts.Length).All(i => !p.Type.CategoryUsed(p.Model, i) || nextPts[i] >= Pricing.MaxPoints);
+            string nextTitle = p.Name + " " + (nextMax ? "Max" : Program.Roman(p.Version + 1));
             string xp = mk < Progress.MaxMk
-                ? $"{p.Xp} of {Progress.XpForMk(mk + 1)} experience for {Progress.MkName(mk + 1)}. Each part that flies, and each one recovered, is worth 1."
-                : "Fully developed.";
+                ? $"{p.Xp} of {Progress.XpForMk(mk + 1)} experience for {Progress.MkName(mk + 1)}. Each flight is worth {Progress.LaunchXp}, and each recovery {Progress.RecoveryXp}."
+                : blocked == null ? $"Fully developed. {nextTitle} is ready: every slider +10, starting from these numbers."
+                : $"Fully developed. {blocked}";
             GUI.Label(new Rect(x, y, w, 40), xp, PipSkin.XpLine);
             y += 44;
             // A mod its model came from was removed: say so instead of a silent gap.
@@ -1074,6 +1130,7 @@ namespace PIP
                 $"{p.Total} points  ·  " + (p.FundsPaid > 0 ? $"cost √ {p.FundsPaid:N0}" : "started free"),
             };
             if (p.Type.HasLooks) chips.Add("Look: " + (look != null ? Looks.Title(look) : "standard"));
+            if (p.Type.HasGimbalPick) chips.Add("Gimbal " + (p.Type.CanGimbal(p.Model) ? Fmt.Deg(p.GimbalDegrees) : "none"));
             // Programs from before sizes were fixed still make a side-mount part too.
             if (p.Type.HasSideMount && !p.FixedSize) chips.Add(string.IsNullOrEmpty(p.SideLook) ? "No side-mount part" : "Side-mount: " + Looks.Title(p.SideLook));
             float cx = x;
@@ -1084,15 +1141,22 @@ namespace PIP
                 PipSkin.Draw(new Rect(cx, y, cw, 24), PipSkin.ProgChip, c);
                 cx += cw + 6;
             }
+            // The family's versions so far.
+            List<Program> family = scenario.Family(p);
+            if (family.Count > 1)
+            {
+                y += 32;
+                string history = "Versions:  " + string.Join("   ·   ", family.Select(v => $"{v.Title} {(v.Type.Categories.Length > 0 ? v.Points.Max() : 0)} pts{(v == p ? " (now)" : "")}"));
+                GUI.Label(new Rect(x, y, w, 20), new GUIContent(history, "Each version's highest slider"), PipSkin.Meta);
+            }
             y = Mathf.Max(y + 40, 22 + 230 + 24);
 
-            // Stats now and at Mk. 10, in two columns.
+            // Stats now and at Mk. 5, in two columns.
             FailureLevel level = PipSettings.Failures;
             Stats now = p.Stats(mk, level), top = p.Stats(Progress.MaxMk, level);
             var lines = new List<KeyValuePair<Row, int>>();
             foreach (Row r in p.Type.Rows(p.Model))
                 if (r.Category < 0 || p.Type.CategoryUsed(p.Model, r.Category)) lines.Add(new KeyValuePair<Row, int>(r, r.Category >= 0 ? p.Points[r.Category] : -1));
-            lines.Add(new KeyValuePair<Row, int>(new Row("Build price", K.Price, -1, v => "√ " + v.ToString("N0")), -2));
 
             float colGap = 28, colW = (area.width - 52 - colGap) / 2;
             int perCol = (lines.Count + 1) / 2;
@@ -1111,14 +1175,45 @@ namespace PIP
             // Footer: the build rule, and retiring.
             float fy = area.height - 46;
             PipSkin.Fill(new Rect(26, fy, area.width - 52, 1), PipSkin.Line);
-            GUI.Label(new Rect(26, fy + 6, area.width - 360, 34), $"Parts already built keep the Mk they were built at. New builds use {Progress.MkName(mk)}.", PipSkin.Small);
-            if (!retireArmed)
+            // The next version: its look (it may change), its cost, and Start.
+            bool ready = blocked == null;
+            float textW = area.width - (ready ? 690 : 360);
+            GUI.Label(new Rect(26, fy + 6, textW, 34), $"Parts already built keep the Mk they were built at. New builds use {Progress.MkName(mk)}.", PipSkin.Small);
+            if (ready && !retireArmed)
+            {
+                double nextCost = PipScenario.NextCost(p);
+                bool side = p.FixedSize && p.IsSide;
+                string nextLook = NextLookOf(p);
+                if (p.Type.HasLooks && GUI.Button(new Rect(area.width - 26 - 486, fy + 8, 150, 30),
+                        new GUIContent("Look: " + Comparison.ShortName(Looks.Title(nextLook ?? "")), $"The look {nextTitle} wears. Click to pick another."), PipSkin.Retire))
+                {
+                    OpenPicker(side, p.Id);
+                }
+                if (GUI.Button(new Rect(area.width - 26 - 326, fy + 4, 326, 38),
+                        new GUIContent($"Start {nextTitle}  ·  " + (PipScenario.Free ? "free" : $"√ {nextCost:N0}") + "  →",
+                            $"Every slider +10 (cap {cap}). A tenth of a new program's cost. {p.Title} retires; its parts keep flying."), PipSkin.Go))
+                {
+                    // Unchanged: keep it; back to the standard look: "".
+                    string lookArg = nextLook == CurrentLookOf(p) ? null : !side && nextLook == PartFactory.StandardSource(p.Type, p.Model) ? "" : nextLook;
+                    Program next = scenario.StartNext(p, lookArg, out string error);
+                    if (next == null) message = error;
+                    else
+                    {
+                        selectedId = next.Id;
+                        nextLooks.Remove(p.Id);
+                        message = null;
+                        ScreenMessages.PostScreenMessage($"{next.Title} started. {next.DisplayName()} is in the parts list.", 6f, ScreenMessageStyle.UPPER_CENTER);
+                    }
+                }
+                if (!string.IsNullOrEmpty(message)) GUI.Label(new Rect(26, fy - 26, area.width - 52, 22), message, PipSkin.CompareBad);
+            }
+            else if (!retireArmed)
             {
                 if (GUI.Button(new Rect(area.width - 26 - 150, fy + 8, 150, 30), "Retire program…", PipSkin.Retire)) retireArmed = true;
             }
             else
             {
-                GUI.Label(new Rect(area.width - 26 - 520, fy + 4, 300, 38), $"Retire {p.Name}? It leaves the parts list. Parts already flying are unaffected. No refund.", PipSkin.Confirm);
+                GUI.Label(new Rect(area.width - 26 - 520, fy + 4, 300, 38), $"Retire {p.Title}? It leaves the parts list. Parts already flying are unaffected. No refund.", PipSkin.Confirm);
                 if (GUI.Button(new Rect(area.width - 26 - 210, fy + 8, 96, 30), "Keep it", PipSkin.ConfirmButton)) retireArmed = false;
                 if (GUI.Button(new Rect(area.width - 26 - 106, fy + 8, 106, 30), "Retire it", PipSkin.ConfirmDanger))
                 {
@@ -1133,9 +1228,9 @@ namespace PIP
         {
             const float LabelW = 132, NowW = 88, TopW = 74, Gap = 10;
             GUI.Label(new Rect(r.x + LabelW + Gap, r.y, r.width - LabelW - NowW - TopW - 3 * Gap, r.height),
-                new GUIContent("PROGRESS", "How close it is now to Mk. 10"), PipSkin.StatHead);
+                new GUIContent("PROGRESS", "How close it is now to Mk. 5"), PipSkin.StatHead);
             GUI.Label(new Rect(r.xMax - TopW - Gap - NowW, r.y, NowW, r.height), "NOW", PipSkin.StatHeadRight);
-            GUI.Label(new Rect(r.xMax - TopW, r.y, TopW, r.height), "MK 10", PipSkin.StatHeadRight);
+            GUI.Label(new Rect(r.xMax - TopW, r.y, TopW, r.height), "MK 5", PipSkin.StatHeadRight);
         }
 
         static void StatRow(Rect r, Row row, int points, double now, double top)

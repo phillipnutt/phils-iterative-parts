@@ -147,3 +147,52 @@ namespace PIP
         }
     }
 }
+
+namespace PIP
+{
+    // A craft saved with an older version's parts (Kestrel I) loads with the
+    // family's newest version instead (DESIGN.md section 18.1): its PART nodes
+    // are renamed before KSP builds the ship. Parts keep their place and settings;
+    // the part module picks up the newest version's numbers in the VAB.
+    // Every LoadShip overload (they may call each other; renaming twice is harmless).
+    [HarmonyLib.HarmonyPatch]
+    static class NewestVersionOnLoadPatch
+    {
+        static System.Collections.Generic.IEnumerable<System.Reflection.MethodBase> TargetMethods() =>
+            typeof(ShipConstruct).GetMethods().Where(m => m.Name == nameof(ShipConstruct.LoadShip) && m.GetParameters().Length > 0 && m.GetParameters()[0].ParameterType == typeof(ConfigNode));
+
+        static void Prefix(ConfigNode root)
+        {
+            try
+            {
+                PipScenario scenario = PipScenario.Instance;
+                if (root == null || scenario == null || !HighLogic.LoadedSceneIsEditor) return;
+                int swapped = 0;
+                foreach (ConfigNode part in root.GetNodes("PART"))
+                {
+                    string value = part.GetValue("part");
+                    if (string.IsNullOrEmpty(value)) continue;
+                    int cut = value.IndexOf('_');
+                    string name = cut < 0 ? value : value.Substring(0, cut), rest = cut < 0 ? "" : value.Substring(cut);
+                    Program old = scenario.Find(PartFactory.ProgramIdOf(name));
+                    Program latest = scenario.Latest(old);
+                    if (old == null || latest == null || latest == old) continue;
+                    PartFactory.Ensure(latest);
+                    string newName = PartFactory.IsSidePart(name) ? latest.SidePartName : latest.PartName;
+                    if (PartLoader.getPartInfoByName(newName) == null) continue;
+                    part.SetValue("part", newName + rest);
+                    swapped++;
+                }
+                if (swapped > 0)
+                {
+                    UnityEngine.Debug.Log($"[PIP] Craft loaded with {swapped} parts moved to their program's newest version");
+                    ScreenMessages.PostScreenMessage($"{swapped} part{(swapped == 1 ? "" : "s")} updated to the newest program version.", 5f, ScreenMessageStyle.UPPER_CENTER);
+                }
+            }
+            catch (System.Exception e)
+            {
+                UnityEngine.Debug.LogError("[PIP] Updating a craft to the newest versions failed: " + e);
+            }
+        }
+    }
+}

@@ -263,7 +263,7 @@ namespace PIP
             ap.cost = (float)Math.Round(s.BuildPrice);
             string chassis = chassisOf.TryGetValue(ap.name, out string c) ? c : ChassisFor(p.Type, p.Model) ?? p.ChassisPart;
             ap.moduleInfos = PartInfo.ModuleInfos(PartLoader.getPartInfoByName(chassis), p, s, side);
-            ap.description = $"{p.Label}{(side && !p.FixedSize ? ", side-mount" : "")}. Program {p.Name}, now at {Progress.MkName(mk)}.\n" + Describe(p.Type, p.Model, s);
+            ap.description = $"{p.Label}{(side && !p.FixedSize ? ", side-mount" : "")}. Program {p.Title}, now at {Progress.MkName(mk)}.\n" + Describe(p.Type, p.Model, s);
         }
 
         // "Thrust, vacuum 205 kN. Isp, vacuum 300 s. ..." from the type's main rows.

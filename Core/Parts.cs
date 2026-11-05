@@ -38,8 +38,9 @@ namespace PIP
         static readonly Category[] categories = { new Category("Thrust"), new Category("Efficiency"), new Category("Weight") };
 
         public override Choice[] Choices => choices;
-        public override Category[] Categories => categories;
+        protected override Category[] OwnCategories => categories;
         public override string[] CapTechs => new[] { "flightControl", "advFlightControl", "specializedControl", "experimentalRocketry" };
+        public override double CostCeiling => 2.5e5;
 
         // Looks (16): one look part per propellant, because the thrusters' fuel is
         // in the config. The look's number of nozzles (its kind) must match the layout.
@@ -71,7 +72,7 @@ namespace PIP
             return s;
         }
 
-        public override Row[] Rows(string[] m) => new[]
+        protected override Row[] OwnRows(string[] m) => new[]
         {
             new Row("Thrust per nozzle, vacuum", K.ThrustVac, 0, Fmt.Kn),
             new Row("Isp, vacuum", K.IspVac, 1, Fmt.Sec),
@@ -101,8 +102,9 @@ namespace PIP
         static readonly double[] SidePrice = { 80, 550, 1100 };
 
         public override Choice[] Choices => new Choice[0];
-        public override Category[] Categories => new[] { new Category("Capacity") };
+        protected override Category[] OwnCategories => new[] { new Category("Capacity") };
         public override string[] CapTechs => new[] { "start", "electrics", "largeElectrics", "experimentalElectrics" };
+        public override double CostCeiling => 1e5;
         public override Option[] Variants(string[] m) => variants;
         public override bool HasSideMount => true;
         public override Option[] SideVariants(string[] m) => sideVariants;
@@ -128,7 +130,7 @@ namespace PIP
             return s;
         }
 
-        public override Row[] Rows(string[] m) => new[]
+        protected override Row[] OwnRows(string[] m) => new[]
         {
             new Row("Capacity", Capacity, 0, v => $"{v:N0} EC/t"),
             new Row("  holds", Ec, -1, v => $"{v:N0} EC"),
@@ -155,8 +157,9 @@ namespace PIP
         const double SideTorqueLo = 0.5, SideTorqueHi = 3, SidePrice = 500;
 
         public override Choice[] Choices => new Choice[0];
-        public override Category[] Categories => new[] { new Category("Torque"), new Category("Power draw"), new Category("Weight") };
+        protected override Category[] OwnCategories => new[] { new Category("Torque"), new Category("Power draw"), new Category("Weight") };
         public override string[] CapTechs => new[] { "stability", "flightControl", "advFlightControl", "specializedControl" };
+        public override double CostCeiling => 2.5e5;
         public override Option[] Variants(string[] m) => variants;
         public override bool HasSideMount => true;
         public override Option[] SideVariants(string[] m) => sideVariants;
@@ -181,7 +184,7 @@ namespace PIP
             return s;
         }
 
-        public override Row[] Rows(string[] m) => new[]
+        protected override Row[] OwnRows(string[] m) => new[]
         {
             new Row("Torque", TorqueKey, 0, v => $"{v:0.#} kNm"),
             new Row("Power draw", K.EcRate, 1, Fmt.Ec),
@@ -205,8 +208,9 @@ namespace PIP
         static readonly double[] PriceBySize = { 150, 300, 600, 1000, 2000, 3500 };
 
         public override Choice[] Choices => new Choice[0];
-        public override Category[] Categories => new[] { new Category("Ablator"), new Category("Weight"), new Category("Heat tolerance") };
+        protected override Category[] OwnCategories => new[] { new Category("Ablator"), new Category("Weight"), new Category("Heat tolerance") };
         public override string[] CapTechs => new[] { "survivability", "enhancedSurvivability", "heatManagementSystems", "advHeatManagement" };
+        public override double CostCeiling => 1e5;
         public override Option[] Variants(string[] m) => variants;
         public override bool HasLooks => true;
         public override string DefaultLook(string[] m) => "HeatShield1";
@@ -225,7 +229,7 @@ namespace PIP
             return s;
         }
 
-        public override Row[] Rows(string[] m) => new[]
+        protected override Row[] OwnRows(string[] m) => new[]
         {
             new Row("Heat soaked per unit of ablator", AblatorFactor, 0, v => Percent(v, "more", "less")),
             new Row("  ablator", AblatorAmount, -1, v => $"{v:N0}"),
@@ -252,8 +256,9 @@ namespace PIP
         static readonly double[] PriceBySize = { 300, 1500, 3000, 12000 };
 
         public override Choice[] Choices => choices;
-        public override Category[] Categories => new[] { new Category("Output"), new Category("Weight"), new Category("Durability", 0) };
+        protected override Category[] OwnCategories => new[] { new Category("Output"), new Category("Weight"), new Category("Durability", 0) };
         public override string[] CapTechs => new[] { "survivability", "electrics", "advSolarTech", "cuttingEdgeSolarTech" };
+        public override double CostCeiling => 2.5e5;
         public override Option[] Variants(string[] m) => Deployable(m) ? deployableSizes : fixedSizes;
         public override string VariantName => "Size class";
 
@@ -288,7 +293,7 @@ namespace PIP
             return s;
         }
 
-        public override Row[] Rows(string[] m) => new[]
+        protected override Row[] OwnRows(string[] m) => new[]
         {
             new Row("Output in Kerbin's sunlight", K.EcRate, 0, Fmt.Ec),
             new Row("Weight", K.Mass, 1, Fmt.Tons),
@@ -321,8 +326,9 @@ namespace PIP
         static readonly double[] PriceBy = { 300, 800, 2500, 8000 };
 
         public override Choice[] Choices => choices;
-        public override Category[] Categories => new[] { new Category("Range"), new Category("Power draw"), new Category("Weight") };
+        protected override Category[] OwnCategories => new[] { new Category("Range"), new Category("Power draw"), new Category("Weight") };
         public override string[] CapTechs => new[] { "start", "precisionEngineering", "unmannedTech", "largeUnmanned" };
+        public override double CostCeiling => 2.5e5;
         public override Option[] Variants(string[] m) => Dish(m) ? dishes : omni;
         public override string VariantName => "Class";
         public override string DefaultVariant(string[] m) => Dish(m) ? "S" : "O";
@@ -357,7 +363,7 @@ namespace PIP
 
         public static string Distance(double m) => m >= 1e9 ? $"{m / 1e9:0.#} Gm" : m >= 1e6 ? $"{m / 1e6:0.#} Mm" : $"{m / 1e3:0} km";
 
-        public override Row[] Rows(string[] m) => new[]
+        protected override Row[] OwnRows(string[] m) => new[]
         {
             new Row("Range", RangeKey, 0, Distance),
             new Row("Power draw", K.EcRate, 1, Fmt.Ec),
@@ -384,9 +390,10 @@ namespace PIP
         static readonly double[] PriceBySize = { 450, 1000, 2000, 4000 };
 
         public override Choice[] Choices => new Choice[0];
-        public override Category[] Categories =>
+        protected override Category[] OwnCategories =>
             new[] { new Category("Autopilot"), new Category("Power draw"), new Category("Weight"), new Category("Torque", 10) };
         public override string[] CapTechs => new[] { "start", "precisionEngineering", "advUnmanned", "largeUnmanned" };
+        public override double CostCeiling => 6e5;
         public override Option[] Variants(string[] m) => variants;
         public override bool HasLooks => true;
         public override string DefaultLook(string[] m) => "probeCoreOcto2.v2";
@@ -422,7 +429,7 @@ namespace PIP
             }
         }
 
-        public override Row[] Rows(string[] m) => new[]
+        protected override Row[] OwnRows(string[] m) => new[]
         {
             new Row("Autopilot (SAS)", Sas, 0, SasName),
             new Row("Power draw", K.EcRate, 1, v => $"{v:0.000} EC/s"),
@@ -458,8 +465,9 @@ namespace PIP
             new Option(s + "-" + l, Sizes.Label(s) + " " + LengthLabels[i], Sizes.Tooling(s) ?? ""))).ToArray();
 
         public override Choice[] Choices => choices;
-        public override Category[] Categories => new[] { new Category("Weight"), new Category("Strength"), new Category("Insulation", 0) };
+        protected override Category[] OwnCategories => new[] { new Category("Weight"), new Category("Strength"), new Category("Insulation", 0) };
         public override string[] CapTechs => new[] { "basicRocketry", "fuelSystems", "largeVolumeContainment", "specializedFuelStorage" };
+        public override double CostCeiling => 1e5;
         public override Option[] Variants(string[] m) => variants;
         public override string VariantName => "Size and length";
         public override string DefaultVariant(string[] m) => "125-L";
@@ -556,7 +564,7 @@ namespace PIP
             return s;
         }
 
-        public override Row[] Rows(string[] m) => new[]
+        protected override Row[] OwnRows(string[] m) => new[]
         {
             new Row("Empty weight", K.Mass, 0, Fmt.Tons),
             new Row("Survives impacts to", Crash, 1, v => $"{v:0} m/s"),
@@ -591,8 +599,9 @@ namespace PIP
         static readonly double[] PriceBySize = { 4000, 20000 };
 
         public override Choice[] Choices => new Choice[0];
-        public override Category[] Categories => new[] { new Category("Output"), new Category("Lifetime") };
+        protected override Category[] OwnCategories => new[] { new Category("Output"), new Category("Lifetime") };
         public override string[] CapTechs => new[] { "specializedElectrics", "experimentalElectrics", "highTechElectricalSystems", "highPowerElectricalSystems" };
+        public override double CostCeiling => 6e5;
         public override Option[] Variants(string[] m) => variants;
         public override string VariantName => "Size class";
         public override string DefaultVariant(string[] m) => "S";
@@ -615,7 +624,7 @@ namespace PIP
             return s;
         }
 
-        public override Row[] Rows(string[] m) => new[]
+        protected override Row[] OwnRows(string[] m) => new[]
         {
             new Row("Output", PerTon, 0, v => $"{v:0.0} EC/s per ton"),
             new Row("  this size makes", K.EcRate, -1, Fmt.Ec),
@@ -649,8 +658,9 @@ namespace PIP
         static readonly string[] Default = { "CircularIntake", "ramAirIntake", "shockConeIntake" };
 
         public override Choice[] Choices => choices;
-        public override Category[] Categories => new[] { new Category("Airflow"), new Category("Top speed"), new Category("Weight") };
+        protected override Category[] OwnCategories => new[] { new Category("Airflow"), new Category("Top speed"), new Category("Weight") };
         public override string[] CapTechs => new[] { "aviation", "aerodynamicSystems", "highAltitudeFlight", "hypersonicFlight" };
+        public override double CostCeiling => 1e5;
         public override Option[] Variants(string[] m) => variants;
         public override bool HasSideMount => true;
         public override Option[] SideVariants(string[] m) => sideVariants;
@@ -688,7 +698,7 @@ namespace PIP
             return s;
         }
 
-        public override Row[] Rows(string[] m) => new[]
+        protected override Row[] OwnRows(string[] m) => new[]
         {
             new Row("Intake area", Area, 0, v => $"{v:0.0000} m²"),
             new Row("Top speed", K.TopMach, 1, Fmt.Mach),

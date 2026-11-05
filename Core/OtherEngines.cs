@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 
 namespace PIP
 {
@@ -11,7 +12,6 @@ namespace PIP
         public override string Title => "Solid boosters";
         public override string Noun => "booster";
         public override string ChassisCode => "SOL";
-        public override double PriceFactor => 0.5;
         public override int ReliabilityCategory => 3;
 
         static readonly Choice[] choices =
@@ -25,12 +25,14 @@ namespace PIP
 
         static readonly Category[] categories =
         {
-            new Category("Thrust"), new Category("Efficiency"), new Category("Weight"), new Category("Reliability"), new Category("Gimbal", 0),
+            new Category("Thrust"), new Category("Efficiency"), new Category("Weight"), new Category("Reliability"),
         };
 
         public override Choice[] Choices => choices;
-        public override Category[] Categories => categories;
+        protected override Category[] OwnCategories => categories;
         public override string[] CapTechs => new[] { "start", "generalRocketry", "heavierRocketry", "experimentalRocketry" };
+        public override double CostCeiling => 5e5;
+        public override bool HasGimbalPick => true;   // a free pick (DESIGN.md 18.4)
 
         // SolidFuel units, [size][length]; 1 unit = 7.5 kg. The chassis carry the same amounts.
         public static readonly double[,] Units =
@@ -77,7 +79,6 @@ namespace PIP
 
         public override double FailureAt(string[] m, int rel, int mk, FailureLevel level) => Failure.Chance(0.01, 0.0005, rel, mk, level);
 
-        static double GimbalAt(double p) => p <= 0 ? 0 : p <= 10 ? 0.2 * p : 2 + (p - 10) * 6.0 / 90.0;
 
         public override Stats Compute(string[] m, int[] pts, int mk, FailureLevel level, string variant = null)
         {
@@ -92,13 +93,12 @@ namespace PIP
             s[K.Mass] = s[K.Propellant] * Lerp(0.27, 0.13, E(pts, 2, mk));
             s[K.Burn] = s[K.Propellant] * s[K.IspVac] * Engines.G0 / Math.Max(0.001, s[K.ThrustVac]);
             s[K.Fail] = FailureAt(m, P(pts, 3), mk, level);
-            s[K.Gimbal] = GimbalAt(E(pts, 4, mk));
             // About 1 fund per unit of propellant, fuel included (as stock prices are).
             s[K.Price] = BuildPrice(PropellantUnits(m), pts, mk);
             return s;
         }
 
-        public override Row[] Rows(string[] m) => new[]
+        protected override Row[] OwnRows(string[] m) => new[]
         {
             new Row("Thrust, vacuum", K.ThrustVac, 0, Fmt.Kn),
             new Row("  at sea level", K.ThrustSL, -1, Fmt.Kn),
@@ -108,7 +108,7 @@ namespace PIP
             new Row("Weight (casing)", K.Mass, 2, Fmt.Tons),
             new Row("  propellant", K.Propellant, -1, Fmt.Tons),
             new Row("Fails to light", K.Fail, 3, Fmt.Pct),
-            new Row("Gimbal", K.Gimbal, 4, Fmt.Deg),
+            new Row("  gimbal", K.Gimbal, -1, Fmt.Deg),
         };
 
         public override string Label(string[] m) => $"{Sizes.Label(m[0])} solid, {choices[1].Find(m[1])?.Label.ToLowerInvariant()}";
@@ -122,7 +122,6 @@ namespace PIP
         public override string Title => "Monopropellant engines";
         public override string Noun => "engine";
         public override string ChassisCode => "MON";
-        public override double PriceFactor => 0.5;
         public override int ReliabilityCategory => 3;
 
         static readonly Choice[] choices =
@@ -133,12 +132,14 @@ namespace PIP
 
         static readonly Category[] categories =
         {
-            new Category("Thrust"), new Category("Efficiency"), new Category("Weight"), new Category("Reliability"), new Category("Gimbal", 10),
+            new Category("Thrust"), new Category("Efficiency"), new Category("Weight"), new Category("Reliability"),
         };
 
         public override Choice[] Choices => choices;
-        public override Category[] Categories => categories;
+        protected override Category[] OwnCategories => categories;
         public override string[] CapTechs => new[] { "propulsionSystems", "precisionPropulsion", "heavyLanding", "experimentalRocketry" };
+        public override double CostCeiling => 5e5;
+        public override bool HasGimbalPick => true;   // a free pick (DESIGN.md 18.4)
 
         // Looks: a monopropellant engine at the program's size; kind "125".
         public override bool HasLooks => true;
@@ -164,12 +165,11 @@ namespace PIP
             double light = Lerp(ThrustW[si, 0], ThrustW[si, 1], P(pts, 0)) / (25 * Engines.G0);
             s[K.Mass] = light * (2 - E(pts, 2, mk) / 100.0);
             s[K.Fail] = FailureAt(m, P(pts, 3), mk, level);
-            s[K.Gimbal] = GimbalCurve(E(pts, 4, mk));
             s[K.Price] = BuildPrice(BasePrice[si], pts, mk);
             return s;
         }
 
-        public override Row[] Rows(string[] m) => new[]
+        protected override Row[] OwnRows(string[] m) => new[]
         {
             new Row("Thrust, vacuum", K.ThrustVac, 0, Fmt.Kn),
             new Row("  at sea level", K.ThrustSL, -1, Fmt.Kn),
@@ -177,16 +177,16 @@ namespace PIP
             new Row("  Isp at sea level", K.IspSL, -1, Fmt.Sec),
             new Row("Weight", K.Mass, 2, Fmt.Tons),
             new Row("Fails to light", K.Fail, 3, Fmt.Pct),
-            new Row("Gimbal", K.Gimbal, 4, Fmt.Deg),
+            new Row("  gimbal", K.Gimbal, -1, Fmt.Deg),
         };
 
         public override string Label(string[] m) => $"{Sizes.Label(m[0])} monopropellant";
         public override string Character(string[] m) => "An orbital maneuvering engine: made for vacuum.";
     }
 
-    // Nuclear thermal: solid or gas core, hydrogen only. The fifth category is
-    // Shielding when Kerbalism is installed (it makes these engines radioactive),
-    // Gimbal otherwise.
+    // Nuclear thermal: solid or gas core, hydrogen only. A fifth slider,
+    // Shielding, when Kerbalism is installed (it makes these engines radioactive).
+    // Gimbal is a free pick.
     public sealed class NuclearEngines : PartType
     {
         public static bool Kerbalism;
@@ -195,7 +195,6 @@ namespace PIP
         public override string Title => "Nuclear engines";
         public override string Noun => "engine";
         public override string ChassisCode => "NUC";
-        public override double PriceFactor => 2;
         public override int ReliabilityCategory => 3;
 
         static readonly Choice[] choices =
@@ -208,12 +207,13 @@ namespace PIP
         };
 
         public override Choice[] Choices => choices;
-        public override Category[] Categories => new[]
-        {
-            new Category("Thrust"), new Category("Efficiency"), new Category("Weight"), new Category("Reliability"),
-            Kerbalism ? new Category("Shielding", 0) : new Category("Gimbal", 10),
-        };
+        protected override Category[] OwnCategories => Kerbalism
+            ? new[] { new Category("Thrust"), new Category("Efficiency"), new Category("Weight"), new Category("Reliability"), new Category("Shielding", 0) }
+            : new[] { new Category("Thrust"), new Category("Efficiency"), new Category("Weight"), new Category("Reliability") };
+        // Gimbal is a free pick (DESIGN.md 18.4).
+        public override bool HasGimbalPick => true;
         public override string[] CapTechs => new[] { "nuclearPropulsion", "improvedNuclearPropulsion", "advNuclearPropulsion", "expNuclearPropulsion" };
+        public override double CostCeiling => 3e6;
 
         // Looks: any nuclear engine at the program's size, either core; kind "125".
         // A look keeps one hydrogen mode (no oxygen boost, no liquid-fuel mode).
@@ -257,17 +257,12 @@ namespace PIP
             double light = Lerp(w[si, 0], w[si, 1], P(pts, 0)) / ((gas ? 12 : 5.5) * Engines.G0);
             s[K.Mass] = light * (2 - E(pts, 2, mk) / 100.0);
             s[K.Fail] = FailureAt(m, P(pts, 3), mk, level);
-            if (Kerbalism)
-            {
-                s[K.Radiation] = Radiation[si] * (gas ? 2 : 1) * Math.Pow(0.1, E(pts, 4, mk) / 100.0);
-                s[K.Gimbal] = 3;
-            }
-            else s[K.Gimbal] = GimbalCurve(E(pts, 4, mk));
+            if (Kerbalism) s[K.Radiation] = Radiation[si] * (gas ? 2 : 1) * Math.Pow(0.1, E(pts, 4, mk) / 100.0);
             s[K.Price] = BuildPrice(BasePrice[si] * (gas ? 2.5 : 1), pts, mk);
             return s;
         }
 
-        public override Row[] Rows(string[] m) => new[]
+        protected override Row[] OwnRows(string[] m) => new[]
         {
             new Row("Thrust, vacuum", K.ThrustVac, 0, Fmt.Kn),
             new Row("  at sea level", K.ThrustSL, -1, Fmt.Kn),
@@ -275,8 +270,9 @@ namespace PIP
             new Row("  Isp at sea level", K.IspSL, -1, Fmt.Sec),
             new Row("Weight", K.Mass, 2, Fmt.Tons),
             new Row("Fails to light", K.Fail, 3, Fmt.Pct),
-            Kerbalism ? new Row("Radiation given off", K.Radiation, 4, Fmt.Rad) : new Row("Gimbal", K.Gimbal, 4, Fmt.Deg),
-        };
+            Kerbalism ? new Row("Radiation given off", K.Radiation, 4, Fmt.Rad) : new Row("  gimbal", K.Gimbal, -1, Fmt.Deg),
+            Kerbalism ? new Row("  gimbal", K.Gimbal, -1, Fmt.Deg) : null,
+        }.Where(r => r != null).ToArray();
 
         public override string Label(string[] m) => $"{Sizes.Label(m[1])} {(Gas(m) ? "gas-core" : "solid-core")} nuclear";
         public override string Character(string[] m) =>
@@ -291,7 +287,6 @@ namespace PIP
         public override string Title => "Electric engines";
         public override string Noun => "thruster";
         public override string ChassisCode => "ELE";
-        public override double PriceFactor => 1.5;
         public override int ReliabilityCategory => 3;
 
         static readonly Choice[] choices =
@@ -306,8 +301,9 @@ namespace PIP
         };
 
         public override Choice[] Choices => choices;
-        public override Category[] Categories => categories;
+        protected override Category[] OwnCategories => categories;
         public override string[] CapTechs => new[] { "ionPropulsion", "advIonPropulsion", "advGriddedThrusters", "advEMSystems" };
+        public override double CostCeiling => 2e6;
 
         // Looks: a thruster at the program's size burning the type's gas (xenon
         // gridded ion, argon Hall, lithium MPD); kind "I-0625". One-mode thrusters only.
@@ -363,7 +359,7 @@ namespace PIP
             return s;
         }
 
-        public override Row[] Rows(string[] m) => new[]
+        protected override Row[] OwnRows(string[] m) => new[]
         {
             new Row("Thrust, vacuum", K.ThrustVac, 0, Fmt.Kn),
             new Row("Isp, vacuum", K.IspVac, 1, Fmt.Sec),
@@ -409,8 +405,9 @@ namespace PIP
         };
 
         public override Choice[] Choices => choices;
-        public override Category[] Categories => categories;
+        protected override Category[] OwnCategories => categories;
         public override string[] CapTechs => new[] { "aviation", "supersonicFlight", "highAltitudeFlight", "aerospaceTech" };
+        public override double CostCeiling => 1e6;
 
         // Looks: a jet at the program's size with the same modes: one air-breathing
         // mode (turbofan, ramjet) "125-1", dry and afterburner (turbojet) "125-2",
@@ -472,7 +469,7 @@ namespace PIP
             return s;
         }
 
-        public override Row[] Rows(string[] m)
+        protected override Row[] OwnRows(string[] m)
         {
             int t = TypeIndex(m);
             var rows = new System.Collections.Generic.List<Row>

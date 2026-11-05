@@ -36,15 +36,19 @@ namespace PIP
         static readonly Category[] categories =
         {
             new Category("Thrust"), new Category("Efficiency"), new Category("Weight"),
-            new Category("Reliability"), new Category("Gimbal", 10),
+            new Category("Reliability"),
         };
 
         public override Choice[] Choices => choices;
-        public override Category[] Categories => categories;
+        protected override Category[] OwnCategories => categories;
         public override string[] CapTechs => new[] { "basicRocketry", "advRocketry", "heavierRocketry", "experimentalRocketry" };
+        public override double CostCeiling => 1.5e6;
         public override int ReliabilityCategory => 3;
+        // Gimbal is a free pick (DESIGN.md 18.4); an aerospike can't gimbal.
+        public override bool HasGimbalPick => true;
+        public override bool CanGimbal(string[] m) => !IsAerospike(m);
 
-        public const int Thrust = 0, Efficiency = 1, Weight = 2, Reliability = 3, Gimbal = 4;
+        public const int Thrust = 0, Efficiency = 1, Weight = 2, Reliability = 3;
 
         // Looks (16): an engine at the program's own size, never scaled; aerospike
         // looks for aerospike programs only. One look part per fuel, since the
@@ -114,7 +118,6 @@ namespace PIP
             return 2 * light - light * weightPoints / 100.0;
         }
 
-        public static double GimbalAt(string[] m, double points) => IsAerospike(m) ? 0 : GimbalCurve(points);
 
         public override double FailureAt(string[] m, int reliabilityPoints, int mk, FailureLevel level)
         {
@@ -125,7 +128,6 @@ namespace PIP
         public double BuildPriceAt(string[] m, int[] points, int mk) =>
             BuildPrice(BasePrice[SizeIndex(m)] * FuelPrice(FuelIndex(m)) * (IsAerospike(m) ? 2 : 1), points, mk);
 
-        public override bool CategoryUsed(string[] m, int category) => category != Gimbal || !IsAerospike(m);
 
         public override Stats Compute(string[] m, int[] points, int mk, FailureLevel level, string variant = null)
         {
@@ -135,13 +137,12 @@ namespace PIP
             s[K.IspSL] = IspSLAt(m, E(points, Efficiency, mk));
             s[K.ThrustSL] = s[K.IspVac] > 0 ? s[K.ThrustVac] * s[K.IspSL] / s[K.IspVac] : 0;
             s[K.Mass] = MassAt(m, P(points, Thrust), E(points, Weight, mk));
-            s[K.Gimbal] = GimbalAt(m, E(points, Gimbal, mk));
             s[K.Fail] = FailureAt(m, P(points, Reliability), mk, level);
             s[K.Price] = BuildPriceAt(m, points, mk);
             return s;
         }
 
-        public override Row[] Rows(string[] m) => new[]
+        protected override Row[] OwnRows(string[] m) => new[]
         {
             new Row("Thrust, vacuum", K.ThrustVac, Thrust, Fmt.Kn),
             new Row("  at sea level", K.ThrustSL, -1, Fmt.Kn),
@@ -149,7 +150,7 @@ namespace PIP
             new Row("  Isp at sea level", K.IspSL, -1, Fmt.Sec),
             new Row("Weight", K.Mass, Weight, Fmt.Tons),
             new Row("Fails to light", K.Fail, Reliability, Fmt.Pct),
-            new Row("Gimbal", K.Gimbal, Gimbal, v => IsAerospike(m) ? "none" : Fmt.Deg(v)),
+            new Row("  gimbal", K.Gimbal, -1, v => IsAerospike(m) ? "none" : Fmt.Deg(v)),
         };
 
         public override string Label(string[] m) =>

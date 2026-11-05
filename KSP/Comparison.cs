@@ -88,12 +88,13 @@ namespace PIP
         public static string Summary(string name, PartType t, string[] m, int[] points, FailureLevel level)
         {
             int n = t.Categories.Length;
-            string[] strong = Enumerable.Range(0, n).Where(i => points[i] >= 50 && t.CategoryUsed(m, i))
+            points = Enumerable.Range(0, n).Select(i => points != null && i < points.Length ? points[i] : 0).ToArray();
+            string[] strong = Enumerable.Range(0, n).Where(i => points[i] >= 50 && t.CategoryUsed(m, i) && i != t.CostIndex)
                 .Select(i => t.Categories[i].Label.ToLowerInvariant()).ToArray();
             // The first three categories (thrust, efficiency, weight for engines) are the ones that hurt at 0.
             // A liquid vacuum nozzle doesn't need thrust.
             bool vacuum = t == PartTypes.Liquid && m.Length > 2 && m[2] == "V";
-            string[] weak = Enumerable.Range(0, Math.Min(3, n)).Where(i => points[i] == 0 && !(vacuum && i == 0) && t.CategoryUsed(m, i))
+            string[] weak = Enumerable.Range(0, Math.Min(3, n)).Where(i => points[i] == 0 && !(vacuum && i == 0) && t.CategoryUsed(m, i) && i != t.CostIndex)
                 .Select(i => t.Categories[i].Label.ToLowerInvariant()).ToArray();
 
             string character = t.Character(m);
@@ -103,7 +104,7 @@ namespace PIP
             int rel = t.ReliabilityCategory;
             if (rel < 0) return text.TrimEnd();
             if (level == FailureLevel.Off) return text + "Failures are off in this game.";
-            for (int mk = 0; mk <= Progress.MaxMk; mk++)
+            for (int mk = Progress.MinMk; mk <= Progress.MaxMk; mk++)
                 if (t.FailureAt(m, points[rel], mk, level) < 0.03)
                     return text + $"Under 3% failures from {Progress.MkName(mk)}.";
             return text + "Never gets under 3% failures.";

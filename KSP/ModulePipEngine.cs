@@ -26,6 +26,8 @@ namespace PIP
         [KSPField(isPersistant = true)] public string programName = "";
         [KSPField(isPersistant = true)] public int mk = -1;
         [KSPField(isPersistant = true)] public string points = "";
+        [KSPField(isPersistant = true)] public string startPoints = "";   // a later version's start (DESIGN.md 18.1)
+        [KSPField(isPersistant = true)] public int gimbalDeg;              // the family's gimbal pick (18.4)
         [KSPField(isPersistant = true)] public bool fired;            // ran after leaving the pad (counts recoveries)
         [KSPField(isPersistant = true)] public bool ignitionChecked;   // the one ignition check this flight
         [KSPField(isPersistant = true)] public bool failed;
@@ -37,6 +39,7 @@ namespace PIP
         public string ignitionLabel = "";
 
         int[] pointValues = new int[0];
+        int[] StartValues => string.IsNullOrEmpty(startPoints) ? null : Program.PointsFromText(startPoints, Type.Categories.Length);
         List<ModuleEngines> engines = new List<ModuleEngines>();
         Stats stats = new Stats();
 
@@ -72,6 +75,8 @@ namespace PIP
 
             Program program = PipScenario.Instance?.Find(programId)
                 ?? PipScenario.Instance?.Find(PartFactory.ProgramIdOf(part.partInfo?.name));
+            // New builds use the family's newest version.
+            if (HighLogic.LoadedSceneIsEditor) program = PipScenario.Instance?.Latest(program);
             if (HighLogic.LoadedSceneIsEditor || (program != null && !Assigned)) Assign(program);
             if (HighLogic.LoadedSceneIsEditor)
             {
@@ -92,11 +97,13 @@ namespace PIP
         {
             if (program == null) return;
             programId = program.Id;
-            programName = program.Name;
+            programName = program.Title;
             model = program.ModelCode;
             mk = program.Mk;
             points = Program.PointsToText(program.Points);
             pointValues = (int[])program.Points.Clone();
+            startPoints = program.StartPoints == null ? "" : Program.PointsToText(program.StartPoints);
+            gimbalDeg = program.GimbalDegrees;
             statsReady = false;
         }
 
@@ -113,7 +120,7 @@ namespace PIP
 
         void Recompute()
         {
-            stats = Assigned ? Type.Compute(Model, pointValues, mk, PipSettings.Failures) : new Stats();
+            stats = Assigned ? Type.Compute(Model, pointValues, mk, PipSettings.Failures, null, StartValues, gimbalDeg) : new Stats();
             statsReady = true;
         }
 

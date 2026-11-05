@@ -799,7 +799,6 @@ namespace PIP
             return prefab == null || prefab.FindModuleImplementing<ModuleGimbal>() != null;
         }
 
-        public static int GimbalCategory(PartType t) => Array.FindIndex(t.Categories, c => c.Label == "Gimbal");
 
         // The side-mount look a program gets when none was picked: the type's
         // preferred ones first, then the first by title. Null when none is installed.
