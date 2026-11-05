@@ -1405,6 +1405,23 @@ most of it testing.
   - Window, Bolide's page and electric engines unchanged.
 - Core tests: 178 pass.
 
+**Phil's own test of the clean install (2026-11-05), fixed:**
+- **"Replace" hid nothing, and the editor broke** (every pod shown, researched
+  or not; no other category could be opened). Sorting stock parts into PIP
+  types (`EditorHider`) crashed on a part with no readable resource list. The
+  likely culprit is the EVA kerbals, which have no resources on plain KSP;
+  Kerbalism adds some in Phil's pack. That one crash stopped R&D hiding when
+  the game loaded, and it ran on every editor parts-list refresh. Now EVA
+  kerbals and the flag are skipped, the resource list is checked first, and any
+  part that still can't be sorted is left alone with a log line ("Left X
+  alone").
+- **R&D unlock pictures:** 16 of the 49 PIP unlocks show a chassis that only
+  exists with the optional mods, and R&D errored on them. At the main menu
+  (`UpgradeIcons.Fix`), each such unlock now shows the model's stock stand-in,
+  or another installed part of the same type when there's none (MPD). The log
+  lists the swaps.
+- Not seen in game yet: Phil is testing the clean copy himself.
+
 ---
 
 ## Notes for the build (technical)

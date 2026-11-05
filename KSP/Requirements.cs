@@ -48,6 +48,43 @@ namespace PIP
             GameDatabase.Instance.GetConfigNodes("RESOURCE_DEFINITION").Any(n => n.GetValue("name") == name);
     }
 
+    // R&D shows each PIP unlock with one of PIP's parts as its picture
+    // (Upgrades.cfg). Without the optional mods some of those parts don't exist
+    // (DESIGN.md 17), and R&D errors on an unlock whose picture is missing, so it
+    // shows the model's stock stand-in instead, or another part of the same type.
+    public static class UpgradeIcons
+    {
+        public static void Fix()
+        {
+            if (GameDatabase.Instance == null || PartLoader.Instance == null || PartUpgradeManager.Handler == null) return;
+            var changed = new List<string>();
+            foreach (UrlDir.UrlConfig u in GameDatabase.Instance.GetConfigs("PARTUPGRADE"))
+            {
+                string name = u.config.GetValue("name"), icon = u.config.GetValue("partIcon");
+                if (name == null || !name.StartsWith("PIP-", StringComparison.Ordinal) || string.IsNullOrEmpty(icon) || PartFactory.Info(icon) != null) continue;
+                string use = PartFactory.Resolve(icon) ?? SameType(icon);
+                if (use == null) { Debug.LogWarning($"[PIP] R&D unlock {name} has no picture: {icon} isn't installed"); continue; }
+                u.config.SetValue("partIcon", use);
+                PartUpgradeHandler.Upgrade up = PartUpgradeManager.Handler.GetUpgrade(name);
+                if (up != null) up.partIcon = use;
+                changed.Add($"{icon} -> {use}");
+            }
+            if (changed.Count > 0) Debug.Log($"[PIP] R&D unlock pictures using a stand-in ({changed.Count}): " + string.Join(", ", changed));
+        }
+
+        // "PIP-ELE-M-0625" -> an installed "PIP-ELE-..." chassis, preferred models first.
+        static string SameType(string icon)
+        {
+            string[] bits = icon.Split('-');
+            if (bits.Length < 3) return null;
+            string prefix = bits[0] + "-" + bits[1] + "-";
+            return PartLoader.LoadedPartsList.Select(p => p.name)
+                .Where(n => n.StartsWith(prefix, StringComparison.Ordinal))
+                .OrderBy(n => n.EndsWith(PartFactory.StandInSuffix, StringComparison.Ordinal)).ThenBy(n => n, StringComparer.Ordinal)
+                .FirstOrDefault();
+        }
+    }
+
     [KSPAddon(KSPAddon.Startup.MainMenu, true)]
     public class RequirementsNotice : MonoBehaviour
     {
@@ -56,6 +93,8 @@ namespace PIP
             if (Requirements.Ok)
             {
                 Debug.Log(PartFactory.ModelReport());
+                try { UpgradeIcons.Fix(); }
+                catch (Exception e) { Debug.LogError("[PIP] Fixing R&D unlock pictures failed: " + e); }
                 return;
             }
             string list = string.Join(", ", Requirements.Missing);

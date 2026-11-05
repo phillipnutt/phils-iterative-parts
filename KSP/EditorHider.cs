@@ -71,9 +71,24 @@ namespace PIP
             { "LiquidFuel", "Oxidizer", "LqdHydrogen", "LqdMethane", "MonoPropellant", "XenonGas", "ArgonGas", "Lithium" };
         static readonly HashSet<string> RoundSizes = new HashSet<string> { "size0", "size1", "size1p5", "size2", "size3", "size4" };
 
+        // A part that can't be read is left alone, never allowed to stop the sorting:
+        // one failure here used to break R&D hiding and the whole editor parts list
+        // (on plain KSP the EVA kerbals have no resource list at all).
         static PartType Classify(AvailablePart ap)
         {
+            try { return ClassifyUnsafe(ap); }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[PIP] Left {ap.name} alone: couldn't sort it ({e.GetType().Name})");
+                return null;
+            }
+        }
+
+        static PartType ClassifyUnsafe(AvailablePart ap)
+        {
             Part prefab = ap.partPrefab;
+            // EVA kerbals and the flag are never replaced.
+            if (prefab.GetComponent<KerbalEVA>() != null || ap.name == "flag") return null;
             var modules = new HashSet<string>();
             foreach (PartModule m in prefab.Modules) modules.Add(m.moduleName);
             bool engine = prefab.FindModuleImplementing<ModuleEngines>() != null;
@@ -85,7 +100,8 @@ namespace PIP
         static PartType ClassifyPart(AvailablePart ap, Part prefab, HashSet<string> modules, bool command)
         {
             var resources = new HashSet<string>();
-            foreach (PartResource r in prefab.Resources) resources.Add(r.resourceName);
+            if (prefab.Resources != null && prefab.Resources.Count > 0)
+                foreach (PartResource r in prefab.Resources) resources.Add(r.resourceName);
 
             if (command)
                 return prefab.CrewCapacity == 0 && ap.category == PartCategories.Pods ? PartTypes.Probe : null;
