@@ -1445,11 +1445,33 @@ most of it testing.
 
 ---
 
-## 18. Versions, Mk. 1 to 5, gimbal and prices (design, 2026-11-05)
+## 18. Versions, Mk. 1 to 5, gimbal and prices (2026-11-05)
 
-Agreed with Phil on 2026-11-05 after his play-testing, item by item. **Not built
-yet** (Phil: "don't start building yet"). Where this disagrees with earlier
-sections (5, 6, 7, 14), this section wins.
+Agreed with Phil on 2026-11-05 after his play-testing, item by item. Where this
+disagrees with earlier sections (5, 6, 7, 14), this section wins.
+
+**Built 2026-11-05** (Phil: "Build it"; commits a750e00 and 544178a). 210
+offline checks pass. Checked in game on the clean copy (a clean test install, a
+copy of Phil's career as "zz PIP Versions Test", with Zephyr I given 26
+experience):
+- **New-program screen:** Gimbal row 0/5/10/20°, Mk 1–5 preview strip, Build
+  cost slider (build price √387 at Mk. 1 falling to √352 at Mk. 5), program cost
+  √6,223 for a 25%-points liquid engine, as in the table.
+- **Zephyr I at Mk. 5:** "Zephyr II is ready", Start Zephyr II at √1,293 (a
+  tenth of a 35-point program).
+- **Zephyr II:** Mk. 1 thrust equals Zephyr I's Mk. 5, failures back to 10%,
+  version history shown, Zephyr I retired.
+- **Found and fixed in that test:** Zephyr II's Mk. 1 weighed and cost more
+  than Zephyr I's Mk. 5 (weight and price followed the full design points);
+  they now grow from the predecessor's points with Mk.
+- **Not yet checked in game:** experience from real flights, the VAB swap of
+  an old version's parts in a loaded craft, a gimbal pick on a flying engine,
+  a "Max" version.
+
+Implementation notes: a successor's starting points ride along each Compute
+(`PartType.Compute(..., startPoints, gimbal)`; `E` and `D` read them).
+Retired versions route experience to the newest (`PipScenario.Latest`). Old
+craft are renamed in a Harmony prefix on `ShipConstruct.LoadShip`.
 
 ### 18.1 Versions (successor programs)
 
