@@ -2,7 +2,7 @@
     "spec_version": "v1.4",
     "identifier": "PhilsIterativeParts",
     "name": "Phil's Iterative Parts",
-    "abstract": "Parts as development programs that improve as you fly them, from Mk. 0 to Mk. 10.",
+    "abstract": "Parts as development programs that improve as you fly them, Mk. 1 to Mk. 5, version after version.",
     "author": "phillipnutt",
     "$kref": "#/ckan/github/phillipnutt/phils-iterative-parts",
     "ksp_version_min": "1.12.3",

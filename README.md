@@ -3,7 +3,8 @@
 A Kerbal Space Program 1.12 mod. Instead of unlocking finished parts, you start
 **development programs**: pick a design (fuel, size, nozzle…), spend points on
 what matters (thrust, efficiency, weight, reliability…), and the program gets
-better as you fly it, from Mk. 0 to Mk. 10. Sixteen part types are covered:
+better as you fly it, from Mk. 1 to Mk. 5. At Mk. 5 it can move on to its next
+version (Kestrel I, II, III … Max), each one better again. Sixteen part types are covered:
 liquid, solid, monopropellant, nuclear, electric and jet engines, plus RCS,
 batteries, reaction wheels, heat shields, solar panels, antennas, probe cores,
 fuel tanks, RTGs and air intakes. Any installed part can lend a program its
@@ -38,7 +39,7 @@ are PIP's either way.
 | Cryo Engines | 1.875–5 m engine models |
 | Kerbal Atomics, ReStock+ | nuclear engine models |
 | Making History (DLC) | 1.875 m models |
-| Kerbalism | nuclear engines get a Shielding category (radiation) instead of Gimbal |
+| Kerbalism | nuclear engines get a Shielding category (radiation) |
 | RemoteTech | antennas use RemoteTech ranges; stock CommNet otherwise |
 
 An option that needs a missing mod shows a padlock that names it, and PIP never
