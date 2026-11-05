@@ -176,7 +176,25 @@ namespace PIP
             else InputLockManager.RemoveControlLock(LockId);
         }
 
+        // A drawing error repeats every frame and leaves Unity's GUI clips unbalanced
+        // (Phil, 11/5: the same error "repeated a million times"). So it's logged
+        // once, and the window closes instead of throwing again.
+        static readonly HashSet<string> reportedErrors = new HashSet<string>();
+
         void DrawWindow(int id)
+        {
+            try { DrawWindowUnsafe(id); }
+            catch (ExitGUIException) { throw; }
+            catch (Exception e)
+            {
+                if (reportedErrors.Add(e.GetType().Name + ": " + e.Message)) Debug.LogError("[PIP] The program window hit an error and closed: " + e);
+                visible = false;
+                button?.SetFalse(false);
+                ScreenMessages.PostScreenMessage("PIP's window hit an error and closed. The details are in KSP.log.", 6f, ScreenMessageStyle.UPPER_CENTER);
+            }
+        }
+
+        void DrawWindowUnsafe(int id)
         {
             PipScenario scenario = PipScenario.Instance;
             DrawTitleBar();
@@ -578,7 +596,8 @@ namespace PIP
                     float rowY = y;
                     int picked = Segments(x + 64, ref y, w - 64, go.Select(o => o.Label).ToArray(), Array.FindIndex(go, o => o.Code == current),
                         i => i > 0 && !can ? (type.CanGimbal(model) ? "This look has a fixed nozzle" : "Can't gimbal")
-                            : TechUnlocks.Available(type, go[i]) ? null : "Research " + TechUnlocks.Title(go[i].Tech), out _);
+                            : TechUnlocks.Available(type, go[i]) ? null
+                            : "Research " + TechUnlocks.Title(TechUnlocks.Opened(type) ? go[i].Tech : type.CapTechs[0]), out _);
                     GUI.Label(new Rect(x, rowY, 62, 34), "Gimbal", PipSkin.SegLabel);
                     if (picked >= 0) { gimbals[type.Id] = go[picked].Code; message = null; }
                 }

@@ -16,8 +16,11 @@ namespace PIP
             !TreeApplies || string.IsNullOrEmpty(tech) || tech == "start" ||
             ResearchAndDevelopment.GetTechnologyState(tech) == RDTech.State.Available;
 
+        // A node's name as R&D shows it. No node (a free option) has no name: R&D
+        // throws on a null id, and that once broke the program window every frame.
         public static string Title(string tech)
         {
+            if (string.IsNullOrEmpty(tech)) return "";
             string t = TreeApplies ? ResearchAndDevelopment.GetTechnologyTitle(tech) : null;
             return string.IsNullOrEmpty(t) ? tech : t;
         }
