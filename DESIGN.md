@@ -1883,6 +1883,49 @@ appear in R&D nodes in such a game; they cost nothing and unlock nothing there.
 https://github.com/phillipnutt/phils-iterative-parts, on Phil's personal account
 (phillipnutt). Commits use his personal GitHub no-reply email.
 
+## Phil's play-test notes (2026-11-05, clean install)
+
+Phil is playing a fresh career on a clean test install and collecting notes; the
+open ones get built together when he says so.
+
+**Fixed the same day:** the stock-part sorting crash (Replace hid nothing, the
+editor broke) and the R&D unlock pictures. See section 17, "Phil's own test".
+
+**Open:**
+3. **Small stock tanks still show** in R&D and the editor: FL-T100, FL-T200,
+   FL-T400, Oscar-B. They're exactly the tanks that are inventory cargo parts
+   (ModuleCargoPart) in 1.12; the larger tanks are hidden. Cause not found yet.
+5. **Gray out what can't be built yet.** Type tiles not unlocked are dimmed with
+   a padlock but still clickable to browse; Start program is gray and can't be
+   pressed while the design is locked (the "Research X" line stays); the
+   window opens on a type that can be built.
+6. **Clipped text:** "Output in Kerbin's sunlight" under Output (solar), and the
+   points hint at the bottom of the right column ("...or 1 with Shift").
+8. **Sea-level thrust:** the Harrier's description says 8.91 kN at sea level
+   (Isp 161/182), but KSP's Δv panel shows 5.47 kN at altitude 0, which is
+   roughly Isp 99 at sea level. Not yet checked whether the description or
+   the engine curve is wrong, or whether Phil's pack does the same.
+9. **Experience counts each part** (section 5), built together with the
+   recovery fix: recoveries are de-duplicated by the ship's persistentId,
+   which KSP reuses when the same craft is relaunched, so the second flight's
+   recovery was lost. Key them by launch instead.
+10. **No more "× today's".** Phil: real numbers. Values are given for the size the
+    page shows, like the "holds 400 units" row:
+    - Tank empty weight in tonnes (e.g. "0.25 t").
+    - Tank boil-off in % of fuel lost per hour (CryoTanks' own figure).
+    - Intake airflow as intake area in m², and intake weight in tonnes.
+    - Heat shield heat per ablator and solar durability, which have no clean
+      unit, as plain percentages ("20% more heat per ablator", "30% tougher").
+    - Also fix the overflow: long values were meant to shrink to fit, and
+      "×1.40 today's tanks" was cut off instead.
+
+**Decided, not bugs:** the Mk1 pod sits in Start on plain KSP (Probes Before
+Crew moves it in Phil's pack; PIP never touches crewed pods); stock shows TWR in
+the staging list through the Δv app's display options. No decoupler type: there's
+too little to put points into.
+
+---
+
 ## First draft status (2026-11-03)
 
 Tested in game. Test saves: `zz PIP Test` (career), `zz PIP Sandbox`.
