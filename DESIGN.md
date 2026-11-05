@@ -1455,7 +1455,7 @@ Agreed with Phil on 2026-11-05 after his play-testing, item by item. Where this
 disagrees with earlier sections (5, 6, 7, 14), this section wins.
 
 **Built 2026-11-05** (Phil: "Build it"; commits a750e00 and 544178a). 210
-offline checks pass. Checked in game on the clean copy (a clean test install, a
+offline checks pass. Checked in game on a clean test install (a
 copy of Phil's career as "zz PIP Versions Test", with Zephyr I given 26
 experience):
 - **New-program screen:** Gimbal row 0/5/10/20°, Mk 1–5 preview strip, Build
@@ -1622,7 +1622,7 @@ Phil can skip this section.
 ## Second build status (2026-11-04)
 
 Built from sections 7, 8, 13 and 14 after Phil's "yes to all, send it". Backup of
-the first draft: a local backup.
+the first draft was kept.
 
 **Built, checked offline** (`Tools\Test-Core.ps1`, 128 checks):
 - The core handles any part type (`Core\PartType.cs`): choices, categories,
@@ -1738,7 +1738,7 @@ kind's propellants.
 
 Built from sections 15 and 16 after Phil's "Yes, build it". This is Looks
 step 1: batteries, reaction wheels, air intakes (with side-mount), RTGs, heat
-shields and probe cores. Backup: a local backup.
+shields and probe cores. Backed up first.
 
 **How it works:**
 - At load, right after Module Manager, PIP copies every installed part of
@@ -1805,8 +1805,8 @@ says they stay stock) or Near Future's utility pod, which has an RTG inside.
 
 ## Looks step 2 build (2026-11-04)
 
-Solar panels, antennas, fuel tanks and RCS (Phil: "Yes, step 2"). Backup:
-a local backup.
+Solar panels, antennas, fuel tanks and RCS (Phil: "Yes, step 2"). Backed up
+first.
 
 **Rules (section 16's table):**
 
@@ -1864,7 +1864,7 @@ propellants), plus step 1's 60. 164 offline checks pass.
 
 ## Looks step 3 build: engines (2026-11-04)
 
-Phil: "Yes, step 3". Backup: a local backup.
+Phil: "Yes, step 3". Backed up first.
 
 **Rules (Phil's decisions in section 16):**
 - **An engine look is never scaled.** It suits a program only at its own size
@@ -1918,8 +1918,8 @@ checks pass.
 
 ## Looks flight test (2026-11-04)
 
-Phil: "Yes, flight test". zz PIP Sandbox only. Backup of the save:
-a local backup.
+Phil: "Yes, flight test". zz PIP Sandbox only. The save was
+backed up first.
 
 **The craft ("PIP Flight Test", built in the VAB, flown from the runway):**
 - Sirocco probe core, HECS2 look.
@@ -1955,8 +1955,8 @@ jet, nuclear, electric and solid looks on a craft.
 ## Program window redesign (2026-11-04)
 
 Phil: "let's take another crack at the UI ... cleaner, sleeker, sexier, HOTTER!"
-Phil: "Yes, build it".
-Backup of the code and DLL before it: a local backup.
+Phil approved a mockup first: "Yes, build it".
+The code and DLL before it were backed up.
 
 **What it is (`KSP\PipWindow.cs`, `KSP\PipSkin.cs`, `KSP\PartPreview.cs`):**
 - **Own look, no assets:** dark flat panels and PIP orange. Every rounded box,
