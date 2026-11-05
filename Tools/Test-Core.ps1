@@ -157,6 +157,8 @@ Check 'tank: long 2.5 m is an X200-32' ([PIP.FuelTanks]::Volume('25-L')) 3200
 Check 'tank: weight factor at 100' (PStat 'Tank' 'S' @(100, 0, 0) 10 'weightFactor' '125-L') 0.8
 Check 'tank: empty FL-T400 at factor 1 is stock' (0.001 + 400 * 0.000625) 0.251
 Check 'tank: empty weight in tonnes at 100' (PStat 'Tank' 'S' @(100, 0, 0) 10 'mass' '125-L') 0.201 1e-9
+Check 'tank: units held by kind, FL-T400 size' "$([PIP.FuelTanks]::Units((M 'S'), '125-L')),$([PIP.FuelTanks]::Units((M 'M'), '125-L')),$([PIP.FuelTanks]::Units((M 'E'), '125-L'))" '400,600,6300'
+Check 'tank: a short 0.625 m holds 12.5' ([PIP.FuelTanks]::Units((M 'S'), '0625-S')) 12.5
 Check 'tank: hydrogen boil-off at 0 insulation' (PStat 'Tank' 'C' @(0, 0, 0) 10 'boiloffRate' '125-L') 0.1 1e-9
 Check 'plain percentages' "$([PIP.PartKind]::Percent(1.2, 'more', 'less'))|$([PIP.PartKind]::Percent(0.6, 'more', 'less'))|$([PIP.PartKind]::Percent(1, 'more', 'less'))" '20% more|40% less|as stock'
 Check 'tank: insulation only for cryogenic' "$((TypeOf 'Tank').CategoryUsed((M 'S'), 2)),$((TypeOf 'Tank').CategoryUsed((M 'C'), 2))" 'False,True'

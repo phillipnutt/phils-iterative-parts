@@ -1484,16 +1484,19 @@ A program family improves in versions: **Kestrel I, Kestrel II, Kestrel III ...*
 
 - **There's no Mk. 0 any more.** Programs start at Mk. 1, and Mk. 5 is the
   top. This replaces section 5's Mk. 0 to 10.
-- **Experience needed:** 1, 3, 4 and 7 for Mk. 2, 3, 4 and 5, so **1, 4, 8
-  and 15 in total**. The same for every version.
-- **Counting:** once per program per flight. +1 when one of its parts flies
-  (an engine fires after leaving the pad), and +1 when one is recovered. This
-  replaces "each part counts" (also 2026-11-05). Phil's aim: the parts on a
-  craft advance together at roughly the same rate. A heat shield, flown one
-  at a time, kept up with nothing.
+- **Experience needed:** 2, 5, 7 and 11 for Mk. 2, 3, 4 and 5, so **2, 7, 14
+  and 25 in total**. The same for every version. (Phil first set 1/4/8/15,
+  then "let's bump experience numbers a bit" when recoveries went to 3.)
+- **Counting:** once per program per flight. **+1** when one of its parts
+  flies (an engine fires after leaving the pad), and **+3** when one is
+  recovered (Phil). This replaces "each part counts" (also 2026-11-05).
+  Phil's aim: the parts on a craft advance together at roughly the same rate.
+  A heat shield, flown one at a time, kept up with nothing.
   Recoveries stay keyed by launch, not by the ship's ID, so a relaunched
   craft's recovery counts.
-- Mk. 5 takes about 8 flights that are launched and recovered, or 15 one-way.
+- **Flights to Mk. 5:** 25 one-way, 10 with half recovered, 7 all recovered.
+  From Kestrel I at 25 points per slider to unlocking Kestrel Max (eight
+  versions to Mk. 5): 200, 80 or 56 flights. Research caps pace it too.
 - Mk. 1 performs as if half the points were spent, as Mk. 0 did. Mk. 5 uses
   all of them. The curve keeps its big-steps-early shape over 4 steps.
 - Fail-to-light: 10% at Mk. 1, falling to the mature value at Mk. 5.
@@ -1515,8 +1518,8 @@ A program family improves in versions: **Kestrel I, Kestrel II, Kestrel III ...*
 
 - The Gimbal slider goes away. Gimbal is a design choice, like fuel or nozzle,
   of **0°, 5°, 10° or 20°**, at no point cost.
-- Research (proposed nodes, to confirm): 0° always; 5° with the type's first
-  programs; 10° at General Rocketry; 20° at Advanced Rocketry.
+- Research (Phil: "perfect"): 0° always; 5° with the type's first programs;
+  10° at General Rocketry; 20° at Advanced Rocketry.
 - Liquid, solid, monopropellant and nuclear engines. Aerospikes and looks
   with a fixed nozzle only offer 0°. Jets and electric engines keep the
   gimbal they have.
@@ -1535,8 +1538,8 @@ A program family improves in versions: **Kestrel I, Kestrel II, Kestrel III ...*
   through versions at 1/10 the cost.
 - The game-start "PIP prices" option still scales everything.
 
-Proposed ceilings, and what a new program costs at a quarter, half and three
-quarters of its points (to tune once played):
+Ceilings (Phil: "that sounds perfect"; to tune once played), and what a new
+program costs at a quarter, half and three quarters of its points:
 
 | Type | Ceiling (all 100) | 25% | 50% | 75% |
 |---|---|---|---|---|

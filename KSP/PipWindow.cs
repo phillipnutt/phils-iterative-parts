@@ -462,6 +462,16 @@ namespace PIP
                 SizeRow("Length", lengths.Select(l => char.ToUpperInvariant(l[0]) + l.Substring(1)).ToArray(), Array.IndexOf(lengths, split[cur][1]),
                     i => Find(size, lengths[i]) < 0 ? "Not made at " + size : SizeLocked(type, list[Find(size, lengths[i])]),
                     i => previewVariants[type.Id] = list[Find(size, lengths[i])].Code);
+                // What each length holds at this diameter, as the tank comes.
+                if (type == PartTypes.Tank)
+                {
+                    string holds = string.Join("  ·  ", lengths.Where(l => Find(size, l) >= 0)
+                        .Select(l => $"{l} {FuelTanks.Units(model, list[Find(size, l)].Code):N0}"));
+                    var content = new GUIContent($"Holds: {holds} units of {FuelTanks.Contents(model)}");
+                    float hh = PipSkin.Hint.CalcHeight(content, w - 64);
+                    GUI.Label(new Rect(x + 64, y - 2, w - 64, hh), content, PipSkin.Hint);
+                    y += hh + 6;
+                }
             }
             else
                 SizeRow(type.VariantName == "Class" ? "Class" : "Size", list.Select(v => v.Label).ToArray(), Array.FindIndex(list, v => v.Code == current),

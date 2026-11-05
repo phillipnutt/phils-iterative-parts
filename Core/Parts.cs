@@ -504,10 +504,39 @@ namespace PIP
             {
                 case "C": return 0.000278904;
                 case "M": return 0.0004;
-                case "E": return 0.00123046875;
+                case "E": return 0.00123;
                 default: return 0.000625;
             }
         }
+
+        // What a tank of each kind holds as it comes (its first propellant on the
+        // part), in resource units per unit of volume: LF 0.45 + Ox 0.55; LH2 4.995 +
+        // Ox 0.333; monopropellant 1.5; xenon 15.75 (the B9PartSwitch tank types).
+        public static double UnitsPerVolume(string[] m)
+        {
+            switch (m != null && m.Length > 0 ? m[0] : "S")
+            {
+                case "C": return 5.328;
+                case "M": return 1.5;
+                case "E": return 15.75;
+                default: return 1;
+            }
+        }
+
+        public static string Contents(string[] m)
+        {
+            switch (m != null && m.Length > 0 ? m[0] : "S")
+            {
+                case "C": return "LH2/Ox";
+                case "M": return "monoprop";
+                case "E": return "xenon";
+                default: return "LF/Ox";
+            }
+        }
+
+        // Units a tank of this kind and size holds as it comes.
+        public static double Units(string[] m, string variant) => Volume(variant) * UnitsPerVolume(m);
+        public const string UnitsKey = "units";
         // CryoTanks' liquid hydrogen boil-off, % of the fuel per hour, before Insulation.
         public const double HydrogenBoiloff = 0.05;
 
@@ -520,6 +549,7 @@ namespace PIP
             s[Boiloff] = Cryogenic(m) ? Lerp(2, 0.2, E(pts, 2, mk)) : 1;
             s[BoiloffRate] = HydrogenBoiloff * s[Boiloff];
             s[VolumeKey] = Volume(variant ?? "125-L");
+            s[UnitsKey] = s[VolumeKey] * UnitsPerVolume(m);
             s[K.Mass] = ChassisMass + s[VolumeKey] * MassPerVolume(m) * s[WeightFactor];
             // Dry price: about 0.8 a unit of volume (an FL-T400 is ~500 with its fuel).
             s[K.Price] = BuildPrice(0.8 * s[VolumeKey], pts, mk);
@@ -532,7 +562,7 @@ namespace PIP
             new Row("Survives impacts to", Crash, 1, v => $"{v:0} m/s"),
             new Row("  and heat to", MaxTemp, -1, v => $"{v:N0} K"),
             new Row("Hydrogen boil-off", BoiloffRate, 2, v => $"{v:0.###}% an hour"),
-            new Row("  holds", VolumeKey, -1, v => $"{v:N0} units"),
+            new Row($"  holds ({Contents(m)})", UnitsKey, -1, v => $"{v:N0} units"),
         };
 
         public override string Label(string[] m) => choices[0].Find(m[0])?.Label + " tanks";
