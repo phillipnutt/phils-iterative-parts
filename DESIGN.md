@@ -169,10 +169,11 @@ Cheap up front, then a long climb.
 - **Boosters recovered by StageRecovery count** as recoveries.
 - Reverting a flight takes back its experience, the same way revert takes back
   everything else.
-- **Not built yet.** The build still counts once per program per launch, and
-  recoveries are de-duplicated by the ship's ID, which KSP reuses when the same
-  craft is relaunched, so a relaunch's recovery is lost. Both are fixed together:
-  count per part, keyed by launch.
+- **Built 2026-11-05.** Launches and recoveries are counted per part, keyed by
+  the part's launch and flight IDs ("launch:part" in the save). Recoveries used
+  to be keyed by the ship's ID, which KSP reuses when the same craft is
+  relaunched, so a relaunch's recovery was lost. Several parts counting at once
+  give one message ("5 parts flew").
 
 ### Experience needed (Fibonacci)
 
@@ -1901,10 +1902,16 @@ open ones get built together when he says so.
 **Fixed the same day:** the stock-part sorting crash (Replace hid nothing, the
 editor broke) and the R&D unlock pictures. See section 17, "Phil's own test".
 
-**Open:**
+**Built 2026-11-05 (Phil: "run all this stuff"), commit 5b95a4c:** items 3, 5,
+6, 9, 10 and 11 below. Item 8 was not a bug.
+
 3. **Small stock tanks still show** in R&D and the editor: FL-T100, FL-T200,
-   FL-T400, Oscar-B. They're exactly the tanks that are inventory cargo parts
-   (ModuleCargoPart) in 1.12; the larger tanks are hidden. Cause not found yet.
+   FL-T400, Oscar-B. *Cause:* no B9 tank was ever classified. CryoTanks
+   replaces stock tanks' resources with a B9PartSwitch fuel switch, and B9 only
+   adds resources to parts placed in the VAB, so the prefab looked empty. The
+   cargo-part pattern was a coincidence; most stock tanks were showing, in
+   Phil's pack too. *Fix:* a fuel switch marks a tank, as Looks already did;
+   Propulsion-category tanks (stock 3.75 m) count too.
 5. **Gray out what can't be built yet.** Type tiles not unlocked are dimmed with
    a padlock but still clickable to browse; Start program is gray and can't be
    pressed while the design is locked (the "Research X" line stays); the
@@ -1912,9 +1919,10 @@ editor broke) and the R&D unlock pictures. See section 17, "Phil's own test".
 6. **Clipped text:** "Output in Kerbin's sunlight" under Output (solar), and the
    points hint at the bottom of the right column ("...or 1 with Shift").
 8. **Sea-level thrust:** the Harrier's description says 8.91 kN at sea level
-   (Isp 161/182), but KSP's Δv panel shows 5.47 kN at altitude 0, which is
-   roughly Isp 99 at sea level. Not yet checked whether the description or
-   the engine curve is wrong, or whether Phil's pack does the same.
+   (Isp 161/182), but KSP's Δv panel shows 5.47 kN at altitude 0. *Not a bug:*
+   the craft's Harriers had the Thrust Limiter at 53%. At Mk 2,
+   11.62 × 167/188 × 0.53 = 5.47 kN exactly. The Δv app and flight both apply
+   the limiter; PIP's numbers are at 100%.
 9. **Experience counts each part** (section 5), built together with the
    recovery fix: recoveries are de-duplicated by the ship's persistentId,
    which KSP reuses when the same craft is relaunched, so the second flight's
