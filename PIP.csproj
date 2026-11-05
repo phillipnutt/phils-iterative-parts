@@ -36,6 +36,7 @@
     <Compile Include="Core\Model.cs" />
     <Compile Include="Core\Progress.cs" />
     <Compile Include="Core\PartType.cs" />
+    <Compile Include="Core\Fuels.cs" />
     <Compile Include="Core\LiquidEngines.cs" />
     <Compile Include="Core\OtherEngines.cs" />
     <Compile Include="Core\Parts.cs" />
@@ -56,6 +57,8 @@
     <Compile Include="KSP\PipWindow.cs" />
     <Compile Include="KSP\Comparison.cs" />
     <Compile Include="KSP\PartInfo.cs" />
+    <Compile Include="KSP\FuelLoader.cs" />
+    <Compile Include="KSP\ModulePipBoiloff.cs" />
   </ItemGroup>
   <ItemGroup>
     <GameDataFiles Include="GameData\**\*.*" />

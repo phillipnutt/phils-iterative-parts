@@ -24,7 +24,7 @@ direction are his own.
 PIP contains **no code, models, textures or other files from anyone else.**
 
 - **No other mod's files are included.** PIP needs Harmony, Module Manager,
-  B9PartSwitch, Community Tech Tree and CryoTanks, but they are installed
+  B9PartSwitch, Community Tech Tree and Community Resource Pack, but they are installed
   separately (CKAN does this). PIP calls them while the game runs. It is built
   against KSP's, Unity's and Harmony's libraries, but none of them is shipped.
 - **No KSP assets are included.** PIP's parts copy parts already installed in
@@ -33,8 +33,18 @@ PIP contains **no code, models, textures or other files from anyone else.**
   their models or textures.
 - **Some numbers mirror other mods' on purpose, so the parts work with them:**
   PIP's xenon, argon and lithium tank types use the same tank masses and
-  capacities as Near Future's, and its tanks follow CryoTanks' tank types and
-  boil-off rates. These are compatibility values, not copied code.
+  capacities as Near Future's. Its kerolox, hydrogen and methane tank types
+  (`Chassis/Parts.cfg`) and its hydrogen and methane boil-off rates
+  (`Fuels.cfg`) use the numbers from CryoTanks by Nertea (Chris Adderley), whose
+  code and configs are MIT licensed. PIP uses none of CryoTanks' art or code and
+  doesn't need CryoTanks installed. Monopropellant tanks use B9PartSwitch's
+  numbers. These are compatibility values, not copied code.
+- **Real propellant data** (Isp, mixture ratios, densities) comes from public
+  sources listed in [FUELS.md](FUELS.md): mainly Rocketdyne's figures as
+  tabulated on Wikipedia, Braeunig's propellant tables, and Astronautix.
+- **Plumes:** with Waterfall installed, PIP's engines use Waterfall's own plume
+  templates (and Stock Waterfall Effects' when present) by name. PIP includes
+  none of their files, textures or shaders; without Waterfall nothing changes.
 - **The toolbar icon** was drawn in code for PIP: a simple engine bell and arrow.
 - **Fonts:** the window uses fonts already on your computer; none are included.
 

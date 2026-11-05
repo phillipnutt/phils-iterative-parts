@@ -318,5 +318,98 @@ Check 'summary for a vacuum engine' $sum2 'Talon: An upper-stage engine, nearly 
 $sum3 = $Comparison.GetMethod('Summary').Invoke($null, @('Swift', $jet, (M 'F-125'), [int[]]@(60, 25, 0, 25), (Level Normal)))
 Check 'summary for a jet (no failure line)' $sum3 'Swift: Efficient and subsonic. Strong on thrust. Neglects weight.'
 
+
+Write-Host 'Fuel table (section 19)'
+$FuelTable = T 'FuelTable'; $FuelDef = T 'FuelDef'
+Check 'default fuels' (($FuelTable::All | ForEach-Object { $_.Code }) -join ',') 'K,H,M'
+Check 'stock mixes are liquid engines' "$($FuelTable::IsLiquidMix([string[]]@('LiquidFuel', 'Oxidizer'))),$($FuelTable::IsLiquidMix([string[]]@('LqdHydrogen', 'Oxidizer', 'ElectricCharge')))" 'True,True'
+Check 'monopropellant and a lone fuel are not' "$($FuelTable::IsLiquidMix([string[]]@('MonoPropellant'))),$($FuelTable::IsLiquidMix([string[]]@('LqdHydrogen')))" 'False,False'
+Check 'an unknown mix is not, until a fuel burns it' $FuelTable::IsLiquidMix([string[]]@('Aerozine50', 'NTO')) $false
+Check 'a fuel is found by its resources, pumps aside' $FuelTable::ForResources([string[]]@('Oxidizer', 'LqdMethane', 'ElectricCharge')).Code 'M'
+
+$a = [Activator]::CreateInstance($FuelDef)
+$a.Code = 'A'; $a.Title = 'Aerozine'; $a.Tech = 'advFuelSystems'
+$a.Resources = [string[]]@('Aerozine50', 'NTO'); $a.Ratios = [double[]]@(2.29, 2.71)
+$a.Isp = [double[][]]@([double[]]@(212, 298, 234, 324), [double[]]@(183, 274, 258, 343), [double[]]@(48, 96, 286, 367), [double[]]@(231, 294, 267, 334))
+$a.Thrust = 1.05; $a.Twr = 25; $a.Price = 1.1; $a.FailHi = 0.006; $a.FailLo = 0.0002
+$bad = [Activator]::CreateInstance($FuelDef); $bad.Code = 'X-1'
+$list = [Activator]::CreateInstance([Collections.Generic.List`1].MakeGenericType($FuelDef))
+foreach ($f in @($FuelTable::Defaults()) + $a + $bad) { $list.Add($f) }
+$FuelTable::Set($list)
+Check 'a fuel joins the table; a code with "-" is refused' (($FuelTable::All | ForEach-Object { $_.Code }) -join ',') 'K,H,M,A'
+Check 'the engine fuel choice follows the table' (($liq.Choices[0].Options | ForEach-Object { $_.Code }) -join ',') 'K,H,M,A'
+Check 'its tech node' ($liq.Choices[0].Find('A').Tech) 'advFuelSystems'
+Check 'a look per fuel, the new one too' ($liq.LookKeys('125') -join ',') 'K,H,M,A'
+Check 'its mix is now a liquid engine' $FuelTable::IsLiquidMix([string[]]@('NTO', 'Aerozine50')) $true
+Check 'Isp from its windows' "$(Call $Liquid IspSLAt @((M 'A-125-S'), [double]100)),$(Call $Liquid IspVacAt @((M 'A-125-V'), [double]100))" '298,367'
+Check 'thrust from its factor' (Call $Liquid ThrustAt @((M 'A-125-S'), [double]100)) 577.5
+Check 'price from its factor' ($liq.BuildPriceAt((M 'A-125-S'), [int[]]@(0, 0, 0, 0), 5) / $liq.BuildPriceAt($k125, [int[]]@(0, 0, 0, 0), 5)) 1.1 1e-9
+Check 'label keeps a name with capitals' "$($liq.Label((M 'A-125-S')))|$((T 'Fmt')::Lower('FLOX')),$((T 'Fmt')::Lower('ClF5')),$((T 'Fmt')::Lower('Nitric acid'))" '1.25 m aerozine, sea level nozzle|FLOX,ClF5,nitric acid'
+Check 'an unknown code falls back to kerolox' (Call $Liquid IspSLAt @((M 'Q-125-S'), [double]100)) 310
+$FuelTable::Reset()
+Check 'reset to the defaults' (($liq.Choices[0].Options | ForEach-Object { $_.Code }) -join ',') 'K,H,M'
+
+# Fuels.cfg (Tools\Generate-Fuels.ps1) agrees with the code's defaults and with itself.
+$cfg = Get-Content (Join-Path $PSScriptRoot '..\GameData\PIP\Fuels.cfg') -Raw
+$blocks = [regex]::Matches($cfg, '(?ms)^PIP_FUEL\s*\{(.*?)^\}') | ForEach-Object { $_.Groups[1].Value }
+function Val($b, $k) { if ($b -match "(?m)^\s*$k = (.*)$") { $Matches[1].Trim() } }
+Check 'Fuels.cfg: fuels in order' (($blocks | ForEach-Object { Val $_ 'code' }) -join ',') 'K,E,N,P,A,H,S,M,F,C,L'
+$types = [regex]::Matches($cfg, '(?m)^B9_TANK_TYPE\s*\{\s*name = (\S+)') | ForEach-Object { $_.Groups[1].Value }
+$problems = @()
+foreach ($b in $blocks) {
+    $code = Val $b 'code'
+    foreach ($n in 'S', 'B', 'V', 'A') { $w = (Val $b $n) -split ',\s*'; if ($w.Count -ne 4 -or [double]$w[1] -lt [double]$w[0] -or [double]$w[3] -lt [double]$w[2]) { $problems += "$code ISP $n" } }
+    if ($b -match 'tankType = (\S+)' -and $types -notcontains $Matches[1]) { $problems += "$code tank $($Matches[1])" }
+    $def = $FuelTable::Defaults() | Where-Object { $_.Code -eq $code }
+    if ($def) {
+        $isp = ('S', 'B', 'V', 'A' | ForEach-Object { Val $b $_ }) -join ' | '
+        $mine = ($def.Isp | ForEach-Object { $_ -join ', ' }) -join ' | '
+        if ($isp -ne $mine -or [double](Val $b 'twr') -ne $def.Twr -or [double](Val $b 'price') -ne $def.Price -or [double](Val $b 'thrust') -ne $def.Thrust) { $problems += "$code differs from Core/Fuels.cs" }
+    }
+}
+Check 'Fuels.cfg: windows rise with points, tanks exist, K/H/M match the code' ($problems -join '; ') ''
+
+Write-Host 'Plumes (section 19.4)'
+$Plumes = T 'Plumes'; $PlumeSet = T 'PlumeSet'
+function Set-Plume($code, [string[]]$match, $roles) {
+    $s = [Activator]::CreateInstance($PlumeSet); $s.Match = $match
+    foreach ($k in $roles.Keys) { $s.Roles[$k] = [string[]]$roles[$k] }
+    $Plumes::ByFuel[$code] = $s
+}
+$Plumes::ByFuel.Clear()
+Set-Plume 'H' @('hydrolox') @{ lower = @('waterfall-hydrolox-lower-1'); upper = @('waterfall-hydrolox-upper-1'); core = @('stock-hydrolox-core-1') }
+Set-Plume 'K' @('kerolox') @{ lower = @('waterfall-kerolox-lower-1'); upper = @('waterfall-kerolox-upper-1'); core = @('stock-kerolox-core') }
+Set-Plume 'E' @('alcolox', 'ethalox') @{ lower = @('waterfall-alcolox-lower-1') }
+$all = [Func[string, bool]] { param($n) $true }
+$noSwe = [Func[string, bool]] { param($n) -not $n.StartsWith('stock-') }
+function SW($t, $f, $i) { $r = $Plumes::Swap($t, $f, $i); if ($null -eq $r) { "<keep>" } elseif ($r -eq "") { "<drop>" } else { $r } }
+Check 'roles' "$($Plumes::Role('waterfall-kerolox-lower-5-SWE')),$($Plumes::Role('waterfall-kerolox-upper-1')),$($Plumes::Role('stock-kerolox-core')),$($Plumes::Role('stock-kerolox-generator')),$($Plumes::Role('waterfall-kerolox-exhaust-1'))" 'lower,upper,core,generator,generator'
+Check 'Mainsail plume, burning hydrolox' (SW 'waterfall-kerolox-lower-5-SWE' 'H' $all) 'waterfall-hydrolox-lower-1'
+Check 'its bell glow too' (SW 'stock-kerolox-core' 'H' $all) 'stock-hydrolox-core-1'
+Check 'a vacuum plume stays vacuum' (SW 'waterfall-kerolox-upper-1' 'H' $all) 'waterfall-hydrolox-upper-1'
+Check 'already its own fuel: kept' (SW 'waterfall-kerolox-lower-5-SWE' 'K' $all) "<keep>"
+Check 'no glow template installed: the glow goes' (SW 'stock-kerolox-core' 'H' $noSwe) "<drop>"
+Check 'no template for a role: the original stays' (SW 'stock-kerolox-generator' 'H' $all) "<keep>"
+Check 'lights and other effects untouched' (SW 'waterfall-floodlight-1' 'H' $all) "<keep>"
+Check 'aerospikes keep theirs' (SW 'stock-hydrolox-aerospike' 'K' $all) "<keep>"
+Check 'a fuel with no PLUME node changes nothing' (SW 'waterfall-kerolox-lower-1' 'Q' $all) "<keep>"
+Check 'a fuel with several match words' (SW 'waterfall-ethalox-sustainer-1' 'E' $all) "<keep>"
+# Sizes: a vernier template is drawn ~4x bigger per meter than a main plume (the
+# Goldfish's own plume swapped 1:1 came out several meters wide, 2026-11-05).
+$Plumes::SizePerMeter.Clear()
+Check 'a vernier swapped to a main plume shrinks' ($Plumes::Rescale('waterfall-kerolox-vernier-2', 'waterfall-hypergolic-aerozine50-lower-1')) (0.55 / 2.4) 1e-9
+$Plumes::SizePerMeter['waterfall-kerolox-lower-5'] = 1.0; $Plumes::SizePerMeter['waterfall-hydrolox-lower-3'] = 0.293
+Check 'measured sizes win over typical ones' ($Plumes::Rescale('waterfall-kerolox-lower-5', 'waterfall-hydrolox-lower-3')) 0.293 1e-9
+Check 'a vacuum plume typical size' ($Plumes::Size('waterfall-anything-upper-9')) 0.7
+$l = New-Object 'System.Collections.Generic.List[double]'; foreach ($x in 0.4, 2.4, 0.8, 0.6) { $l.Add($x) }
+Check 'median of measured sizes' ($Plumes::Median($l)) 0.7 1e-9
+$Plumes::SizePerMeter.Clear()
+$Plumes::ByFuel.Clear()
+
+# Fuels.cfg names a plume for every fuel, and every role it names is one PIP knows.
+$plumeBlocks = [regex]::Matches($cfg, '(?ms)^\s+PLUME\s*\{(.*?)^\s+\}') | ForEach-Object { $_.Groups[1].Value }
+Check 'Fuels.cfg: a plume per fuel' $plumeBlocks.Count 11
+$keys = $plumeBlocks | ForEach-Object { [regex]::Matches($_, '(?m)^\s*(\w+) =') | ForEach-Object { $_.Groups[1].Value } } | Sort-Object -Unique
+Check 'Fuels.cfg: plume keys' ($keys -join ',') 'core,generator,lower,match,upper'
 Write-Host ''
 if ($script:failed -eq 0) { Write-Host "All $script:passed checks passed." -ForegroundColor Green } else { Write-Host "$script:failed failed, $script:passed passed." -ForegroundColor Red; exit 1 }

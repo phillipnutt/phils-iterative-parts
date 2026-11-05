@@ -29,7 +29,7 @@ which is missing at the main menu.
 | Module Manager | builds PIP's parts |
 | B9PartSwitch | part sizes, tank volumes and propellants, looks |
 | Community Tech Tree | where PIP's unlocks live |
-| CryoTanks | hydrogen and methane fuels, and the tank switch PIP's tanks use |
+| Community Resource Pack | the fuels beyond stock's: hydrogen, methane, and the rest of PIP's fuel table |
 
 ## Optional
 
@@ -46,10 +46,24 @@ are PIP's either way.
 | Kerbal Atomics, ReStock+ | nuclear engine models |
 | Making History (DLC) | 1.875 m models |
 | Kerbalism | nuclear engines get a Shielding category (radiation) |
+| Waterfall (with Stock Waterfall Effects or similar) | liquid engines get their fuel's plume color and shape |
 | RemoteTech | antennas use RemoteTech ranges; stock CommNet otherwise |
 
 An option that needs a missing mod shows a padlock that names it, and PIP never
 charges for a program it can't make a part for.
+
+## Fuels
+
+Liquid engine programs pick a fuel from a table of eleven, from ethalox (the
+V-2's) to fluorine and hydrogen (the highest Isp of any chemical rocket), each
+unlocked at its own tech node. Their Isp comes from real performance data; the
+table, sources and rules are in [FUELS.md](FUELS.md). Cryogenic fuels boil off
+in PIP's cryogenic tanks unless cooling is on and the vessel has electric charge
+(PIP's own boil-off; CryoTanks isn't needed).
+
+The table is a config, `GameData/PIP/Fuels.cfg`, so another mod's fuel can be
+added without code: a `PIP_FUEL` node names its propellants, Isp and the rest,
+and PIP makes its engines and tank recipe. FUELS.md says how.
 
 ## Saves
 
@@ -78,5 +92,6 @@ Visual Studio 2022 or later (MSBuild), .NET Framework 4.7.2. `PIP.csproj` points
 at the game folder (`KspDir`) and copies the DLL and `GameData\PIP` into it
 after a build; build with `/p:NoInstall=true` to leave the game alone. The chassis
 configs are generated: run `Tools\Generate-Chassis.ps1`,
-`Tools\Generate-PartChassis.ps1` and `Tools\Generate-Upgrades.ps1`.
+`Tools\Generate-PartChassis.ps1`, `Tools\Generate-Upgrades.ps1` and
+`Tools\Generate-Fuels.ps1`.
 `Tools\Test-Core.ps1` tests the rules in `Core\`.

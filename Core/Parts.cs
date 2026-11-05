@@ -443,7 +443,7 @@ namespace PIP
     }
 
     // Fuel tanks: kind, size and length per program; propellant on the part. Weight is a
-    // factor on today's tanks; insulation only for cryogenic tanks (CryoTanks).
+    // factor on today's tanks; insulation only for cryogenic tanks (PIP's boil-off).
     public sealed class FuelTanks : PartKind
     {
         public override string Id => "tank";
@@ -545,7 +545,7 @@ namespace PIP
         // Units a tank of this kind and size holds as it comes.
         public static double Units(string[] m, string variant) => Volume(variant) * UnitsPerVolume(m);
         public const string UnitsKey = "units";
-        // CryoTanks' liquid hydrogen boil-off, % of the fuel per hour, before Insulation.
+        // Liquid hydrogen boil-off, % of the fuel per hour, before Insulation (Fuels.cfg; CryoTanks' rate).
         public const double HydrogenBoiloff = 0.05;
 
         public override Stats Compute(string[] m, int[] pts, int mk, FailureLevel level, string variant = null)
@@ -578,8 +578,8 @@ namespace PIP
         {
             switch (m[0])
             {
-                case "S": return "Kerolox, liquid fuel or oxidizer, picked on the part.";
-                case "C": return "Hydrogen, hydrolox, methane or methalox, picked on the part.";
+                case "S": return "Kerolox, liquid fuel, oxidizer or another storable fuel's mix, picked on the part.";
+                case "C": return "Hydrolox, methalox or another cryogenic mix, picked on the part. Boils off unless cooled.";
                 case "M": return "Monopropellant.";
                 default: return "Xenon, argon or lithium, picked on the part.";
             }

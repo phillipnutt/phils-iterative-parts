@@ -57,19 +57,21 @@ namespace PIP
             public PartType Type;
             public bool Side, Engine;
             public string Kind = "";        // "F"/"D" panel, "O"/"D" antenna, "F"/"M"/"E" tank contents; engines: size and shape
-            public string Fuel = "";        // a liquid engine's own fuel (K/H/M), to list same-fuel looks first
+            public string Fuel = "";        // a liquid engine's own fuel (a fuel table code), to list same-fuel looks first
             public double Diameter, Mass, Output, Height;
             public LookScale Basis => Type.ScaleBasis(Side, Kind);
         }
 
-        static readonly HashSet<string> RocketFuels = new HashSet<string> { "LiquidFuel", "LqdHydrogen", "LqdMethane" };
         static readonly HashSet<string> NuclearFuels = new HashSet<string> { "LqdHydrogen", "LiquidFuel", "EnrichedUranium" };
-        static readonly Dictionary<string, string[][]> FuelPropellants = new Dictionary<string, string[][]>
+        static bool IsRocketMix(HashSet<string> p) => FuelTable.IsLiquidMix(p);
+        static bool IsTankResource(string r) => TankResources.Contains(r) || FuelTable.AllResources.Contains(r);
+
+        // The program's fuel as engine propellants, from the fuel table.
+        static string[][] FuelPropellants(string code)
         {
-            { "K", new[] { new[] { "LiquidFuel", "0.9" }, new[] { "Oxidizer", "1.1" } } },
-            { "H", new[] { new[] { "LqdHydrogen", "1.5" }, new[] { "Oxidizer", "0.1" } } },
-            { "M", new[] { new[] { "LqdMethane", "3" }, new[] { "Oxidizer", "1" } } },
-        };
+            FuelDef f = FuelTable.Find(code) ?? FuelTable.All[0];
+            return f.Resources.Select((r, i) => new[] { r, f.Ratios[i].ToString("R", Inv) }).ToArray();
+        }
 
         static bool IsEngineModule(ConfigNode m) => (m.GetValue("name") ?? "").StartsWith("ModuleEngines", StringComparison.Ordinal);
         static HashSet<string> PropellantsOf(ConfigNode engine) =>
@@ -83,7 +85,7 @@ namespace PIP
             List<HashSet<string>> props = engines.Select(PropellantsOf).ToList();
             PartType t;
             if (props.Any(p => p.Contains("IntakeAir"))) t = PartTypes.Jet;
-            else if (props.All(p => p.Contains("Oxidizer") && p.Overlaps(RocketFuels) && p.All(x => x == "Oxidizer" || x == "ElectricCharge" || RocketFuels.Contains(x))))
+            else if (props.All(p => IsRocketMix(p)))
                 t = PartTypes.Liquid;
             else if (props.All(p => p.Count == 1 && p.Contains("SolidFuel"))) t = PartTypes.Solid;
             else if (props.All(p => p.Count == 1 && p.Contains("MonoPropellant"))) t = PartTypes.Monoprop;
@@ -108,7 +110,7 @@ namespace PIP
             {
                 string label = (n.GetValue("name") + " " + n.GetValue("title")).ToLowerInvariant();
                 src.Kind = size + (label.Contains("aerospike") ? "-A" : "");
-                src.Fuel = props[0].Contains("LqdHydrogen") ? "H" : props[0].Contains("LqdMethane") ? "M" : "K";
+                src.Fuel = FuelTable.ForResources(props[0])?.Code ?? (props[0].Contains("LqdHydrogen") ? "H" : props[0].Contains("LqdMethane") ? "M" : "K");
             }
             else if (t == PartTypes.Solid)
             {
@@ -293,7 +295,7 @@ namespace PIP
                 src.Type = PartTypes.Intake;
             else if (category == "Electrical" && resources.Count == 1 && resources.Contains("ElectricCharge") && !modules.Overlaps(Generators))
                 src.Type = PartTypes.Battery;
-            else if (category == "FuelTank" && (resources.Count > 0 ? resources.All(TankResources.Contains)
+            else if (category == "FuelTank" && (resources.Count > 0 ? resources.All(IsTankResource)
                          : moduleNodes.Any(m => m.GetValue("name") == "ModuleB9PartSwitch" && m.GetValue("moduleID") == "fuelSwitch")))
             {
                 src.Type = PartTypes.Tank;
@@ -391,7 +393,7 @@ namespace PIP
                 foreach (ConfigNode m in tank.GetNodes("MODULE"))
                 {
                     string mn = m.GetValue("name");
-                    if (mn == "ModuleCryoTank" || (mn == "ModuleB9PartSwitch" && m.GetValue("moduleID") == "fuelSwitch")) c.AddNode(m.CreateCopy());
+                    if (mn == nameof(ModulePipBoiloff) || (mn == "ModuleB9PartSwitch" && m.GetValue("moduleID") == "fuelSwitch")) c.AddNode(m.CreateCopy());
                 }
                 c.SetValue("mass", "0.001", true);
                 parentId = "fuelSwitch";
@@ -465,7 +467,10 @@ namespace PIP
                 SetPropellants(keep, new[] { new[] { "LqdHydrogen", "1" } });
             }
             if (t == PartTypes.Liquid)
-                foreach (ConfigNode e in engines) SetPropellants(e, FuelPropellants[key]);
+            {
+                foreach (ConfigNode e in engines) SetPropellants(e, FuelPropellants(key));
+                FuelLoader.ApplyPlume(c, key);   // the fuel's Waterfall plume, if the model has Waterfall
+            }
 
             foreach (ConfigNode m in c.GetNodes("MODULE"))
             {
@@ -503,19 +508,7 @@ namespace PIP
             return c;
         }
 
-        static void SetPropellants(ConfigNode engine, string[][] props)
-        {
-            engine.RemoveNodes("PROPELLANT");
-            bool first = true;
-            foreach (string[] p in props)
-            {
-                ConfigNode pn = engine.AddNode("PROPELLANT");
-                pn.AddValue("name", p[0]);
-                pn.AddValue("ratio", p[1]);
-                if (first) pn.AddValue("DrawGauge", "True");
-                first = false;
-            }
-        }
+        static void SetPropellants(ConfigNode engine, string[][] props) => FuelLoader.SetPropellants(engine, props);
 
         sealed class Subtype
         {
@@ -820,8 +813,12 @@ namespace PIP
         {
             // Looks need Module Manager and B9PartSwitch; with a required mod missing PIP stays off.
             if (!Requirements.Ok) return;
+            // The fuel table first: looks and engine chassis are made per fuel.
+            try { FuelLoader.Load(); }
+            catch (Exception e) { Debug.LogError("[PIP] Reading Fuels.cfg failed: " + e); }
             try { Looks.MakeConfigs(); }
             catch (Exception e) { Debug.LogError("[PIP] Making looks failed: " + e); }
+            Debug.Log($"[PIP] Plumes: {FuelLoader.PlumesSwapped} Waterfall templates swapped to the engine's fuel; sizes measured for {Plumes.SizePerMeter.Count} templates");
         }
     }
 }

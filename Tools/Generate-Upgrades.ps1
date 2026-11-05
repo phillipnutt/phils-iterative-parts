@@ -6,7 +6,7 @@
 # node, name, icon chassis, short info, description
 $u = @(
     # Liquid engines (DESIGN.md section 8)
-    @('basicRocketry', 'Liquid-Fuel Engines', 'PIP-K-125-S', 'First liquid engine programs', 'Start liquid engine programs: 1.25 m, kerolox, sea-level nozzle. Every category is capped at 25 points for now.'),
+    @('basicRocketry', 'Liquid-Fuel Engines', 'PIP-K-125-S', 'First liquid engine programs', 'Start liquid engine programs: 1.25 m, kerolox or ethalox, sea-level nozzle. Every category is capped at 25 points for now.'),
     @('generalRocketry', 'Altitude Nozzles', 'PIP-K-125-V', 'Vacuum nozzle', 'Liquid engine programs can use a vacuum nozzle: great in space, nearly useless at sea level.'),
     @('advRocketry', 'Turbopumps', 'PIP-K-125-S', 'Liquid engine caps 50', 'New liquid engine programs can put up to 50 points into every category.'),
     @('propulsionSystems', 'Miniaturized Combustion Chambers', 'PIP-K-0625-S', '0.625 m liquid engines', 'Liquid engine programs can be 0.625 m.'),

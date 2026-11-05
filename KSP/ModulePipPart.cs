@@ -134,6 +134,9 @@ namespace PIP
         static string ModuleIdOf(PartModule m) =>
             m.Fields["moduleID"]?.GetValue(m) as string ?? m.GetType().GetField("moduleID")?.GetValue(m) as string;
 
+        // A cryogenic tank's boil-off and cooling factor from Insulation (ModulePipBoiloff).
+        public double BoiloffFactor => Assigned && FuelTanks.Cryogenic(Model) ? Stats[FuelTanks.Boiloff] : 1;
+
         Stats Stats
         {
             get
@@ -303,29 +306,7 @@ namespace PIP
         {
             part.crashTolerance = (float)stats[FuelTanks.Crash];
             part.maxTemp = part.skinMaxTemp = stats[FuelTanks.MaxTemp];
-            if (!FuelTanks.Cryogenic(Model)) return;
-            // CryoTanks: scale every fuel's boil-off and cooling cost from the chassis's.
-            double f = stats[FuelTanks.Boiloff];
-            PartModule prefab = null;
-            if (Prefab != null) foreach (PartModule pm in Prefab.Modules) if (pm.moduleName == "ModuleCryoTank") { prefab = pm; break; }
-            foreach (PartModule m in part.Modules)
-            {
-                if (m.moduleName != "ModuleCryoTank" || prefab == null) continue;
-                ScaleField(m, prefab, "CoolingCost", f);
-                var fuels = m.GetType().GetField("fuels")?.GetValue(m) as System.Collections.IList;
-                var prefabFuels = prefab.GetType().GetField("fuels")?.GetValue(prefab) as System.Collections.IList;
-                if (fuels == null || prefabFuels == null) continue;
-                for (int i = 0; i < fuels.Count && i < prefabFuels.Count; i++)
-                    foreach (string name in new[] { "boiloffRate", "coolingCost", "boiloffRateSeconds" })
-                        ScaleField(fuels[i], prefabFuels[i], name, f);
-            }
-        }
-
-        static void ScaleField(object target, object source, string name, double factor)
-        {
-            var fi = target.GetType().GetField(name);
-            if (fi == null || fi.FieldType != typeof(float)) return;
-            fi.SetValue(target, (float)((float)fi.GetValue(source) * factor));
+            // Boil-off is PIP's own module (ModulePipBoiloff), which reads BoiloffFactor.
         }
 
         // Area from the program; the speed curve from PIP's standard intake of this

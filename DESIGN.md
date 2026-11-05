@@ -1734,6 +1734,115 @@ kind's propellants.
 - The game-start settings columns.
 - Whether the Emitter radiation is on all the time, or only while burning.
 
+## 19. Fuels as data, and PIP's own boil-off (2026-11-05)
+
+Phil, 11/5: drop CryoTanks, use Community Resource Pack for the fuels, write a
+basic boil-off, and get numbers for all the fuel types. Why: CKAN lists CryoTanks
+as "restricted" (its art is All Rights Reserved, though its code and configs are
+MIT), and a fuel list in code can't take other mods' fuels.
+
+### 19.1 What changed
+
+- **Requirements:** Community Resource Pack instead of CryoTanks. PIP checks for
+  its hydrogen and methane resources (it has no plugin). The netkan depends on it.
+- **The fuel table** (`Core/Fuels.cs`, `GameData/PIP/Fuels.cfg`): every number a
+  fuel had in code (Isp windows per nozzle, thrust, thrust-to-weight, price,
+  failure rates, tech node) is a `PIP_FUEL` node. The code keeps kerolox,
+  hydrolox and methalox as defaults; the config replaces them when it loads.
+  `FuelLoader` reads it after Module Manager and before parts compile.
+- **Engines for any fuel:** a fuel with no chassis of its own gets copies of the
+  kerolox chassis (`PIP-K-*`, stand-ins too) with its propellants. Looks are made
+  per fuel as before. The rule for "this is a liquid rocket engine" (for looks
+  and for hiding stock parts) is stock's rule or any fuel in the table.
+- **Tanks:** PIP's tank chassis have their own B9PartSwitch fuel switch, with
+  PIP's own tank types (`PIP-LFOX` and so on, CryoTanks' numbers). Anything the
+  FL-T400 came with is stripped: its resources, any fuel switch, CryoTanks'
+  module. A fuel's `TANK` node adds its recipe to the standard or cryogenic tank.
+  The subtype names stay as before ("LF/O", "LH2/O"…) so saved craft load.
+- **Boil-off** (`ModulePipBoiloff`, on cryogenic tanks): each resource in
+  `PIP_BOILOFF` loses a % per hour unless cooling is on and the vessel has
+  electric charge; partial power, partial loss. The program's Insulation scales
+  the loss and the power (the existing boil-off factor, 2× to 0.2×). A vessel
+  that comes back from the background catches up: if it was cooled and powered
+  when last seen it lost nothing, otherwise it boiled for the whole time away.
+  A toggle turns cooling off and on. Not modeled: power used while unloaded.
+
+### 19.2 The fuels
+
+Eleven, chosen to differ: kerolox, ethalox, nitric acid/UDMH, peroxide/kerosene,
+Aerozine/NTO, hydrolox, syntin, methalox, FLOX/kerosene, ClF5/hydrazine,
+fluorine/hydrogen. MMH/NTO, UDMH/NTO, hydrazine/NTO, hydyne and hydrazine/LOX
+were left out: each is within a few seconds of one that's in, and each fuel
+costs a full set of engine chassis and looks (about 34 chassis and one look per
+installed liquid engine model).
+
+The table, the real data, sources and rules are in [FUELS.md](FUELS.md);
+`Tools/Generate-Fuels.ps1` writes `Fuels.cfg`. In short: Isp is kerolox's
+windows times the real Isp ratio (one table, [W], for every fuel), mixes and
+tanks follow real mixture ratios and densities, and thrust, weight, price,
+failures and tech are game choices.
+
+### 19.3 Open questions for Phil
+
+1. **Propellant prices.** Community Resource Pack prices are near real per
+   liter. Filling an FL-T400-sized tank costs 184 for kerolox but 1,474 for
+   Aerozine, 3,619 for peroxide, 9,152 for FLOX and 19,432 for ClF5. Leave it
+   (exotics are expensive), or offset it with cheaper engines?
+2. **Storable vs cryogenic.** `Oxidizer` (KSP's liquid oxygen) doesn't boil, as in
+   stock, so "storable" only matters against hydrogen, methane and fluorine.
+
+Load time, measured (cached loads, after the first launch that re-runs Module
+Manager): Phil's pack 59 s before, 65 s with eleven fuels (272 new chassis, 550
+liquid looks); the clean copy 16–23 s. Phil, 11/5, on the part count: "it's just
+text right? Who cares?" It costs about six seconds.
+
+### 19.4 Plumes per fuel (2026-11-05)
+
+Phil, 11/5: make the exhaust plume differ by fuel, using what his pack has, with
+sharable licenses. Waterfall (and its stock configs) are CC-BY-NC-SA, so PIP
+ships none of them; it only names templates already installed, as looks name
+parts. Without Waterfall nothing changes.
+
+- Each fuel's `PLUME` node (Fuels.cfg) lists Waterfall templates by role:
+  `lower` (sea-level plume), `upper` (vacuum), `core` (glow in the bell),
+  `generator` (gas-generator exhaust), best first, and `match` words.
+- A liquid engine look or chassis burning a fuel its model wasn't made for gets
+  each fuel-specific template swapped for the fuel's template of the same role,
+  at the same place. A glow with no equivalent is dropped; anything else without
+  one is kept. Aerospikes, lights and non-fuel effects are never touched.
+- **Size:** templates draw at very different sizes. The Goldfish's own plume is a
+  vernier template; swapped 1:1 for Aerozine's main plume it came out several
+  meters wide on a 0.625 m engine (seen in flight). Now a swapped template is
+  rescaled by the new template's size over the old one's, where a template's
+  size is the scale installed mods give it per meter of engine (median over every
+  engine using it, measured at load: 59 templates in Phil's pack), else a typical
+  size for its role (main plume 0.55, vacuum 0.7, vernier 2.4, glow 0.3, gas
+  generator 0.35). Re-flown: nozzle-sized, Aerozine-colored.
+- In Phil's pack 682 templates are swapped at load.
+
+### 19.5 Play-test (2026-11-05, Claude, sandbox save in Phil's pack)
+
+Seen working: 11 fuels in the new-program window with their tech; Aerozine Isp
+matches the table (257 s vacuum, 234 s sea level at 25 points, Mk. 5); labels
+("0.625 m aerozine"); standard tank switch LF/Ox, LF, Ox, Eth/Ox, UDMH/IRFNA,
+LF/HTP, A-50/NTO (114.7 + 135.3 units in 50 volume, as computed), Syntin/Ox,
+N2H4/ClF5; cryogenic tank switch LH2/Ox, LH2, LCH4/Ox, LCH4, LF/FLOX, LH2/LF2,
+each showing its own boil-off and cooling cost; stock delta-v readout 1,400 m/s
+for the Aerozine stack (matches a hand calculation); cooling on draws EC; with the
+battery flat "not enough power"; cooling off loses 1.4 of 250 LH2 in 5 h 33 m at
+0.1 %/h (as computed); the engine fires and drains both propellants; the flight
+logs experience (Mk. 2). Clean copy (no CryoTanks, no Waterfall): loads with no
+errors or exceptions.
+
+Notes:
+- BetterTimeWarp (Phil's pack) keeps electric charge free during time warp, so a
+  cooled tank never runs dry while warping there. Not PIP's to change.
+- RemoteTech blocks part-menu buttons on an uncontrolled probe, so "Turn cooling
+  off" can't be pressed once the probe is out of power. Fair.
+- The cryogenic tank's description was cut off in the program window; shortened.
+- Not seen yet: hydrolox, methalox and the other fuels' plumes in flight; a
+  vessel catching up on boil-off after being unloaded.
+
 ## Looks and side-mount build (2026-11-04)
 
 Built from sections 15 and 16 after Phil's "Yes, build it". This is Looks

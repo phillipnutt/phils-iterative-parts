@@ -17,14 +17,15 @@
         { "name": "ModuleManager" },
         { "name": "B9PartSwitch" },
         { "name": "CommunityTechTree" },
-        { "name": "CryoTanks" }
+        { "name": "CommunityResourcePack" }
     ],
     "recommends": [
         { "name": "NearFutureLaunchVehicles" },
         { "name": "NearFuturePropulsion" },
         { "name": "NearFutureSpacecraft" },
         { "name": "CryoEngines" },
-        { "name": "KerbalAtomics" }
+        { "name": "KerbalAtomics" },
+        { "name": "Waterfall" }
     ],
     "suggests": [
         { "name": "ReStockPlus" },

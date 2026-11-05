@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 
 namespace PIP
 {
@@ -39,6 +40,10 @@ namespace PIP
     public static class Fmt
     {
         public static string Kn(double v) => v < 10 ? $"{v:0.00} kN" : v < 100 ? $"{v:0.0} kN" : $"{v:N0} kN";
+        // A label mid-sentence: "Kerolox" -> "kerolox", but names with capitals inside
+        // ("FLOX", "ClF5") stay as they are.
+        public static string Lower(string s) =>
+            s == null ? null : string.Join(" ", s.Split(' ').Select(w => w.Length > 1 && w.Skip(1).Any(char.IsUpper) ? w : w.ToLowerInvariant()));
         public static string Sec(double v) => $"{v:N0} s";
         public static string Tons(double v) => v < 1 ? $"{v:0.000} t" : $"{v:0.00} t";
         public static string Pct(double v) => v <= 0 ? "never" : v < 0.01 ? $"{v * 100:0.00}%" : $"{v * 100:0.0}%";

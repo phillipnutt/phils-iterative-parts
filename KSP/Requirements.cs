@@ -7,7 +7,8 @@ namespace PIP
 {
     // The mods PIP can't work without (DESIGN.md section 17): Module Manager makes
     // its parts, B9PartSwitch sizes them, the Community Tech Tree holds its unlocks,
-    // and CryoTanks adds hydrogen and methane (and the tank switch PIP's tanks use).
+    // and Community Resource Pack defines the fuels beyond stock's (hydrogen,
+    // methane, and any other in Fuels.cfg).
     // Harmony is checked by KSP itself: without it this assembly doesn't load at all.
     // When one is missing, PIP stays off and says why once, at the main menu.
     // Everything else PIP uses is optional (stand-ins and padlocks, PartFactory).
@@ -27,8 +28,8 @@ namespace PIP
                 if (!Assembly("ModuleManager")) list.Add("Module Manager");
                 if (!Assembly("B9PartSwitch")) list.Add("B9PartSwitch");
                 if (!TechNode("giganticRocketry")) list.Add("Community Tech Tree");
-                // CryoTanks' plugin is SimpleBoiloff; the fuels come with it (from Community Resource Pack).
-                if (!Assembly("SimpleBoiloff") || !Resource("LqdHydrogen") || !Resource("LqdMethane")) list.Add("CryoTanks");
+                // Community Resource Pack is configs only: its fuels are the sign.
+                if (!Resource("LqdHydrogen") || !Resource("LqdMethane")) list.Add("Community Resource Pack");
                 missing = list;
                 if (list.Count > 0) Debug.LogWarning("[PIP] Off: missing " + string.Join(", ", list));
                 return list;

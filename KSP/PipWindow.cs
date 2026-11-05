@@ -605,7 +605,7 @@ namespace PIP
                     string current = LookOf(type, model);
                     string source = current == "" ? standard : current;
                     string sub = ModOf(source) + (current == "" ? "  ·  standard" : "");
-                    if (type == PartTypes.Liquid) sub += "  ·  burns " + FuelName(all.Find(l => l.Source == source)?.Fuel ?? model[0]).ToLowerInvariant();
+                    if (type == PartTypes.Liquid) sub += "  ·  burns " + Fmt.Lower(FuelName(all.Find(l => l.Source == source)?.Fuel ?? model[0]));
                     if (type.HasGimbalPick && !Looks.Gimbals(type, current, model)) sub += "  ·  fixed nozzle";
                     if (LookCard(new Rect(x, y, w, 72), source, sub)) OpenPicker(false);
                 }
@@ -1001,7 +1001,7 @@ namespace PIP
                 GUI.Label(new Rect(sr.x + 12, sr.y, sr.width, sr.height), $"Search {Count(entries.Count, "look")}", PipSkin.Placeholder);
 
             var chips = new List<string> { "All" };
-            if (!side && type == PartTypes.Liquid) chips.Add("Burns " + FuelName(model[0]).ToLowerInvariant());
+            if (!side && type == PartTypes.Liquid) chips.Add("Burns " + Fmt.Lower(FuelName(model[0])));
             if (!side && gimbal) chips.Add("Gimbals");
             float cx = sr.xMax + 12;
             for (int i = 0; i < chips.Count; i++)

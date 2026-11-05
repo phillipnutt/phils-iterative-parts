@@ -219,42 +219,63 @@ PipModule 'probe' ''
 L '}'
 
 # --- Fuel tanks (scaled FL-T400): kind is the program; size, length and propellant on the part.
-# The size switch adds its volume to CryoTanks' fuel switch, which this replaces with the kind's propellants.
+# PIP's own fuel switch (moduleID fuelSwitch) holds the kind's propellants; the size
+# switch adds its volume to it. Whatever the FL-T400 came with (its resources, another
+# mod's fuel switch or boil-off) is taken off. Other fuels' tanks (Fuels.cfg, PIP_FUEL
+# TANK nodes) are added to these switches by FuelLoader when the game loads.
 $kinds = @(
-    @('S', 'standard', @(@('LF/O', 'LF/Ox', 'LFOX'), @('LiquidFuel', 'LF', 'LF'), @('Oxidizer', 'Ox', 'OX')), $false),
-    @('C', 'cryogenic', @(@('LH2/O', 'LH2/Ox', 'LH2O'), @('LH2', 'LH2', 'LH2'), @('Methalox', 'LCH4/Ox', 'LMOx'), @('Methane', 'LCH4', 'LM')), $true),
-    @('M', 'monopropellant', @(, @('Monopropellant', 'Monoprop', 'MonoPropellant')), $false),
+    @('S', 'standard', @(@('LF/O', 'LF/Ox', 'PIP-LFOX'), @('LiquidFuel', 'LF', 'PIP-LF'), @('Oxidizer', 'Ox', 'PIP-OX')), $false),
+    @('C', 'cryogenic', @(@('LH2/O', 'LH2/Ox', 'PIP-LH2O'), @('LH2', 'LH2', 'PIP-LH2'), @('Methalox', 'LCH4/Ox', 'PIP-LMOX'), @('Methane', 'LCH4', 'PIP-LM')), $true),
+    @('M', 'monopropellant', @(, @('Monopropellant', 'Monoprop', 'PIP-MONO')), $false),
     @('E', 'electric propellant', @(@('Xenon', 'Xenon', 'PIPXenon'), @('Argon', 'Argon', 'PIPArgon'), @('Lithium', 'Lithium', 'PIPLithium')), $false)
 )
 
-# Electric propellant tank types are Near Future's, not stock's or CryoTanks'. PIP
-# defines its own under its own names, with Near Future's numbers, so its tanks work
-# without Near Future and never clash with anyone's definitions (DESIGN.md 17).
-# Argon and lithium are Community Resource Pack resources, which CryoTanks requires.
-foreach ($t in @(@('PIPXenon', 0.00123046875, 4.5, 'XenonGas', 15.75), @('PIPArgon', 0.000594667, 2.5, 'ArgonGas', 1000), @('PIPLithium', 0.00089, 9.5625, 'Lithium', 5))) {
+# PIP's tank types, under PIP's own names so they never clash with anyone's. The
+# chemical ones carry CryoTanks' numbers (MIT licensed, by Nertea; see NOTICE.md),
+# monopropellant B9PartSwitch's, electric propellants Near Future's. Hydrogen,
+# methane, argon and lithium are Community Resource Pack resources.
+#            name            tankMass        tankCost  resources (name, units per volume)
+$tankTypes = @(
+    @('PIP-LFOX', 0.000625, 0, @(@('LiquidFuel', 0.45), @('Oxidizer', 0.55))),
+    @('PIP-LF', 0.000625, 0.3, @(, @('LiquidFuel', 1))),
+    @('PIP-OX', 0.000625, 0, @(, @('Oxidizer', 1))),
+    @('PIP-LH2O', 0.000278904, 0, @(@('LqdHydrogen', 4.995), @('Oxidizer', 0.333))),
+    @('PIP-LH2', 0.000106275, 0.15, @(, @('LqdHydrogen', 7.5))),
+    @('PIP-LMOX', 0.000523628, 0, @(@('LqdMethane', 1.875), @('Oxidizer', 0.625))),
+    @('PIP-LM', 0.000354675, 0.12, @(, @('LqdMethane', 5))),
+    @('PIP-MONO', 0.0004, 0.75, @(, @('MonoPropellant', 1.5))),
+    @('PIPXenon', 0.00123046875, 4.5, @(, @('XenonGas', 15.75))),
+    @('PIPArgon', 0.000594667, 2.5, @(, @('ArgonGas', 1000))),
+    @('PIPLithium', 0.00089, 9.5625, @(, @('Lithium', 5)))
+)
+foreach ($t in $tankTypes) {
     L 'B9_TANK_TYPE'
     L '{'
     L "    name = $($t[0])"
-    L "    tankMass = $(N $t[1])"
+    L "    tankMass = $(([double]$t[1]).ToString('R', $inv))"
     L "    tankCost = $(N $t[2])"
-    L '    RESOURCE'
-    L '    {'
-    L "        name = $($t[3])"
-    L "        unitsPerVolume = $(N $t[4])"
-    L '    }'
+    foreach ($r in $t[3]) {
+        L '    RESOURCE'
+        L '    {'
+        L "        name = $($r[0])"
+        L "        unitsPerVolume = $(N $r[1])"
+        L '    }'
+    }
     L '}'
 }
 $lengths = @(@('S', 'short', 0.25), @('M', 'medium', 0.5), @('L', 'long', 1), @('X', 'extra long', 2))
 foreach ($k in $kinds) {
-    $strip = @()
-    if (-not $k[3]) { $strip += 'ModuleCryoTank' }
-    Begin "PIP-TNK-$($k[0])" "$($k[1]) tank" 'fuelTank' 300 $strip
+    Begin "PIP-TNK-$($k[0])" "$($k[1]) tank" 'fuelTank' 300 @('ModuleCryoTank', 'ModuleFuelTanks', 'FSfuelSwitch', 'InterstellarFuelSwitch')
     L '    %mass = 0.001'
+    L '    !RESOURCE,* {}'
     L '    !MODULE[ModuleB9PartSwitch]:HAS[#moduleID[FreeIvaSwitch]] {}'
-    L '    @MODULE[ModuleB9PartSwitch]:HAS[#moduleID[fuelSwitch]]'
+    L '    !MODULE[ModuleB9PartSwitch]:HAS[#moduleID[fuelSwitch]] {}'
+    L '    MODULE'
     L '    {'
-    L '        @baseVolume = 0'
-    L '        !SUBTYPE,* {}'
+    L '        name = ModuleB9PartSwitch'
+    L '        moduleID = fuelSwitch'
+    L '        switcherDescription = Propellant'
+    L '        baseVolume = 0'
     foreach ($f in $k[2]) {
         L '        SUBTYPE'
         L '        {'
@@ -264,6 +285,12 @@ foreach ($k in $kinds) {
         L '        }'
     }
     L '    }'
+    if ($k[3]) {
+        L '    MODULE'
+        L '    {'
+        L '        name = ModulePipBoiloff'
+        L '    }'
+    }
     $subs = foreach ($c in '0625', '125', '1875', '25', '375', '5') {
         $s = $diameter[$c] / 1.25
         foreach ($len in $lengths) {

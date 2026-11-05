@@ -13,7 +13,6 @@ namespace PIP
     {
         const string FilterName = "PIP-HideReplaced";
         static readonly Dictionary<string, PartType> cache = new Dictionary<string, PartType>();
-        static readonly HashSet<string> RocketFuels = new HashSet<string> { "LiquidFuel", "LqdHydrogen", "LqdMethane" };
         static readonly HashSet<string> ElectricGases = new HashSet<string> { "XenonGas", "ArgonGas", "Lithium" };
         static readonly HashSet<string> NuclearFuels = new HashSet<string> { "LqdHydrogen", "LiquidFuel", "EnrichedUranium" };
         EditorPartListFilter<AvailablePart> filter;
@@ -134,7 +133,7 @@ namespace PIP
             bool switched = resources.Count == 0 && HasFuelSwitch(ap);
             // The stock 3.75 m tanks are filed under Propulsion (this method never sees engines).
             if ((ap.category == PartCategories.FuelTank || ap.category == PartCategories.Propulsion) &&
-                (switched || resources.Count > 0 && resources.All(TankResources.Contains)) &&
+                (switched || resources.Count > 0 && resources.All(n => TankResources.Contains(n) || FuelTable.AllResources.Contains(n))) &&
                 prefab.attachNodes.Count >= 2)
             {
                 string[] profiles = (ap.bulkheadProfiles ?? "").Split(',').Select(x => x.Trim()).Where(x => x.Length > 0).ToArray();
@@ -156,10 +155,9 @@ namespace PIP
 
             if (props.Any(p => p.Contains("IntakeAir"))) return PartTypes.Jet;
 
-            // ElectricCharge is allowed alongside (electric-pump engines like the Goldfish).
-            if (props.All(p => p.Contains("Oxidizer") && p.Overlaps(RocketFuels) &&
-                               p.All(n => n == "Oxidizer" || n == "ElectricCharge" || RocketFuels.Contains(n))))
-                return PartTypes.Liquid;
+            // Stock's mixes, or any fuel in the fuel table; ElectricCharge is allowed
+            // alongside (electric-pump engines like the Goldfish).
+            if (props.All(FuelTable.IsLiquidMix)) return PartTypes.Liquid;
 
             // Sepratrons have no stack node; boosters do.
             if (props.All(p => p.Count == 1 && p.Contains("SolidFuel")))
