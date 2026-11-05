@@ -1251,6 +1251,114 @@ memory down.
 
 ---
 
+## 17. Not just Phil's pack (design, 2026-11-04)
+
+Phil: "it is ok for the mod to have dependencies btw - like community tech tree.
+mod dependency is pretty normal, I just want to make sure this isn't hyper
+specialized for MY modpack". **Design only; nothing here is built.**
+
+### What a player without Phil's pack would hit today
+
+- **Three hard requirements nobody declares:** Harmony (the plugin won't load),
+  Module Manager (every PIP part is a Module Manager patch) and B9PartSwitch
+  (sizes on the part, tank volumes, looks).
+- **Community Tech Tree:** 17 of PIP's unlock nodes exist only in CTT
+  (Experimental Rocketry, Gigantic Rocketry, Advanced Ion Propulsion, Plasma
+  Propulsion, the CTT nuclear and solar nodes, Specialized Fuel Storage…). On the
+  stock tree those unlocks never happen: no aerospike, no 5 m, no gas core, and
+  several caps stop short of 100.
+- **CryoTanks:** hydrolox and methalox (its LqdHydrogen and LqdMethane), the
+  Cryogenic tank kind, and every PIP fuel tank's volume: a PIP tank adds its
+  size's volume to the CryoTanks fuel switch on the stock tank it copies.
+- **Mod models:** PIP's 147 chassis parts copy 64 existing parts. Of those
+  sources, 37 are stock and 3 are Making History; 24 are mod parts (Near Future
+  Launch Vehicles, Propulsion and Spacecraft, Cryo Engines, Kerbal Atomics,
+  ReStock+). A missing source means Module Manager never makes that chassis,
+  and **the window still lets the player start the program and takes the funds,
+  but no part appears.** The standard look names the mod part too.
+- **Already general, no change needed:** Kerbalism (optional; nuclear gets
+  Gimbal without it), RemoteTech (optional; stock CommNet otherwise), Near
+  Future Solar's curved panels, the looks list (whatever is installed), and the
+  Replace recognizer (it reads what a part does, not its name).
+
+### Proposal
+
+1. **Declared dependencies, which CKAN installs with PIP:** Harmony 2, Module
+   Manager, B9PartSwitch, Community Tech Tree, CryoTanks. All common; CTT and
+   CryoTanks are what PIP's progression is built on.
+2. **Everything else optional:** Near Future Launch Vehicles, Propulsion and
+   Spacecraft, Cryo Engines, Kerbal Atomics, ReStock+, Making History, Kerbalism,
+   RemoteTech. Each adds better models, more looks and comparison engines; none
+   is needed.
+3. **Every standard model gets a stock stand-in.** The chassis copies the
+   preferred part when it's installed, otherwise a stock part scaled to the size
+   (Module Manager's `:NEEDS` picks between them at load). PIP's own models
+   already scale stock parts where needed; the "own size only" rule is for looks
+   and stays. Numbers never change: they're PIP's.
+4. **What has no stand-in sits behind a padlock that names what's missing,**
+   like research does today. Found from what's loaded (resources, parts), not
+   mod names: Hall and MPD electric engines need a mod that adds argon and
+   lithium (Near Future Propulsion or Community Resource Pack); five-nozzle RCS
+   blocks need Near Future Spacecraft.
+5. **Never charge for a part that can't be made.** Start refuses when the
+   chassis or the look is missing. A program whose model disappears later (a mod
+   removed) keeps its record and says what it needs.
+6. **The standard look follows the model the chassis actually got.**
+7. **A missing required dependency gets one clear message** at the main menu,
+   and PIP stays off instead of making broken parts.
+8. **Release:** a README listing what's required and what's optional, and CKAN
+   metadata (depends / recommends).
+
+### Stand-ins
+
+The same for kerolox, hydrolox and methalox.
+
+| Model | Preferred part (mod) | Stock stand-in |
+|---|---|---|
+| Liquid 0.625 m sea level | Rutherford (NF Launch Vehicles) | 48-7S Spark |
+| Liquid 0.625 m vacuum | Rutherford Vac (NF Launch Vehicles) | LV-1 Ant |
+| Liquid 1.25 m balanced | RE-I2 Skiff, scaled (Making History) | LV-T45 Swivel |
+| Liquid 1.875 m sea level | LV-TX87 Bobcat (Making History) | LV-T30 Reliant ×1.5 |
+| Liquid 1.875 m balanced | RD-704 (NF Launch Vehicles) | LV-T45 Swivel ×1.5 |
+| Liquid 1.875 m vacuum | Pavonis (Cryo Engines) | LV-909 Terrier ×1.5 |
+| Liquid 3.75 m sea level | RD-701 (NF Launch Vehicles) | KS-25x4 Mammoth |
+| Liquid 3.75 m balanced | Etna (Cryo Engines) | KR-2L+ Rhino |
+| Liquid 5 m sea level, balanced | RD-701, Etna | Mammoth, Rhino ×1.33 |
+| Solid 1.875 m long | THK Pollux (Making History) | Kickback ×1.5 |
+| Monoprop 0.625–3.75 m | orbital engines (NF Spacecraft) | LV-1 Ant / LV-909 Terrier, scaled |
+| Nuclear solid core 0.625, 2.5, 3.75 m | Kerbal Atomics, Cherenkov (ReStock+) | LV-N Nerv, scaled |
+| Nuclear gas core, every size | Kerbal Atomics | LV-N Nerv, scaled |
+| Electric gridded ion, every size | NF Propulsion | IX-6315 Dawn, scaled |
+| Electric Hall, MPD | NF Propulsion | none: padlock (needs argon / lithium) |
+| RCS bipropellant, 1 nozzle | NF Launch Vehicles | Vernor |
+| RCS bipropellant, 4 nozzles | NF Launch Vehicles | RV-105 burning LF/Ox |
+| RCS five nozzles (mono or biprop) | NF Spacecraft | none: padlock |
+
+### For Phil to decide
+
+1. **CryoTanks required?** Recommended. The alternative is making hydrolox and
+   methalox optional, which means PIP tanks need their own volume switch:
+   noticeably more work.
+2. **Scaled stock stand-ins for PIP's own models?** Recommended; looks keep
+   their own-size rule.
+3. **A padlock for what has no stand-in?** Recommended, instead of hiding it.
+
+### Test plan
+
+A second, clean KSP install on D: (a copy of the base game) with only the
+required mods, installed through CKAN. Start a career and a sandbox, start one
+program of every type and option, and check that each makes a part, flies, and
+that nothing is charged without a part. Then Phil's full pack again, for
+regressions.
+
+### Size of the build
+
+The two chassis generators learn "preferred, else stand-in"; plus the
+dependency check, the padlocks and the Start guard. About one working session,
+most of it testing.
+
+---
+
 ## Notes for the build (technical)
 
 Phil can skip this section.
