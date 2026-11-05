@@ -127,4 +127,26 @@ namespace PIP
 
         public static PipPartSettings Current => HighLogic.CurrentGame?.Parameters?.CustomParams<PipPartSettings>();
     }
+
+    public static class PipGuard
+    {
+        // Every PIP type off in this game, on both settings pages. The choice is
+        // saved with the game, so it can be switched back on in its difficulty settings.
+        public static void AllOff()
+        {
+            PipSettings s = PipSettings.Current;
+            if (s != null)
+                s.liquidEngines = s.solidMotors = s.monopropEngines = s.nuclearEngines = s.electricEngines = s.jetEngines = Inclusion.Off;
+            PipPartSettings p = PipPartSettings.Current;
+            if (p != null)
+                p.rcs = p.batteries = p.wheels = p.shields = p.solar = p.antennas = p.probes = p.tanks = p.rtgs = p.intakes = Inclusion.Off;
+        }
+
+        // Whether a game PIP is seeing for the first time was started with PIP:
+        // it already has programs, or it's brand new (no time on the clock, no
+        // vessels). A game already under way (a career started before PIP was
+        // installed) wasn't, and gets every type off rather than PIP's defaults.
+        public static bool StartedWithPip(bool hasPrograms, double ut, int vessels) =>
+            hasPrograms || (ut < 3600 && vessels == 0);
+    }
 }

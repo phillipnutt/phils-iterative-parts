@@ -131,6 +131,22 @@ namespace PIP
             return p;
         }
 
+        // The toolbar button follows the game's settings: none while every PIP
+        // type is off (a game started before PIP), back when one is switched on.
+        void Update()
+        {
+            if (button == null)
+            {
+                if (ApplicationLauncher.Ready && PipScenario.Instance != null && PipSettings.AnyOn) AddButton();
+            }
+            else if (!PipSettings.AnyOn && ApplicationLauncher.Instance != null)
+            {
+                ApplicationLauncher.Instance.RemoveModApplication(button);
+                button = null;
+                visible = false;
+            }
+        }
+
         void LateUpdate()
         {
             if (visible && PipScenario.Instance != null) preview?.Tick(heroShown);

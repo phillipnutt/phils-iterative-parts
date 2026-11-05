@@ -30,6 +30,12 @@ namespace PIP
         {
             PartFactory.EnsurePurchased(Programs);
             EditorHider.ApplyToResearch();
+            if (switchedOffNow)
+            {
+                switchedOffNow = false;
+                ScreenMessages.PostScreenMessage("Phil's Iterative Parts is off in this game: it was started before PIP was installed. " +
+                    "Your stock parts are unchanged. Part types can be switched on in Settings → Difficulty Options → PIP.", 12f, ScreenMessageStyle.UPPER_CENTER);
+            }
         }
 
         void OnDestroy()
@@ -159,6 +165,13 @@ namespace PIP
 
         #region Persistence
 
+        // Whether this game was started with PIP. Decided once, the first time PIP
+        // sees the game, and saved. A game already under way when PIP was
+        // installed has every PIP type switched off then, so its stock parts stay;
+        // its difficulty settings can switch them back on.
+        bool startedWithPip = true;
+        bool switchedOffNow;
+
         public override void OnLoad(ConfigNode node)
         {
             Programs.Clear();
@@ -169,10 +182,24 @@ namespace PIP
                 Programs.Add(p);
                 PartFactory.Ensure(p);
             }
+
+            if (node.HasValue("startedWithPip")) startedWithPip = node.GetValue("startedWithPip") != "False";
+            else
+            {
+                FlightState state = HighLogic.CurrentGame?.flightState;
+                startedWithPip = PipGuard.StartedWithPip(Programs.Count > 0, state?.universalTime ?? 0, state?.protoVessels?.Count ?? 0);
+                if (!startedWithPip)
+                {
+                    PipGuard.AllOff();
+                    switchedOffNow = true;
+                    Debug.Log($"[PIP] This game was under way before PIP was installed (UT {state?.universalTime:N0}, {state?.protoVessels?.Count} vessels): every PIP type is off.");
+                }
+            }
         }
 
         public override void OnSave(ConfigNode node)
         {
+            node.AddValue("startedWithPip", startedWithPip ? "True" : "False");
             foreach (Program p in Programs)
             {
                 ConfigNode n = node.AddNode("PROGRAM");

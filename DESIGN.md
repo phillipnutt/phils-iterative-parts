@@ -1677,6 +1677,28 @@ Batteries, antennas and jets checked; a slider click set 75 points and the
 values followed. Last: a long value ("×1.40 today's tanks") was clipped; such
 values now step down to a smaller size (built, not yet seen in game).
 
+## Guard for games started before PIP (2026-11-04)
+
+Phil: "add the guard". A save with no PIP settings (like Phil's main career, started before PIP
+was installed) would get PIP's defaults when loaded: every type on Replace,
+hiding its stock engines, tanks and the rest.
+
+**What it does (`PipScenario.OnLoad`, `PipGuard` in `KSP\Settings.cs`):** the
+first time PIP sees a game, it decides whether the game was started with PIP:
+it already has programs, or it's brand new (clock under an hour, no vessels).
+A game already under way wasn't: every PIP type is set to Off on both settings
+pages, a screen message says so once, and the PIP toolbar button doesn't show
+(it follows the settings). The decision is saved in the scenario
+(`startedWithPip`), and the Off settings are saved with the game, so its
+difficulty settings can switch types back on later. Existing PIP saves have
+programs and keep their settings.
+
+Left as is: the PIP unlock entries ("PIP: Liquid-Fuel Engines" and so on) still
+appear in R&D nodes in such a game; they cost nothing and unlock nothing there.
+
+**Repository:** the source is in Git and pushed to the private GitHub repo
+https://github.com/phillipnutt/phils-iterative-parts (first commit 66ed3ec).
+
 ## First draft status (2026-11-03)
 
 Tested in game. Test saves: `zz PIP Test` (career), `zz PIP Sandbox`.
