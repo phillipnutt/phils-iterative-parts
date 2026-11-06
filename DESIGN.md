@@ -2031,6 +2031,68 @@ Both are built as decided, with these details settled in the build:
   the 7 listed in decision 12 plus Near Future Construction's SM-1 Stack Adapter.
   The NR-AD-CAP stays (it has a texture switch).
 
+## 21. Version 0.4.0: decouplers, plane parts, docking ports (design, 2026-11-06)
+
+Phil: "for 0.4.0 I'd like to add decouplers, Mark 2 and 3 plane parts and tanks
+and adapters and everything". In his install: 24 plain decouplers (7 stack
+decouplers, 7 stack separators, 5 radial decouplers, 5 Making History engine
+plates) and 36 Mk2/Mk3 parts (12 fuselage tanks, 8 plane adapters, 5 crewed
+parts, 8 cargo bays and containers, a drone core, an engine mount, a docking
+port). Phil's answers are under each decision.
+
+### 21.1 Decouplers (agreed)
+
+1. **One Decouplers type, three kinds** picked at the program's start: stack
+   decoupler, stack separator, radial decoupler. Engine plates wait (their
+   shroud and extra nodes are a fiddlier build).
+2. **Sliders:** Ejection force, Weight, Strength (impacts and heat), Build cost.
+   No failures: failures stay engines-only.
+3. **Sizes per program:** stack 0.625 to 5 m with the usual tooling; radial small,
+   medium and large.
+4. **Looks:** any installed decoupler of the same kind, scaled. Hardpoints and
+   pylons stay stock (plane mounts). Heat shields, escape towers, reentry pods,
+   airlocks and structural tubes that happen to decouple stay what they are.
+
+### 21.2 Plane parts (agreed)
+
+5. **Mk2 and Mk3 fuselage tanks** work like fuel tanks (the same kinds, any fuel,
+   the same sliders; Mk2 short and long, Mk3 short, medium and long; they keep
+   the fuselage's body lift), **but as their own type**, not under Tanks. Phil:
+   "I do want a separate category for plane parts, not just also under Tanks."
+6. **Plane adapters** (Mk3 to Mk2, Mk3 to 2.5 and 3.75 m, Mk2 to 1.25 m short and
+   long, 2.5 m to Mk2, the Mk2 bicoupler) are adapter-tank pairs under Tanks, each
+   worn by its own stock part, unscaled. The slanted Mk3 to 2.5 m stays stock.
+   Phil: "those parts being in adapters makes sense. no need to separate those."
+7. **The Mk2 Drone Core** becomes a probe look. Replace already hides it (it is a
+   probe core) and PIP had no Mk2-shaped probe. Phil: "good catch!"
+8. **Stock:** cockpits, crew cabin and passenger module (crewed parts are a
+   separate, bigger design), cargo bays and ramp, the Mk3 engine mount.
+
+### 21.3 Also in 0.4.0
+
+- **Flight-test 0.3.0's radial and adapter tanks** (agreed).
+- **Docking ports:** Phil, of leaving them stock: "I could see us adding those
+  unless the code is wacky." Proposed below, built last, after a prototype.
+- **Not yet on CKAN:** that waits for a full (not pre-) release (agreed).
+- **Later, their own releases:** fuel cells and generators, radiators, landing
+  legs, crewed pods, wings. **Stock:** parachutes (RealChute), science, lights,
+  fairings.
+
+### 21.4 Docking ports (proposed)
+
+9. **One Docking ports type**, plain or shielded (a door), sizes 0.625 to 5 m
+   (Jr. to Mondo). Each size docks with any port of its size, stock or PIP: KSP
+   matches ports by a size label, which PIP sets from the program's size.
+10. **Sliders:** Grip (capture range, pull and turning force), Weight, Strength,
+    Build cost. No failures.
+11. **Looks:** any installed plain or shielded round port of that kind, scaled.
+    Replace hides the 7 plain round ports (Jr., standard, Sr., Grande, Mondo,
+    both shielded). Stock: Klaws, airlocks, crew tubes, truss and linear
+    connectors, the inline and Mk2 ports, the telescopic module.
+12. **Unlock** where stock puts the Clamp-O-Tron.
+13. **The risk:** a scaled port must still line up and dock. A prototype comes
+    first; if docking turns out unreliable, ports drop out of 0.4.0.
+
 ## Looks and side-mount build (2026-11-04)
 
 Built from sections 15 and 16 after Phil's "Yes, build it". This is Looks
