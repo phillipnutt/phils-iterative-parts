@@ -4,7 +4,7 @@ Written by Claude (AI) at Phil Nutt's direction, like the rest of PIP (see
 [NOTICE.md](NOTICE.md)). The reasoning behind each change is in
 [DESIGN.md](DESIGN.md); fuel numbers and sources are in [FUELS.md](FUELS.md).
 
-## Unreleased (next: 0.4.0)
+## 0.4.0 (2026-11-06, pre-release)
 
 **Decouplers** (DESIGN.md 21.1): a new part type. A program is a stack
 decoupler or a separator, 0.625 to 5 m, or a side-mount (radial) decoupler,

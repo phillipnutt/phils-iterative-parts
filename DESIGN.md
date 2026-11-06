@@ -6,9 +6,9 @@
 
 **Status, 2026-11-06:** eighteen part types built and play-tested in Phil's
 modded game (sixteen also on a clean install); fuel tank programs can be in-line,
-radial or adapters (section 20). Released as 0.3.0 (pre-release); decouplers and
-plane fuselages (section 21) are built and flown, not released. What has changed
-in each release is in [CHANGELOG.md](CHANGELOG.md).
+radial or adapters (section 20), and decouplers and plane fuselages are types of
+their own (section 21). Released as 0.4.0 (pre-release); what has changed in each
+release is in [CHANGELOG.md](CHANGELOG.md).
 
 **This is a log, not one spec.** Later sections change earlier ones; where they
 disagree, the later one stands. The big ones:
