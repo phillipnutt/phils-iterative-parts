@@ -167,7 +167,6 @@ namespace PIP
                 switch (typeId)
                 {
                     case "rcs": ApplyRcs(); break;
-                    case "battery": SetResource("ElectricCharge", stats[Batteries.Ec]); break;
                     case "wheel": SetWheel(stats[ReactionWheels.TorqueKey], stats[K.EcRate]); break;
                     case "shield": ApplyShield(); break;
                     case "solar": ApplySolar(); break;
@@ -179,6 +178,7 @@ namespace PIP
                     case "intake": ApplyIntake(); break;
                     case "decoupler": ApplyDecoupler(); break;
                 }
+                if (Held(typeId, stats, out string held, out double amount)) SetResource(held, amount);
             }
             catch (Exception e)
             {
@@ -244,7 +244,6 @@ namespace PIP
                 }
                 a.pyrolysisLossFactor = prefab.pyrolysisLossFactor * stats[HeatShields.AblatorFactor];
             }
-            SetResource("Ablator", stats[HeatShields.AblatorAmount]);
             part.maxTemp = part.skinMaxTemp = stats[HeatShields.MaxTemp];
         }
 
@@ -304,7 +303,6 @@ namespace PIP
                 foreach (ModuleResource r in c.resHandler.inputResources)
                     if (r.name == "ElectricCharge") r.rate = stats[K.EcRate];
             SetWheel(stats[ProbeCores.TorqueKey], stats[ProbeCores.TorqueKey] * 0.03);
-            SetResource("ElectricCharge", stats[ProbeCores.BatteryKey]);
         }
 
         void ApplyTank()
@@ -349,6 +347,19 @@ namespace PIP
                 float f = (float)Math.Max(0.1, stats[K.Speed]);
                 foreach (Keyframe k in prefab.machCurve.Curve.keys) curve.Add(k.time * f, k.value, k.inTangent / f, k.outTangent / f);
                 i.machCurve = curve;
+            }
+        }
+
+        // The resource a type's program fills its part with, and how much. The part
+        // (SetResource) and its VAB tooltip (PartFactory) both read it from here.
+        public static bool Held(string typeId, Stats s, out string resource, out double amount)
+        {
+            switch (typeId)
+            {
+                case "battery": resource = "ElectricCharge"; amount = s[Batteries.Ec]; return true;
+                case "probe": resource = "ElectricCharge"; amount = s[ProbeCores.BatteryKey]; return true;
+                case "shield": resource = "Ablator"; amount = s[HeatShields.AblatorAmount]; return true;
+                default: resource = null; amount = 0; return false;
             }
         }
 

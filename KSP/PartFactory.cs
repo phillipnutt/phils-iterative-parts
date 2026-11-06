@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using KSP.Localization;
 using UnityEngine;
 
 namespace PIP
@@ -281,11 +282,45 @@ namespace PIP
             // VAB search: the name follows a rename.
             ap.tags = $"pip program {p.Type.Noun} {p.Type.Id} {p.Name.ToLowerInvariant()}" + (side ? " side radial" : "");
             string chassis = chassisOf.TryGetValue(ap.name, out string c) ? c : ChassisFor(p.Type, p.Model) ?? p.ChassisPart;
-            ap.moduleInfos = PartInfo.ModuleInfos(PartLoader.getPartInfoByName(chassis), p, s, side);
-            // A tank's contents are picked on the part. An adapter look's placeholder
-            // propellant (Looks.AddFirstPropellant) would show as "1.0" units here.
-            if (p.Type is TankKind) ap.resourceInfos = new List<AvailablePart.ResourceInfo>();
+            AvailablePart from = PartLoader.getPartInfoByName(chassis);
+            ap.moduleInfos = PartInfo.ModuleInfos(from, p, s, side);
+            ap.resourceInfos = ResourceInfos(from?.resourceInfos ?? ap.resourceInfos, p, s);
             ap.description = $"{p.Label}{(side && !p.FixedSize ? ", side-mount" : "")}. Program {p.Title}, now at {Progress.MkName(mk)}.\n" + Describe(p.Type, p.Model, s);
+        }
+
+        // The VAB tooltip's resource lines come from the chassis (a Z-100's 100
+        // charge), but the part holds what its program says, so those lines are
+        // rewritten, in KSP's own words (PartLoader.CompilePartInfo). The chassis's
+        // list is shared with it, so it's copied, never changed. A tank's contents are
+        // picked on the part: an adapter look's placeholder propellant
+        // (Looks.AddFirstPropellant) would show as "1.0" units, so tanks list none.
+        static List<AvailablePart.ResourceInfo> ResourceInfos(List<AvailablePart.ResourceInfo> chassis, Program p, Stats s)
+        {
+            if (p.Type is TankKind || chassis == null) return new List<AvailablePart.ResourceInfo>();
+            if (!ModulePipPart.Held(p.Type.Id, s, out string held, out double amount)) return chassis;
+            var list = new List<AvailablePart.ResourceInfo>();
+            foreach (AvailablePart.ResourceInfo r in chassis)
+            {
+                if (r.resourceName != held) list.Add(r);
+                else if (amount > 0) list.Add(ResourceInfo(r, amount));
+            }
+            return list;
+        }
+
+        static AvailablePart.ResourceInfo ResourceInfo(AvailablePart.ResourceInfo was, double amount)
+        {
+            PartResourceDefinition def = PartResourceLibrary.Instance?.GetDefinition(was.resourceName);
+            double density = def?.density ?? 0, unitCost = def?.unitCost ?? 0;
+            return new AvailablePart.ResourceInfo
+            {
+                resourceName = was.resourceName,
+                displayName = was.displayName,
+                info = Localizer.Format("#autoLOC_166269", amount.ToString("F1"))
+                       + Localizer.Format("#autoLOC_166270", (amount * density).ToString("F2"))
+                       + Localizer.Format("#autoLOC_7001407")
+                       + (unitCost > 0 ? Localizer.Format("#autoLOC_166271", (amount * unitCost).ToString("F2")) : ""),
+                primaryInfo = $"<b>{was.displayName}: </b>{KSPUtil.LocalizeNumber(amount, "F1")}",
+            };
         }
 
         // "Thrust, vacuum 205 kN. Isp, vacuum 300 s. ..." from the type's main rows.

@@ -19,6 +19,10 @@ heat shields, and so on. The die now deals them at random (each comes up once
 before any repeats) instead of going down a list of 30, and a suggested name
 changes with the type you pick.
 
+**Fixed:** a battery's part tooltip listed its chassis's 100 electric charge, not
+what the program holds; heat shields (ablator) and probe cores (built-in battery)
+had the same mistake. The part itself always held the right amount.
+
 ## 0.4.0 (2026-11-06, pre-release)
 
 **Decouplers** (DESIGN.md 21.1): a new part type. A program is a stack
