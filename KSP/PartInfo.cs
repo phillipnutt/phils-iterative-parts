@@ -46,6 +46,12 @@ namespace PIP
                 {
                     copy.info = DryMassRx.Replace(info, m => m.Groups[1].Value + s.Mass.ToString("0.000"), 1);
                 }
+                // A decoupler's force is the program's, not the chassis's (seen 2026-11-06:
+                // a 75 kN Snap showed the TD-12's 100).
+                else if (p.Type == PartTypes.Decoupler && EjectRx.IsMatch(info))
+                {
+                    copy.info = EjectRx.Replace(info, m => m.Groups[1].Value + s[Decouplers.Eject].ToString("0.0", System.Globalization.CultureInfo.InvariantCulture), 1);
+                }
                 else if ((mi.moduleName ?? "").IndexOf("Gimbal", StringComparison.OrdinalIgnoreCase) >= 0 && p.Type != PartTypes.Jet)
                 {
                     double g = s[K.Gimbal];
@@ -99,6 +105,7 @@ namespace PIP
         }
 
         static readonly Regex DryMassRx = new Regex(@"(Dry Mass:\s*(?:<[^>]*>\s*)*)([\d.,]+)");
+        static readonly Regex EjectRx = new Regex(@"(Ejection Force:\s*(?:<[^>]*>\s*)*)([\d.,]+)");
         static readonly Regex MassRx = new Regex(@"(Mass:\s*(?:<[^>]*>\s*)*)([\d.,]+)");
         static readonly Regex AslRx = new Regex(@"(Thrust \(ASL\):\s*(?:<[^>]*>\s*)*)([\d.,]+)");
         static readonly Regex VacRx = new Regex(@"(Thrust \(Vac\.?\):\s*(?:<[^>]*>\s*)*)([\d.,]+)");

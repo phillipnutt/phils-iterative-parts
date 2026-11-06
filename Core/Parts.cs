@@ -384,10 +384,23 @@ namespace PIP
 
         static readonly Option[] variants =
             { Size("0625", ""), new Option("125", "1.25 m", "basicScience"), new Option("1875", "1.875 m", "unmannedTech"), new Option("25", "2.5 m", "largeUnmanned") };
-        static readonly double[,] Weight = { { 0.065, 0.03 }, { 0.2, 0.1 }, { 0.3, 0.15 }, { 0.6, 0.3 } };
-        static readonly double[] Torque = { 1, 5, 10, 20 };
-        public static readonly double[] Battery = { 50, 200, 400, 1000 };
-        static readonly double[] PriceBySize = { 450, 1000, 2000, 4000 };
+        // The last entry is the Mk2 shape: the Mk2 Drone Core's 800 EC and 15 kNm, 0.2 t at 75 points.
+        static readonly double[,] Weight = { { 0.065, 0.03 }, { 0.2, 0.1 }, { 0.3, 0.15 }, { 0.6, 0.3 }, { 0.4, 0.13 } };
+        static readonly double[] Torque = { 1, 5, 10, 20, 15 };
+        public static readonly double[] Battery = { 50, 200, 400, 1000, 800 };
+        static readonly double[] PriceBySize = { 450, 1000, 2000, 4000, 2700 };
+
+        // A Mk2-shaped probe core (DESIGN.md 21.2): made from an installed Mk2 probe
+        // core (the Mk2 Drone Core), unscaled, the way a tank adapter is made from an
+        // adapter. It goes by the adapter mount, named "Mk2" here.
+        static readonly Option[] shaped = { new Option("A-MK2", "drone core", "automation") };
+        public override bool HasAdapters => true;
+        public override Option[] AdapterVariants(string[] m) => shaped;
+        public override string AdapterKind(string variant) => variant == "A-MK2" ? "mk2" : null;
+        public override string[] AdapterLookPreference(string variant) => new[] { "mk2DroneCore" };
+        public override string MountName(string mount) => mount == "A" ? "Mk2" : base.MountName(mount);
+        public override LookScale ScaleBasis(bool side, string kind) => kind == "mk2" ? LookScale.None : LookScale.Diameter;
+        static int SizeIndex(string variant) => variant == "A-MK2" ? 4 : Index(variants, variant);
 
         public override Choice[] Choices => new Choice[0];
         protected override Category[] OwnCategories =>
@@ -406,7 +419,7 @@ namespace PIP
 
         public override Stats Compute(string[] m, int[] pts, int mk, FailureLevel level, string variant = null)
         {
-            int v = Index(variants, variant ?? DefaultVariant(m));
+            int v = SizeIndex(variant ?? DefaultVariant(m));
             var s = new Stats();
             s[Sas] = SasLevel(E(pts, 0, mk));
             s[K.EcRate] = Lerp(0.1, 0.015, E(pts, 1, mk));
@@ -564,9 +577,45 @@ namespace PIP
         };
         public static readonly string[] AdapterLengthCodes = { "S", "L" };
         static readonly string[] adapterLengthLabels = { "short", "long" };
+        // Plane adapters (DESIGN.md 21.2): each joins a plane section to another shape as
+        // one stock part does, holds what it holds and is as long; it wears that part
+        // (or another with the same two ends), stretched only along its length. Their
+        // kinds start "AP" and name the two ends ("x2": the narrow end splits in two).
+        sealed class PlaneAdapter
+        {
+            public readonly string Code, Kind, Label;
+            public readonly double Volume, Height;
+            public readonly string[] Techs, Looks;
+            public PlaneAdapter(string code, string kind, string label, double volume, double height, string[] techs, params string[] looks)
+            { Code = code; Kind = kind; Label = label; Volume = volume; Height = height; Techs = techs; Looks = looks; }
+        }
+        static readonly PlaneAdapter[] planeAdapters =
+        {
+            new PlaneAdapter("A-MK3-MK2-L", "APmk2-mk3", "Mk3 to Mk2 long", 2000, 5, new[] { "heavyAerodynamics" }, "adapterMk3-Mk2"),
+            new PlaneAdapter("A-MK3-25-L", "APmk3-size2", "Mk3 to 2.5 m long", 2500, 3.75, new[] { "heavyAerodynamics", Sizes.Tooling("25") }, "adapterMk3-Size2"),
+            new PlaneAdapter("A-MK3-375-L", "APmk3-size3", "Mk3 to 3.75 m long", 2500, 1.875, new[] { "experimentalAerodynamics", Sizes.Tooling("375") }, "adapterSize3-Mk3"),
+            new PlaneAdapter("A-25-MK2-L", "APmk2-size2", "2.5 m to Mk2 long", 800, 3.75, new[] { "highAltitudeFlight", Sizes.Tooling("25") }, "adapterSize2-Mk2"),
+            new PlaneAdapter("A-MK2-125-S", "APmk2-size1", "Mk2 to 1.25 m short", 400, 1.875, new[] { "supersonicFlight" }, "mk2SpacePlaneAdapter", "mk2.1m.AdapterLong"),
+            new PlaneAdapter("A-MK2-125-L", "APmk2-size1", "Mk2 to 1.25 m long", 800, 3.75, new[] { "highAltitudeFlight" }, "mk2.1m.AdapterLong", "mk2SpacePlaneAdapter"),
+            new PlaneAdapter("A-MK2-2X125-L", "APmk2-size1x2", "Mk2 to two 1.25 m long", 400, 1.875, new[] { "supersonicFlight" }, "mk2.1m.Bicoupler"),
+        };
+        static PlaneAdapter PlaneAdapterOf(string variant) => planeAdapters.FirstOrDefault(p => p.Code == variant);
+
+        // The plane adapter kind for a part's ends ("mk2", "size1"...) and whether its
+        // narrow end splits in two, or null when PIP makes no such pair.
+        public static string PlaneAdapterKindOf(IEnumerable<string> profiles, bool twin)
+        {
+            string[] ends = profiles.Where(x => x != "srf").Distinct().OrderBy(x => x, StringComparer.Ordinal).ToArray();
+            if (ends.Length != 2 || !ends.Any(x => x == "mk2" || x == "mk3")) return null;
+            string kind = "AP" + ends[0] + "-" + ends[1] + (twin ? "x2" : "");
+            return planeAdapters.Any(p => p.Kind == kind) ? kind : null;
+        }
+        public static bool IsPlaneAdapterKind(string kind) => kind != null && kind.StartsWith("AP", StringComparison.Ordinal);
+
         static readonly Option[] adapterVariants = AdapterPairs.SelectMany(p => AdapterLengthCodes.Select((l, i) =>
             Option.Needing($"A-{p[0]}-{p[1]}-{l}", $"{Sizes.Label(p[0]).Replace(" m", "")} to {Sizes.Label(p[1])} {adapterLengthLabels[i]}",
-                "fuelSystems", Sizes.Tooling(p[1]), Sizes.Tooling(p[0])))).ToArray();
+                "fuelSystems", Sizes.Tooling(p[1]), Sizes.Tooling(p[0]))))
+            .Concat(planeAdapters.Select(p => Option.Needing(p.Code, p.Label, new[] { "fuelSystems" }.Concat(p.Techs).ToArray()))).ToArray();
 
         // The ratio kind of an adapter with these ends ("A2" for 2.5 to 1.25 m), or null.
         public static string AdapterKindOf(double big, double small)
@@ -607,14 +656,17 @@ namespace PIP
 
         public override bool HasAdapters => true;
         public override Option[] AdapterVariants(string[] m) => adapterVariants;
-        public override string AdapterKind(string variant) => RatioOf(variant, out _, out _)?.Kind;
-        public override string[] AdapterLookPreference(string kind) => ratios.FirstOrDefault(r => r.Kind == kind)?.Looks ?? new string[0];
+        public override string AdapterKind(string variant) => PlaneAdapterOf(variant)?.Kind ?? RatioOf(variant, out _, out _)?.Kind;
+        public override string[] AdapterLookPreference(string variant) =>
+            PlaneAdapterOf(variant)?.Looks ?? ratios.FirstOrDefault(r => r.Kind == AdapterKind(variant))?.Looks ?? new string[0];
         public override string AdapterNeeds(string kind) => ratios.FirstOrDefault(r => r.Kind == kind)?.Needs;
         public override double NominalHeight(string variant)
         {
             Ratio r = RatioOf(variant, out double big, out double length);
             return r == null ? 0 : r.Height * big / r.Big * length;
         }
+        // A plane adapter is stretched to its stock part's length, never widened.
+        public override double NominalLength(string variant) => PlaneAdapterOf(variant)?.Height ?? 0;
 
         public override Choice[] Choices => choices;
         public override string[] CapTechs => new[] { "basicRocketry", "fuelSystems", "largeVolumeContainment", "specializedFuelStorage" };
@@ -643,7 +695,7 @@ namespace PIP
         // In-line looks are stretched to the size and length; radial ones scaled by
         // volume; adapters scaled to the big end and stretched to the height.
         public override LookScale ScaleBasis(bool side, string kind) =>
-            side ? LookScale.Volume : IsAdapterKind(kind) ? LookScale.Adapter : LookScale.Tank;
+            side ? LookScale.Volume : IsPlaneAdapterKind(kind) ? LookScale.Length : IsAdapterKind(kind) ? LookScale.Adapter : LookScale.Tank;
         public override double NominalVolume(string variant) => Volume(variant);
         public override string LookKey(string[] m) => m[0];
         // An adapter look (kind "A2" ...) serves every kind of tank: stock has no
@@ -665,6 +717,7 @@ namespace PIP
             if (side >= 0) return SideVolume[side];
             if (IsAdapter(variant))
             {
+                if (PlaneAdapterOf(variant) is PlaneAdapter pa) return pa.Volume;
                 Ratio r = RatioOf(variant, out double big, out double length);
                 if (r == null) return 0;
                 double k = big / r.Big;

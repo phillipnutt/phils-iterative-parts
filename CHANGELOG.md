@@ -4,6 +4,35 @@ Written by Claude (AI) at Phil Nutt's direction, like the rest of PIP (see
 [NOTICE.md](NOTICE.md)). The reasoning behind each change is in
 [DESIGN.md](DESIGN.md); fuel numbers and sources are in [FUELS.md](FUELS.md).
 
+## Unreleased (next: 0.4.0)
+
+**Decouplers** (DESIGN.md 21.1): a new part type. A program is a stack
+decoupler or a separator, 0.625 to 5 m, or a side-mount (radial) decoupler,
+small, medium or large. Sliders: Ejection force, Weight, Strength. Any installed
+decoupler or separator can lend it its look. With Replace, stock and mod stack
+decouplers, separators and radial decouplers are hidden; engine plates, docking
+ports, hardpoints and 7.5 m parts stay. Unlocks from Engineering 101.
+
+**Plane fuselages** (DESIGN.md 21.2): a new part type for Mk2 and Mk3 fuel
+fuselages, tanks in every other way (kinds, any fuel, the same sliders). Mk2
+short and long, Mk3 short, medium and long, holding what stock's do; Mk2 keeps its
+body lift. In the VAB they're under Fuel Tanks. Unlocks from Supersonic Flight.
+
+**Plane adapters:** tank adapter programs can also be Mk3 to Mk2, Mk3 to 2.5 m or
+3.75 m, 2.5 m to Mk2, Mk2 to 1.25 m (short or long), or the Mk2 bicoupler, each
+wearing its stock part. Replace hides the stock ones (not the slanted Mk3 to 2.5 m).
+
+**Probes:** a probe program can be Mk2-shaped, wearing the Mk2 Drone Core. Replace
+already hid the drone core; now there's a program to replace it.
+
+**Games already under way:** a part type that's new in a version of PIP starts
+off in a game that was already under way, so it doesn't hide that game's stock
+parts unasked. The difficulty settings can turn it on. Brand-new games get it on
+Replace, as usual.
+
+**Fixed:** a decoupler's part tooltip showed its chassis's ejection force; an
+adapter tank's listed its placeholder propellant as 1.0 units.
+
 ## 0.3.0 (2026-11-06, pre-release)
 
 **Radial and adapter tanks** (DESIGN.md 20)

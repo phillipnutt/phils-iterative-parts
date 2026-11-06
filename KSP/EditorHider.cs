@@ -178,9 +178,13 @@ namespace PIP
                 // two shapes are plane adapters.
                 string[] sections = profiles.Where(Looks.IsPlaneSection).Distinct().ToArray();
                 if (sections.Length > 0)
+                {
+                    var stack = prefab.attachNodes.Select(n => n.originalPosition).ToList();
+                    if (FuelTanks.PlaneAdapterKindOf(profiles, Looks.TwinEnd(stack)) != null) return PartTypes.Tank;
                     return sections.Length == 1 && profiles.All(x => x == sections[0] || x == "srf") && prefab.attachNodes.Count >= 2 &&
                            prefab.attachNodes.All(n => Mathf.Abs(n.originalPosition.x) < 1e-3f && Mathf.Abs(n.originalPosition.z) < 1e-3f)
                         ? PartTypes.Plane : null;
+                }
                 if (prefab.attachNodes.Count >= 2 && profiles.Count(RoundSizes.Contains) == 1 && profiles.All(x => RoundSizes.Contains(x) || x == "srf")) return PartTypes.Tank;
                 // Radial tanks (DESIGN.md 20.1): no stack nodes, stick to a surface.
                 if (prefab.attachNodes.Count == 0 && prefab.attachRules.srfAttach && profiles.All(x => x == "srf")) return PartTypes.Tank;

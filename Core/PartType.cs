@@ -164,7 +164,7 @@ namespace PIP
         public static bool IsAdapter(string variant) => variant != null && variant.StartsWith("A-", StringComparison.Ordinal);
         public virtual string AdapterKind(string variant) => null;
         // The looks to try first for a ratio, and what to install when none is.
-        public virtual string[] AdapterLookPreference(string kind) => new string[0];
+        public virtual string[] AdapterLookPreference(string variant) => new string[0];
         public virtual string AdapterNeeds(string kind) => null;
         // An adapter look is stretched to this height (m) for a size.
         public virtual double NominalHeight(string variant) => 0;
@@ -172,6 +172,8 @@ namespace PIP
         // Where a size's part goes: "" in-line, "R" side-mount, "A" adapter. Side-mount
         // and adapter parts are always made from a look (Looks.cs).
         public static string MountOf(string variant) => IsSide(variant) ? "R" : IsAdapter(variant) ? "A" : "";
+        // What a mount is called in the window: tanks' "A" is Adapter, probes' is Mk2.
+        public virtual string MountName(string mount) => mount == "R" ? "Side-mount" : mount == "A" ? "Adapter" : "In-line";
         public Option[] VariantsForMount(string[] model, string mount) =>
             mount == "R" ? SideVariants(model) : mount == "A" ? AdapterVariants(model) : Variants(model);
 
@@ -186,7 +188,7 @@ namespace PIP
         {
             Option o = VariantOption(model, code);
             if (o == null) return code ?? "";
-            if (IsAdapter(code)) return "Adapter, " + o.Label;
+            if (IsAdapter(code)) return MountName("A") + ", " + o.Label;
             if (!IsSide(code)) return o.Label;
             return o.Label == "Side-mount" ? o.Label : "Side-mount, " + o.Label.ToLowerInvariant();
         }

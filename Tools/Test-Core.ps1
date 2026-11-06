@@ -198,7 +198,15 @@ Check 'standard radial looks by kind' "$($tk.SideLookPreference((M 'S'))[0]),$($
 Check 'a radial program is labelled with its size' ($tk.VariantLabel((M 'S'), 'R-L')) 'Side-mount, large'
 # Section 20.2: adapter tanks, nine size pairs, short and long, by taper ratio.
 $ad = $tk.AdapterVariants((M 'S'))
-Check 'adapters: nine pairs, short and long' "$($tk.HasAdapters)|$($ad.Count)|$($ad[0].Code)|$($ad[-1].Code)" 'True|18|A-125-0625-S|A-5-375-L'
+Check 'adapters: nine round pairs short and long, then seven plane ones' "$($tk.HasAdapters)|$($ad.Count)|$($ad[0].Code)|$($ad[17].Code)|$($ad[-1].Code)" 'True|25|A-125-0625-S|A-5-375-L|A-MK2-2X125-L'
+# Section 21.2: plane adapters, each its stock part's volume and length, stretched only.
+Check 'plane adapters hold what stock ones do' "$((@('A-MK3-MK2-L','A-MK3-25-L','A-MK3-375-L','A-25-MK2-L','A-MK2-125-S','A-MK2-125-L','A-MK2-2X125-L') | ForEach-Object { [PIP.FuelTanks]::Volume($_) }) -join ',')" '2000,2500,2500,800,400,800,400'
+Check 'plane adapter kinds by their ends' "$($tk.AdapterKind('A-MK3-MK2-L')),$($tk.AdapterKind('A-MK2-125-S')),$($tk.AdapterKind('A-MK2-125-L')),$($tk.AdapterKind('A-MK2-2X125-L'))" 'APmk2-mk3,APmk2-size1,APmk2-size1,APmk2-size1x2'
+Check 'a part''s ends find its plane adapter kind' "$([PIP.FuelTanks]::PlaneAdapterKindOf([string[]]@('size2','srf','mk3'), $false)),$([PIP.FuelTanks]::PlaneAdapterKindOf([string[]]@('size1','srf','mk2'), $true)),$([PIP.FuelTanks]::PlaneAdapterKindOf([string[]]@('mk2','srf','mk3'), $false)),[$([PIP.FuelTanks]::PlaneAdapterKindOf([string[]]@('size1','size2'), $false))]" 'APmk3-size2,APmk2-size1x2,APmk2-mk3,[]'
+Check 'plane adapters stretch to their part''s length' "$($tk.ScaleBasis($false, 'APmk2-mk3')),$($tk.NominalLength('A-MK3-MK2-L')),$($tk.NominalLength('A-MK2-125-S'))" 'Length,5,1.875'
+Check 'plane adapter labels split into ends and length' "$($tk.VariantLabel((M 'S'), 'A-MK3-MK2-L'))|$($tk.VariantLabel((M 'S'), 'A-MK2-125-S'))" 'Adapter, Mk3 to Mk2 long|Adapter, Mk2 to 1.25 m short'
+Check 'each length of Mk2 to 1.25 m prefers its own stock part' "$($tk.AdapterLookPreference('A-MK2-125-S')[0]),$($tk.AdapterLookPreference('A-MK2-125-L')[0])" 'mk2SpacePlaneAdapter,mk2.1m.AdapterLong'
+Check 'a Mk3 to 3.75 m adapter needs its nodes and tooling' (($tk.Techs((M 'S'), 'A-MK3-375-L') | Select-Object -Unique) -join ',') 'basicRocketry,fuelSystems,experimentalAerodynamics,veryHeavyRocketry'
 Check 'an adapter is labelled with its ends' ($tk.VariantLabel((M 'S'), 'A-25-125-L')) 'Adapter, 2.5 to 1.25 m long'
 Check 'adapter codes are neither in-line nor side-mount' "$([PIP.PartType]::MountOf('A-25-125-L')),$([PIP.PartType]::MountOf('R-M')),$([PIP.PartType]::MountOf('125-L'))" 'A,R,'
 Check 'adapter tapers' "$((@('A-125-0625-L','A-1875-125-L','A-25-1875-L','A-1875-0625-L','A-5-375-S') | ForEach-Object { $tk.AdapterKind($_) }) -join ',')" 'A2,A32,A43,A3,A43'
@@ -214,7 +222,7 @@ Check 'adapter heights: C7 2.5 m, half when short, ADTP-2-3 2.25 m' "$($tk.Nomin
 Check 'adapter unlocks: Fuel Systems, then tooling' "$(($tk.VariantOption((M 'S'), 'A-125-0625-L').Techs) -join '+')|$(($tk.VariantOption((M 'S'), 'A-375-25-L').Techs) -join '+')" 'fuelSystems|fuelSystems+heavierRocketry+veryHeavyRocketry'
 Check 'a program needs every node its adapter does' (($tk.Techs((M 'S'), 'A-25-1875-L') | Select-Object -Unique) -join ',') 'basicRocketry,fuelSystems,heavyRocketry,heavierRocketry'
 Check 'adapter looks: scaled as adapters; serve every kind' "$($tk.ScaleBasis($false, 'A2')),$(($tk.LookKeys('A2')) -join '')" 'Adapter,SCME'
-Check 'standard adapter looks' "$($tk.AdapterLookPreference('A2')[0]),$($tk.AdapterLookPreference('A32')[0]),$($tk.AdapterLookPreference('A43')[0]),$($tk.AdapterLookPreference('A3')[0])" 'adapterSize2-Size1,Size3To2Adapter.v2,Size1p5.Size2.Adapter.01,Size1p5.Size0.Adapter.01'
+Check 'standard adapter looks' "$($tk.AdapterLookPreference('A-25-125-L')[0]),$($tk.AdapterLookPreference('A-375-25-L')[0]),$($tk.AdapterLookPreference('A-25-1875-L')[0]),$($tk.AdapterLookPreference('A-1875-0625-L')[0])" 'adapterSize2-Size1,Size3To2Adapter.v2,Size1p5.Size2.Adapter.01,Size1p5.Size0.Adapter.01'
 Check 'adapter tapers by their ends' "$([PIP.FuelTanks]::AdapterKindOf(2.5, 1.25)),$([PIP.FuelTanks]::AdapterKindOf(7.5, 5)),$([PIP.FuelTanks]::AdapterKindOf(5, 1.25))" 'A2,A32,'
 Check 'kept tank-shaped parts' "$([PIP.FuelTanks]::KeptTank('noseConeAdapter', 'NCS Adapter')),$([PIP.FuelTanks]::KeptTank('nfex-fueltank-stack-medium-1', 'MLT-240 Multipurpose Fuel Tank Cluster')),$([PIP.FuelTanks]::KeptTank('adapter-25-125', 'Rockomax Skeletal Structural Adapter')),$([PIP.FuelTanks]::KeptTank('adapterSize2-Size1', 'C7 Brand Adapter - 2.5m to 1.25m'))" 'True,True,True,False'
 Check 'a long 2.5 to 1.25 adapter weighs as 800 units of tank' (PStat 'Tank' 'S' @(100, 0, 0) 10 'mass' 'A-25-125-L') (0.001 + 800 * 0.000625 * 0.8) 1e-9
@@ -245,6 +253,14 @@ Check 'a long Mk3 fuselage needs its nodes' (($pln.Techs((M 'S-3'), '3-L') | Sel
 Check 'Mk2 lift goes with length, as stock' "$([PIP.PlaneFuselages]::Length('2-S') * [PIP.PlaneFuselages]::Mk2LiftPerMeter),$([PIP.PlaneFuselages]::Length('2-L') * [PIP.PlaneFuselages]::Mk2LiftPerMeter)" '0.35,0.7'
 Check 'fuselage looks: by section, stretched only' "$($pln.LookFits((M 'S-3'), '3')),$($pln.LookFits((M 'S-3'), '2')),$($pln.ScaleBasis($false, '2')),$($pln.NominalLength('3-L'))" 'True,False,Length,10'
 Check 'fuselage chassis by kind and section' ($pln.ChassisPart((M 'M-3'))) 'PIP-PLN-M-3'
+# Section 21.2: the Mk2 drone core, a probe made from its own shape by the adapter mount.
+$prb = TypeOf 'Probe'
+Check 'probes: a Mk2 shape, named so' "$($prb.HasAdapters)|$(($prb.AdapterVariants((M '')) | ForEach-Object { $_.Code }) -join ',')|$($prb.MountName('A'))|$($prb.VariantLabel((M ''), 'A-MK2'))" 'True|A-MK2|Mk2|Mk2, drone core'
+Check 'the Mk2 probe holds and turns as the drone core' "$(PStat 'Probe' '' @(25, 25, 75, 100) 10 'battery' 'A-MK2'),$(PStat 'Probe' '' @(25, 25, 75, 100) 10 'torque' 'A-MK2')" '800,15'
+Check 'and weighs 0.2 t at 75 points' (PStat 'Probe' '' @(25, 25, 75, 100) 10 'mass' 'A-MK2') 0.1975 1e-9
+Check 'it is never scaled, round probes are' "$($prb.ScaleBasis($false, 'mk2')),$($prb.ScaleBasis($false, ''))" 'None,Diameter'
+Check 'round probes keep their numbers' (PStat 'Probe' '' @(25, 25, 75, 100) 10 'battery' '25') 1000
+Check 'tanks still call it Adapter' ($tk.MountName('A')) 'Adapter'
 Check 'battery side default is small' ($bat.DefaultSideVariant((M ''))) 'R-S'
 Check 'battery: side medium holds 400 EC at stock capacity' (PStat 'Battery' '' @(45) 10 'ec' 'R-M') 402 1e-9
 Check 'battery: side small weighs 0.005 t' (PStat 'Battery' '' @(45) 10 'mass' 'R-S') 0.005

@@ -10,10 +10,10 @@ A Kerbal Space Program 1.12 mod. Instead of unlocking finished parts, you start
 **development programs**: pick a design (fuel, size, nozzle…), spend points on
 what matters (thrust, efficiency, weight, reliability…), and the program gets
 better as you fly it, from Mk. 1 to Mk. 5. At Mk. 5 it can move on to its next
-version (Kestrel I, II, III … Max), each one better again. Sixteen part types are covered:
+version (Kestrel I, II, III … Max), each one better again. Eighteen part types are covered:
 liquid, solid, monopropellant, nuclear, electric and jet engines, plus RCS,
 batteries, reaction wheels, heat shields, solar panels, antennas, probe cores,
-fuel tanks, RTGs and air intakes. Any installed part can lend a program its
+fuel tanks, Mk2 and Mk3 plane fuselages, RTGs, air intakes and decouplers. Any installed part can lend a program its
 model ("looks"). Fuel tank programs can be in-line, radial or adapters between
 two sizes.
 

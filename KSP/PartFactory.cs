@@ -277,10 +277,13 @@ namespace PIP
             bool side = IsSidePart(ap.name);
             string variant = ListVariant(p, ap.name);
             Stats s = p.Stats(mk, PipSettings.Failures, variant);
-            ap.title = p.DisplayName(mk) + (side ? " (side-mount)" : p.FixedSize && p.IsAdapter ? " (adapter)" : "");
+            ap.title = p.DisplayName(mk) + (side ? " (side-mount)" : p.FixedSize && p.IsAdapter ? $" ({(p.Type == PartTypes.Tank ? "adapter" : p.Type.MountName("A"))})" : "");
             ap.cost = (float)Math.Round(s.BuildPrice);
             string chassis = chassisOf.TryGetValue(ap.name, out string c) ? c : ChassisFor(p.Type, p.Model) ?? p.ChassisPart;
             ap.moduleInfos = PartInfo.ModuleInfos(PartLoader.getPartInfoByName(chassis), p, s, side);
+            // A tank's contents are picked on the part. An adapter look's placeholder
+            // propellant (Looks.AddFirstPropellant) would show as "1.0" units here.
+            if (p.Type is TankKind) ap.resourceInfos = new List<AvailablePart.ResourceInfo>();
             ap.description = $"{p.Label}{(side && !p.FixedSize ? ", side-mount" : "")}. Program {p.Title}, now at {Progress.MkName(mk)}.\n" + Describe(p.Type, p.Model, s);
         }
 

@@ -85,15 +85,34 @@ namespace PIP
 
         internal static bool IsPlaneSection(string profile) => profile == "mk2" || profile == "mk3";
 
+        // Whether a part's lowest end splits in two (two stack nodes at the bottom): the bicoupler.
+        internal static bool TwinEnd(List<Vector3> stack)
+        {
+            if (stack.Count < 3) return false;
+            float bottom = stack.Min(v => v.y);
+            return stack.Count(v => Math.Abs(v.y - bottom) < 0.01f) >= 2;
+        }
+
         // A plane fuselage (DESIGN.md 21.2): a fuel tank of one plane section (Mk2 or
         // Mk3), straight along the axis. Its kind is the section, "2" or "3". Parts
         // joining two shapes are plane adapters, not fuselages.
         static Source ClassifyPlane(ConfigNode n, Source src, List<string> profiles, List<Vector3> stack)
         {
-            string[] sections = profiles.Where(IsPlaneSection).Distinct().ToArray();
-            if (src.Kind == "" || sections.Length != 1 || profiles.Any(p => p != sections[0] && p != "srf")) return null;
-            if (stack.Count < 2 || stack.Any(v => Math.Abs(v.x) > 1e-3f || Math.Abs(v.z) > 1e-3f)) return null;
             if (FuelTanks.KeptTank(n.GetValue("name"), Localized(n.GetValue("title")))) return null;
+            if (stack.Count < 2) return null;
+            string[] sections = profiles.Where(IsPlaneSection).Distinct().ToArray();
+            // Two ends: a plane adapter (a tank adapter of its pair, shaped as it is:
+            // Mk3 to Mk2 has its narrow end raised, the bicoupler two of them).
+            string planeAdapter = FuelTanks.PlaneAdapterKindOf(profiles, TwinEnd(stack));
+            if (planeAdapter != null)
+            {
+                src.Adapter = true;
+                src.Kind = planeAdapter;
+                src.Height = stack.Max(v => v.y) - stack.Min(v => v.y);
+                return src.Height > 0 ? src : null;
+            }
+            if (src.Kind == "" || sections.Length != 1 || profiles.Any(p => p != sections[0] && p != "srf")) return null;
+            if (stack.Any(v => Math.Abs(v.x) > 1e-3f || Math.Abs(v.z) > 1e-3f)) return null;
             src.Type = PartTypes.Plane;
             src.Kind = sections[0] == "mk3" ? "3" : "2";
             src.Height = stack.Max(v => v.y) - stack.Min(v => v.y);
@@ -455,6 +474,15 @@ namespace PIP
                 if (stackY.Count < 2 || profiles.Count(RoundSizes.ContainsKey) != 1 || profiles.Any(p => !RoundSizes.ContainsKey(p) && p != "srf")) return null;
                 src.Height = stackY.Max() - stackY.Min();
                 return src.Height > 0 && src.Diameter > 0 ? src : null;
+            }
+            // A Mk2-shaped probe core (the Mk2 Drone Core, DESIGN.md 21.2): only ever its
+            // own shape, unscaled, by the adapter mount ("Mk2" in the window).
+            if (t == PartTypes.Probe && profiles.Any(IsPlaneSection))
+            {
+                if (stackY.Count < 2 || profiles.Any(p => p != "mk2" && p != "srf")) return null;
+                src.Adapter = true;
+                src.Kind = "mk2";
+                return src;
             }
             if (t.HasSideMount && !inline)
             {
@@ -1077,7 +1105,7 @@ namespace PIP
         public static string DefaultAdapter(PartType t, string[] model, string variant)
         {
             if (!t.HasAdapters || !PartType.IsAdapter(variant)) return null;
-            foreach (string s in t.AdapterLookPreference(t.AdapterKind(variant))) if (Exists(t, "A", s, model, variant)) return s;
+            foreach (string s in t.AdapterLookPreference(variant)) if (Exists(t, "A", s, model, variant)) return s;
             return List(t, "A", model, variant).FirstOrDefault()?.Source;
         }
 

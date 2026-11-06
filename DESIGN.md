@@ -4,10 +4,11 @@
 > Claude (Anthropic) at Phil Nutt's direction. The decisions recorded here are
 > Phil's; the wording and the code are Claude's. See [NOTICE.md](NOTICE.md).
 
-**Status, 2026-11-06:** sixteen part types built and play-tested, in Phil's
-modded game and on a clean install; fuel tank programs can be in-line, radial or
-adapters (section 20). Released as 0.3.0 (pre-release); what has changed in each
-release is in [CHANGELOG.md](CHANGELOG.md).
+**Status, 2026-11-06:** eighteen part types built and play-tested in Phil's
+modded game (sixteen also on a clean install); fuel tank programs can be in-line,
+radial or adapters (section 20). Released as 0.3.0 (pre-release); decouplers and
+plane fuselages (section 21) are built and flown, not released. What has changed
+in each release is in [CHANGELOG.md](CHANGELOG.md).
 
 **This is a log, not one spec.** Later sections change earlier ones; where they
 disagree, the later one stands. The big ones:
@@ -2097,6 +2098,60 @@ port). Phil's answers are under each decision.
 12. **Unlock** where stock puts the Clamp-O-Tron.
 13. **The risk:** a scaled port must still line up and dock. A prototype comes
     first; if docking turns out unreliable, ports drop out of 0.4.0.
+
+### 21.5 As built (2026-11-06)
+
+Built as agreed (21.1 to 21.3), with these details settled in the build:
+
+- **Decouplers in the window:** Kind is Decoupler or Separator; a decoupler then
+  has the usual Mount row, In-line or Side-mount (the radial decoupler). That is
+  the agreed three kinds, shown the way tanks and batteries show side-mount.
+  Separators have no side-mount.
+- **Decoupler numbers** sit today's parts at 25 points of Ejection force and 50
+  of Weight: ejection force 100 kN × (diameter / 1.25 m)^0.6 (the TD-06's 50 to
+  the TD-37's 200), ×0.5 at 0 points to ×2.5 at 100; mass 0.04 t × (diameter /
+  1.25 m)² (every TD part), ×1.6 to ×0.8; separators a quarter heavier and 30%
+  dearer. Radial: small 70 kN / 0.0125 t (TT-14), medium 250 / 0.04 (TT-38K,
+  TT-70), large 600 / 0.4 (hydraulic manifold, TTR-6R). Strength as tanks: impacts
+  4 to 20 m/s, heat 1,400 to 2,600 K. Unlocks: Engineering 101 (first programs),
+  Stability (radial), General Construction (separators; caps 50), Advanced
+  Construction (75), Specialized Construction (large radial; 100).
+- **Decoupler looks:** any plain installed decoupler or separator dresses either
+  kind (its look chassis is set to the program's); radial looks dress decouplers.
+  Engine plates, docking ports, cargo bays, structural tubes, the Klaw, heat
+  shields and pods that happen to decouple are neither looks nor replaced, nor are
+  the 7.5 m ones.
+- **Fuselages and tanks share a base** (`TankKind`): kinds, sliders, numbers by
+  volume. A fuselage's chassis is PIP-PLN-<kind>-<section>, stretched along its
+  length from stock's long Mk2 and medium Mk3 rocket fuselages. **Mk2 lift goes
+  with length** (0.35 short, 0.7 long, as stock), set on the part whatever the look.
+- **Plane adapters** (Tanks, adapter mount): Mk3 to Mk2 (2,000, 5 m), Mk3 to 2.5 m
+  (2,500, 3.75 m), Mk3 to 3.75 m (2,500, 1.875 m), 2.5 m to Mk2 (800, 3.75 m), Mk2
+  to 1.25 m short and long (400 and 800), Mk2 to two 1.25 m (the bicoupler, 400).
+  Each wears its stock part, or another with the same two ends, stretched only.
+  The window lists them in the adapters' Size row; a pair with one length has the
+  other padlocked ("Not made at ...").
+- **The Mk2 Drone Core:** probes got a second mount, named "Mk2" in the window. It
+  reuses the adapter mount (a part always made from a fixed-shape look), labelled
+  per type. Numbers: 800 EC, 15 kNm, 0.2 t at 75 points of Weight.
+- **New types in old games:** a type added in a later version of PIP (decouplers,
+  fuselages) starts **Off** in a game already under way, instead of its default,
+  Replace; a brand-new game gets the default. Games record which types they've
+  seen (`knownTypes`). Without this, Phil's main career would have had its stock
+  decouplers hidden the first time it loaded 0.4.
+- **Tested 2026-11-06** in a new test career in Phil's game. Made: 30 decoupler
+  looks, 5 radial decoupler looks, 48 fuselage looks, 80 adapter looks, 1 Mk2
+  probe look, no errors. Replace hides 18 decouplers, 12 fuselages and 119 tanks
+  (the 7 plane adapters added). Window checked for every new choice. Flight:
+  pod, a stack decoupler, a 2.5 to 1.25 m adapter tank, a 2.5 m kerolox engine,
+  and two radial decouplers each holding a radial tank. The engine burned the
+  adapter dry; both radial decouplers threw their tanks clear; the stack decoupler
+  separated the pod, which landed under its parachute. (The first try failed to
+  light, PIP's 10% at Mk. 1; the second, without SAS, looped into the ground and
+  was reverted.)
+- **Fixed after the test:** a decoupler's tooltip showed its chassis's ejection
+  force (a 75 kN program said 100); an adapter's tooltip listed its placeholder
+  propellant as 1.0 units. Not yet seen in game.
 
 ## Looks and side-mount build (2026-11-04)
 

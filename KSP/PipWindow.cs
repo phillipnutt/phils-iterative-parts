@@ -490,7 +490,7 @@ namespace PIP
             if (sides.Length > 0) mounts.Add("R");
             if (adapters.Length > 0) mounts.Add("A");
             if (mounts.Count > 1)
-                SizeRow("Mount", mounts.Select(m => m == "R" ? "Side-mount" : m == "A" ? "Adapter" : "In-line").ToArray(), mounts.IndexOf(mount), i => null, i =>
+                SizeRow("Mount", mounts.Select(type.MountName).ToArray(), mounts.IndexOf(mount), i => null, i =>
                 {
                     if (mounts[i] == mount) return;
                     previewVariants[type.Id] = mounts[i] == "R" ? sides[0].Code
@@ -669,7 +669,7 @@ namespace PIP
                 }
                 y += 72 + 8;
                 string hint = "Fixed for the program's life. It changes the model, never the numbers." +
-                              (mountNow == "A" ? " Only adapters of this taper fit it." : "") +
+                              (mountNow == "A" ? (type == PartTypes.Tank ? " Only adapters of this taper fit it." : $" Only {type.MountName("A")}-shaped parts fit it.") : "") +
                               (type.HasSideMount && !(sizes ?? new Option[0]).Any(o => PartType.IsSide(o.Code))
                                   ? " No side-mount look is installed, so there's no side-mount version." : "");
                 float hh = PipSkin.Hint.CalcHeight(new GUIContent(hint), w);
@@ -693,11 +693,15 @@ namespace PIP
             return type.Valid(m) && !PartFactory.Made(type, m) ? "Needs " + PartFactory.Needs(type, m) : null;
         }
 
-        // "1.25 m long" -> { "1.25 m", "long" }; null when the label isn't a size and something.
+        // "1.25 m long" -> { "1.25 m", "long" }; "Mk3 to Mk2 long" -> { "Mk3 to Mk2", "long" };
+        // null when the label doesn't end in a length.
+        static readonly string[] LengthWords = { " extra long", " short", " medium", " long" };
         static string[] SplitVariant(string label)
         {
-            int i = label.IndexOf(" m ", StringComparison.Ordinal);
-            return i < 0 ? null : new[] { label.Substring(0, i + 2), label.Substring(i + 3) };
+            foreach (string w in LengthWords)
+                if (label.EndsWith(w, StringComparison.Ordinal) && label.Length > w.Length)
+                    return new[] { label.Substring(0, label.Length - w.Length), w.Substring(1) };
+            return null;
         }
 
         bool LookCard(Rect r, string source, string sub)
@@ -1075,7 +1079,7 @@ namespace PIP
             }
 
             float x = Pad, w = area.width - 2 * Pad;
-            GUI.Label(new Rect(x, 14, w, 30), mount == "A" ? "Pick an adapter look" : side ? "Pick a side-mount look" : "Pick a look", PipSkin.PickerTitle);
+            GUI.Label(new Rect(x, 14, w, 30), mount == "A" ? (type == PartTypes.Tank ? "Pick an adapter look" : $"Pick a {type.MountName("A")} look") : side ? "Pick a side-mount look" : "Pick a look", PipSkin.PickerTitle);
             if (GUI.Button(new Rect(area.width - Pad - 30, 14, 30, 30), new GUIContent("×", "Back to the program"), PipSkin.Close)) { pickerOpen = false; pickerFor = null; }
 
             GUI.SetNextControlName("pipSearch");
@@ -1147,7 +1151,7 @@ namespace PIP
             GUI.EndScrollView();
 
             PipSkin.Fill(new Rect(0, area.height - 44, area.width, 1), PipSkin.Line);
-            string note = mount == "A" ? "Adapters of this taper only, scaled to the ends you picked. The look changes the model, never the numbers."
+            string note = mount == "A" ? (type == PartTypes.Tank ? "Adapters of this taper only, scaled to the ends you picked." : $"{type.MountName("A")}-shaped parts only, as they are.") + " The look changes the model, never the numbers."
                 : side ? "Side-mount looks are scaled to the size you picked."
                 : (type.IsEngine ? "Only engines of this size are listed: a look is never scaled. " : "") +
                   (type == PartTypes.Liquid ? "Looks that burn your fuel come first; the flame comes from the look. " : "") +
