@@ -4,7 +4,7 @@ Written by Claude (AI) at Phil Nutt's direction, like the rest of PIP (see
 [NOTICE.md](NOTICE.md)). The reasoning behind each change is in
 [DESIGN.md](DESIGN.md); fuel numbers and sources are in [FUELS.md](FUELS.md).
 
-## Unreleased
+## 0.3.0 (2026-11-06, pre-release)
 
 **Radial and adapter tanks** (DESIGN.md 20)
 - A fuel tank program can be **side-mount** (radial): tiny, small, medium, large

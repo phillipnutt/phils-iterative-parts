@@ -5,9 +5,9 @@
 > Phil's; the wording and the code are Claude's. See [NOTICE.md](NOTICE.md).
 
 **Status, 2026-11-06:** sixteen part types built and play-tested, in Phil's
-modded game and on a clean install. Released as 0.2.0 (pre-release); since then
-fuel tank programs can also be radial or adapters (section 20, tested in Phil's
-game, not released yet). What has changed is in [CHANGELOG.md](CHANGELOG.md).
+modded game and on a clean install; fuel tank programs can be in-line, radial or
+adapters (section 20). Released as 0.3.0 (pre-release); what has changed in each
+release is in [CHANGELOG.md](CHANGELOG.md).
 
 **This is a log, not one spec.** Later sections change earlier ones; where they
 disagree, the later one stands. The big ones:
