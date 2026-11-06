@@ -250,7 +250,9 @@ $tankTypes = @(
     @('PIP-MONO', 0.0004, 0.75, @(, @('MonoPropellant', 1.5))),
     @('PIPXenon', 0.00123046875, 4.5, @(, @('XenonGas', 15.75))),
     @('PIPArgon', 0.000594667, 2.5, @(, @('ArgonGas', 1000))),
-    @('PIPLithium', 0.00089, 9.5625, @(, @('Lithium', 5)))
+    @('PIPLithium', 0.00089, 9.5625, @(, @('Lithium', 5))),
+    # An empty adapter (DESIGN.md 20.2): a plain structural adapter, a quarter of a tank's weight.
+    @('PIP-EMPTY', 0.00015625, 0, @())
 )
 foreach ($t in $tankTypes) {
     L 'B9_TANK_TYPE'

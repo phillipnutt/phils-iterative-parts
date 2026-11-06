@@ -30,7 +30,12 @@ namespace PIP
 
         public static bool Opened(PartType t) => Researched(t.CapTechs[0]);
 
-        public static bool Available(PartType t, Option o) => Opened(t) && Researched(o.Tech);
+        public static bool Available(PartType t, Option o) => Opened(t) && o.Techs.All(Researched);
+
+        // What to research first for an option: the type's first node, then each
+        // node the option needs, in order.
+        public static string NextFor(PartType t, Option o) =>
+            !Opened(t) ? t.CapTechs[0] : o.Techs.FirstOrDefault(x => !Researched(x)) ?? o.Tech;
 
         public static bool Available(PartType t, string[] model, string variant = null) => t.Valid(model) && t.Techs(model, variant).All(Researched);
 

@@ -4,6 +4,29 @@ Written by Claude (AI) at Phil Nutt's direction, like the rest of PIP (see
 [NOTICE.md](NOTICE.md)). The reasoning behind each change is in
 [DESIGN.md](DESIGN.md); fuel numbers and sources are in [FUELS.md](FUELS.md).
 
+## Unreleased
+
+**Radial and adapter tanks** (DESIGN.md 20)
+- A fuel tank program can be **side-mount** (radial): tiny, small, medium, large
+  or huge, by volume (5 to 1,600). It wears any installed radial tank, scaled; the
+  Baguette, Stratus-V and PB-X50R are the standard looks. Unlocks at Propulsion
+  Systems, large and huge with their tooling.
+- A fuel tank program can be an **adapter** between two sizes (2.5 to 1.25 m and
+  eight other pairs), short or long. It wears an installed adapter of the same
+  taper: the C7 for 2:1, the ADTP-2-3 for 3:2; 4:3 and 3:1 need Making History,
+  ReStock+ or Near Future Launch Vehicles. Each taper holds what its stock
+  adapter does (a long 2.5 to 1.25 m holds 800). Unlocks at Fuel Systems, plus
+  each size's tooling.
+- An adapter can be set to **Empty** on the part: a plain structural adapter at a
+  quarter of the weight.
+- **Replace** now also hides stock and mod radial tanks, fuel adapters and plain
+  structural adapters. Kept: slanted, multi, skeletal, truss and station adapters,
+  nosecones, cluster tanks, ore tanks, fuel ducts.
+- Replace and looks now recognize tanks by any propellant switch, not only one
+  named `fuelSwitch`, so Near Future Exploration's MLT-R tanks are replaced too.
+- Once a session the log lists every tank Replace hides and every fuel tank it
+  leaves.
+
 ## 0.2.0 (2026-11-05, pre-release)
 
 **Requirements changed:** PIP no longer needs CryoTanks. It needs **Community

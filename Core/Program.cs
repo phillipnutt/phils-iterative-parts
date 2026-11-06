@@ -22,7 +22,8 @@ namespace PIP
         public bool Retired;
         // Looks (DESIGN.md section 16), fixed when the program starts: the
         // installed part whose model it wears, inline and side-mount. Empty: PIP's
-        // own model (programs from before looks).
+        // own model (programs from before looks). An adapter tank program (DESIGN.md
+        // 20.2) wears its adapter look in SideLook, as a side-mount one does.
         public string Look = "";
         public string SideLook = "";
         // The size, for part types that have sizes (DESIGN.md section 14): fixed
@@ -84,6 +85,9 @@ namespace PIP
         public string ModelCode => Type.Code(Model);
         public bool FixedSize => !string.IsNullOrEmpty(Variant);
         public bool IsSide => PartType.IsSide(Variant);
+        public bool IsAdapter => PartType.IsAdapter(Variant);
+        // Side-mount and adapter programs are always made from a look, kept in SideLook.
+        public bool Mounted => FixedSize && (IsSide || IsAdapter);
         public string Label => Type.Label(Model) + (FixedSize ? ", " + Type.VariantLabel(Model, Variant).ToLowerInvariant()
                                                     : Type.Variants(Model) != null ? ", every size" : "");
 

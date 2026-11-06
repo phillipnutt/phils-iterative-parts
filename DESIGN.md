@@ -4,9 +4,10 @@
 > Claude (Anthropic) at Phil Nutt's direction. The decisions recorded here are
 > Phil's; the wording and the code are Claude's. See [NOTICE.md](NOTICE.md).
 
-**Status, 2026-11-05:** sixteen part types built and play-tested, in Phil's
-modded game and on a clean install. Released as 0.2.0 (pre-release); what has
-changed since is in [CHANGELOG.md](CHANGELOG.md).
+**Status, 2026-11-06:** sixteen part types built and play-tested, in Phil's
+modded game and on a clean install. Released as 0.2.0 (pre-release); since then
+fuel tank programs can also be radial or adapters (section 20, tested in Phil's
+game, not released yet). What has changed is in [CHANGELOG.md](CHANGELOG.md).
 
 **This is a log, not one spec.** Later sections change earlier ones; where they
 disagree, the later one stands. The big ones:
@@ -1909,6 +1910,126 @@ it"):
 
 Not done (discussed, for later): boil-off that follows sunlight and distance from
 Kerbol, and liquid oxygen boiling at about methane's rate.
+
+## 20. Radial and adapter tanks (design, 2026-11-06)
+
+Phil, on a new test save: "lots of 'probodyne' tanks im seeing. also the adapters
+don't get replaced". Replace hides only plain round stack tanks of one size (77 in
+his install); radial tanks, adapters and odd shapes stay as fixed parts (80 tank
+parts visible). Phil approved every recommendation below ("Go with yours").
+
+### 20.1 Radial (side-mount) tanks
+
+1. **A side-mount size, picked for the program's life**, as for batteries and
+   intakes (section 14). A tank program is in-line or radial.
+2. **Five sizes, by volume** (an FL-T400 is 400): Tiny 5, Small 25, Medium 50,
+   Large 200, Huge 1,600. Today's radial tanks: Stratus-V Mini ~5, Dumpling 22,
+   Baguette 54, HR-1 160, HR-18 1,760.
+3. **All four kinds** (standard, cryogenic, monopropellant, electric).
+4. **Standard look:** stock parts, always installed: the Baguette for fuel tanks,
+   the Stratus-V Cylindrified for monopropellant, the PB-X50R for electric.
+5. **Looks:** any installed radial tank of the same kind, scaled to the program's
+   volume (by the cube root of volume over the look's own volume).
+6. **Unlock:** Propulsion Systems (90), where stock puts the Baguette; Large with
+   1.875 m tooling, Huge with 2.5 m tooling.
+7. **Replace hides** radial tanks that hold only fuel (16 in Phil's install:
+   Dumpling, Baguette, 4 MLT-R, 3 HR, 3 Stratus-V, 2 radial xenon, radial argon and
+   lithium). Kept: ore tanks, Glykerol, KAS's transfer station, the fuel duct and
+   the drain valve.
+
+### 20.2 Adapter tanks
+
+An adapter model's taper is built in: PIP can scale it up or stretch it, not change
+the ratio of its two ends. So each ratio needs its own model:
+
+| Ratio | Pairs | Model | Where |
+|---|---|---|---|
+| 2:1 | 0.625↔1.25, 1.25↔2.5, 1.875↔3.75, 2.5↔5 | C7 Brand Adapter (stock) | everywhere |
+| 3:2 | 1.25↔1.875, 2.5↔3.75 | Kerbodyne ADTP-2-3 (stock) | everywhere |
+| 4:3 | 1.875↔2.5, 3.75↔5 | FL-A215 (Making History), NR-AD (Near Future Launch Vehicles) | padlocked without them |
+| 3:1 | 0.625↔1.875 | FL-A150 (Making History) | padlocked without it |
+
+8. **An adapter size pair, picked for the program's life** (e.g. 2.5→1.25 m). One
+   part works either way up; the editor flips it.
+9. **Short and long:** long is the model's own shape, short half its height.
+10. **Volume from the cone shape**, set so the long 2.5→1.25 m adapter holds 800,
+    as the stock C7 does.
+11. **An "Empty" pick** on adapter tanks makes one a plain structural adapter, so
+    PIP can stand in for simple structural adapters too.
+12. **Replace hides** 9 fuel adapters (C7, ADTP-2-3, FL-A150, FL-A151L, FL-A151S,
+    FL-A215, the three NR-AD tanks) and 7 plain structural adapters (FL-A5,
+    FL-A10, the two Rockomax Brand Adapters, FL-XA15, FL-XA30, ADTP-2-3A).
+13. **Kept:** slanted adapters, multi-adapters (bi/tri/quad/OMNI, SM-2 to 4),
+    skeletal and truss adapters, station adapters, nosecones, the engine cluster
+    adapter, Mk2/Mk3 parts, and the multi-size MLT cluster tanks.
+14. **Unlock:** Fuel Systems (90), plus each size's tooling.
+
+### 20.3 Both
+
+15. **Numbers as in-line tanks:** weight by volume, the Weight / Strength /
+    Insulation sliders, the same prices. (Stock adapters weigh ~14% more per
+    volume; ignored.)
+16. **Radial first**, then adapters.
+
+### 20.4 As built (2026-11-06)
+
+Both are built as decided, with these details settled in the build:
+
+- **Fill, changed from decision 10.** Measured from the installed parts, the C7
+  holds about 112 units per cubic meter of its cone; the ADTP-2-3, FL-A215, NR-AD
+  and FL-A150 hold 160 to 172 (and PIP's in-line tanks 172). One fill set by the
+  C7 would leave the other tapers a third short of their stock adapters. So each
+  taper holds what its own stock adapter holds, scaled by size cubed: 2:1 the
+  C7 (800 at 2.5 to 1.25 m), 3:2 the ADTP-2-3 (3,000 at 3.75 to 2.5), 4:3 the
+  FL-A215 (1,200 at 2.5 to 1.875), 3:1 the FL-A150 (160 at 1.875 to 0.625). The
+  long 2.5 to 1.25 m adapter still holds 800, as decided.
+- **Height:** each taper is as tall, for its big end, as its stock adapter (the
+  C7 is 2.5 m at 2.5 m; the ADTP-2-3 0.6 of its big end; the FL-A215 0.75; the
+  FL-A150 0.4). Short is half. Other looks of the taper are stretched to it, as
+  in-line looks are to a tank's length.
+- **Looks:** any installed fuel adapter or plain structural adapter of the taper
+  (two round sizes, every stack node on the axis), unless it's under a quarter
+  of the taper's height (flat caps like the FL-XA15 would be stretched 8×). A
+  plain structural adapter has only harmless modules (variants, cargo, IVA,
+  TweakScale and the like): station adapters with habitats or switches stay out.
+- **All four kinds** (standard, cryogenic, monopropellant, electric) can be
+  adapters; any adapter look serves all four.
+- **Empty** is a propellant pick on the part (tank type `PIP-EMPTY`, no
+  resources) weighing a quarter of a standard tank of that volume: stock's
+  ADTP-2-3A weighs 27% of the ADTP-2-3. Lesson from the first test: B9PartSwitch
+  gives a new part that holds nothing its resourceless subtype, so adapters came
+  out Empty. Adapter looks now carry their kind's first propellant as
+  placeholders, which B9 matches and refills.
+- **Replace's tank list:** once a session the log names every tank Replace hides
+  and every fuel-tank-category part it leaves (`[PIP] Replace hides ... tanks`).
+  The first list (2026-11-06) showed 108 hidden: the 17 adapters as planned, but
+  the four MLT-R radial tanks were left, because Near Future Exploration names its
+  propellant switch `surfaceSwitch`, not `fuelSwitch`. A tank's switch is now any
+  B9PartSwitch whose subtypes hold only rocket propellants, whatever its ID. The
+  keep-words now apply to every tank shape, so the MLT-10 (a one-size cluster)
+  stays as decided for clusters.
+- **Tested 2026-11-06** in a test career in Phil's game (three launches, all with his OK):
+  52 adapter looks (13 adapter parts × 4 kinds) and 27 radial looks made, no
+  errors. "Funnel I", a long 2.5 to 1.25 m adapter, wears the C7, holds 800 and
+  weighs 4.75 t full (0.751 t dry); "Saddle I", a medium radial tank, wears the
+  Baguette and sits flush on Funnel's side. The 4:3 pair 2.5 to 1.875 m takes
+  the FL-A215 (Making History) with both NR-AD tanks as other looks. Replace
+  hides 112 tanks (77 before): the 17 adapters, 14 radial tanks, the 4 MLT-R.
+  It leaves 45: Mk2/Mk3 parts, the slanted C7, cluster and skeletal parts,
+  nosecones, ore and nuclear-fuel tanks, the fuel line, release valve and KAS
+  station, a solid-fuel tank, and 7.5 m and 10 m tanks PIP doesn't make.
+- **Where the look lives:** an adapter program keeps its look in the program's
+  side-mount look field, as a side-mount program does; both are "mounts" made
+  only from a look (`PartType.MountOf`: "" in-line, "R" side-mount, "A" adapter).
+- **Unlocks:** a size option can now need several nodes (`Option.Needing`):
+  Fuel Systems plus each end's tooling.
+- **Node sizes:** each end gets its own (the small end the smaller node, or the
+  top when both say the same, as Making History's do).
+- **Replace** hides fuel adapters and plain structural adapters of PIP's nine
+  pairs. Kept by name or title: skeletal, SKL, truss, girder, cluster, nose,
+  slant. In Phil's install that should be 9 fuel adapters and 8 structural ones:
+  the 7 listed in decision 12 plus Near Future Construction's SM-1 Stack Adapter.
+  The NR-AD-CAP stays (it has a texture switch).
 
 ## Looks and side-mount build (2026-11-04)
 

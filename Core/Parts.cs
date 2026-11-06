@@ -466,6 +466,100 @@ namespace PIP
         static readonly Option[] variants = SizeCodes.SelectMany(s => LengthCodes.Select((l, i) =>
             new Option(s + "-" + l, Sizes.Label(s) + " " + LengthLabels[i], Sizes.Tooling(s) ?? ""))).ToArray();
 
+        // Side-mount (radial) tanks, by volume (DESIGN.md 20.1): the Stratus-V Mini,
+        // Dumpling, Baguette, HR-1 and HR-18 are about these sizes.
+        public static readonly string[] SideCodes = { "R-T", "R-S", "R-M", "R-L", "R-H" };
+        public static readonly double[] SideVolume = { 5, 25, 50, 200, 1600 };
+        static readonly Option[] sideVariants =
+        {
+            new Option("R-T", "Tiny", "propulsionSystems"), new Option("R-S", "Small", "propulsionSystems"),
+            new Option("R-M", "Medium", "propulsionSystems"), new Option("R-L", "Large", Sizes.Tooling("1875")),
+            new Option("R-H", "Huge", Sizes.Tooling("25")),
+        };
+
+        // Adapter tanks (DESIGN.md 20.2): a size pair and a length, for the program's
+        // life. An adapter's taper is built into its model, so each ratio has its own
+        // model: an installed adapter of that ratio (its look kind). Each ratio holds
+        // what its stock adapter holds, scaled by size cubed, and is as tall for its
+        // size (the C7, the ADTP-2-3, the FL-A215, the FL-A150). Short: half of both.
+        // One fill for every ratio was the plan, but the C7 holds about a third less
+        // for its shape than the other three, so each matches its own (measured 2026-11-06).
+        sealed class Ratio
+        {
+            public readonly string Kind, Needs;
+            public readonly double Big, Volume, Height, Value;
+            public readonly string[] Looks;
+            public Ratio(string kind, double value, double big, double volume, double height, string needs, params string[] looks)
+            { Kind = kind; Value = value; Big = big; Volume = volume; Height = height; Needs = needs; Looks = looks; }
+        }
+        static readonly Ratio[] ratios =
+        {
+            new Ratio("A2", 2, 2.5, 800, 2.5, null, "adapterSize2-Size1"),
+            new Ratio("A32", 1.5, 3.75, 3000, 2.25017, null, "Size3To2Adapter.v2"),
+            new Ratio("A43", 4 / 3.0, 2.5, 1200, 1.875, "Making History, ReStock+ or Near Future Launch Vehicles",
+                "Size1p5.Size2.Adapter.01", "restock-fueltank-adapter-25-1875-1", "nflv-fueltank-adapter-5-375-2", "Size3.Size4.Adapter.01"),
+            new Ratio("A3", 3, 1.875, 160, 0.75, "Making History or ReStock+", "Size1p5.Size0.Adapter.01", "restock-fueltank-adapter-1875-0625-1"),
+        };
+        // Big end, small end.
+        public static readonly string[][] AdapterPairs =
+        {
+            new[] { "125", "0625" }, new[] { "1875", "0625" }, new[] { "1875", "125" }, new[] { "25", "125" }, new[] { "25", "1875" },
+            new[] { "375", "1875" }, new[] { "375", "25" }, new[] { "5", "25" }, new[] { "5", "375" },
+        };
+        public static readonly string[] AdapterLengthCodes = { "S", "L" };
+        static readonly string[] adapterLengthLabels = { "short", "long" };
+        static readonly Option[] adapterVariants = AdapterPairs.SelectMany(p => AdapterLengthCodes.Select((l, i) =>
+            Option.Needing($"A-{p[0]}-{p[1]}-{l}", $"{Sizes.Label(p[0]).Replace(" m", "")} to {Sizes.Label(p[1])} {adapterLengthLabels[i]}",
+                "fuelSystems", Sizes.Tooling(p[1]), Sizes.Tooling(p[0])))).ToArray();
+
+        // The ratio kind of an adapter with these ends ("A2" for 2.5 to 1.25 m), or null.
+        public static string AdapterKindOf(double big, double small)
+        {
+            if (small <= 0) return null;
+            double r = big / small;
+            return ratios.FirstOrDefault(x => Math.Abs(r - x.Value) < 0.02)?.Kind;
+        }
+
+        // A long adapter's height (m) for a ratio at this big end.
+        public static double AdapterHeight(string kind, double big)
+        {
+            Ratio r = ratios.FirstOrDefault(x => x.Kind == kind);
+            return r == null ? 0 : r.Height * big / r.Big;
+        }
+
+        // Tank-shaped parts that stay what they are (DESIGN.md 20.2, decision 13), for
+        // Replace and looks alike: skeletal and truss adapters, cluster tanks,
+        // nosecones and slanted adapters. Slanted and multi-adapters are also told
+        // apart by their off-axis nodes.
+        static readonly string[] keptWords = { "skeletal", "skl", "truss", "girder", "cluster", "nose", "slant" };
+        public static bool KeptTank(string name, string title) =>
+            keptWords.Any(w => (name ?? "").IndexOf(w, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                               (title ?? "").IndexOf(w, StringComparison.OrdinalIgnoreCase) >= 0);
+
+        static Ratio RatioOf(string variant, out double big, out double length)
+        {
+            big = 0; length = 1;
+            if (!IsAdapter(variant)) return null;
+            string[] p = variant.Split('-');
+            int b = p.Length > 3 ? Sizes.IndexOf(p[1]) : -1, s = p.Length > 3 ? Sizes.IndexOf(p[2]) : -1;
+            if (b < 0 || s < 0) return null;
+            big = Sizes.Diameters[b];
+            length = p[3] == "S" ? 0.5 : 1;
+            string kind = AdapterKindOf(big, Sizes.Diameters[s]);
+            return ratios.FirstOrDefault(r => r.Kind == kind);
+        }
+
+        public override bool HasAdapters => true;
+        public override Option[] AdapterVariants(string[] m) => adapterVariants;
+        public override string AdapterKind(string variant) => RatioOf(variant, out _, out _)?.Kind;
+        public override string[] AdapterLookPreference(string kind) => ratios.FirstOrDefault(r => r.Kind == kind)?.Looks ?? new string[0];
+        public override string AdapterNeeds(string kind) => ratios.FirstOrDefault(r => r.Kind == kind)?.Needs;
+        public override double NominalHeight(string variant)
+        {
+            Ratio r = RatioOf(variant, out double big, out double length);
+            return r == null ? 0 : r.Height * big / r.Big * length;
+        }
+
         public override Choice[] Choices => choices;
         protected override Category[] OwnCategories => new[] { new Category("Weight"), new Category("Strength"), new Category("Insulation", 0) };
         public override string[] CapTechs => new[] { "basicRocketry", "fuelSystems", "largeVolumeContainment", "specializedFuelStorage" };
@@ -478,12 +572,32 @@ namespace PIP
         // Looks: one look part per kind, since each kind has its own propellants.
         // A tank's kind is what it holds: fuel tanks serve standard and cryogenic
         // programs, monopropellant (M) and electric-propellant (E) tanks their own.
+        public override bool HasSideMount => true;
+        public override Option[] SideVariants(string[] m) => sideVariants;
         public override bool HasLooks => true;
         public override string DefaultLook(string[] m) => "fuelTank";
-        public override LookScale ScaleBasis(bool side, string kind) => LookScale.Tank;
+        // Stock radial tanks, always installed: the Baguette and Dumpling, the
+        // Stratus-V monopropellant tanks, the PB-X50R xenon container.
+        public override string[] SideLookPreference(string[] m)
+        {
+            switch (m != null && m.Length > 0 ? m[0] : "S")
+            {
+                case "M": return new[] { "rcsTankRadialLong", "radialRCSTank" };
+                case "E": return new[] { "xenonTankRadial" };
+                default: return new[] { "externalTankCapsule", "externalTankRound" };
+            }
+        }
+        // In-line looks are stretched to the size and length; radial ones scaled by
+        // volume; adapters scaled to the big end and stretched to the height.
+        public override LookScale ScaleBasis(bool side, string kind) =>
+            side ? LookScale.Volume : IsAdapterKind(kind) ? LookScale.Adapter : LookScale.Tank;
+        public override double NominalVolume(string variant) => Volume(variant);
         public override string LookKey(string[] m) => m[0];
+        // An adapter look (kind "A2" ...) serves every kind of tank: stock has no
+        // monopropellant or xenon adapters to dress those as.
         public override string[] LookKeys(string kind) =>
-            kind == "M" ? new[] { "M" } : kind == "E" ? new[] { "E" } : new[] { "S", "C" };
+            kind == "M" ? new[] { "M" } : kind == "E" ? new[] { "E" } : IsAdapterKind(kind) ? new[] { "S", "C", "M", "E" } : new[] { "S", "C" };
+        public static bool IsAdapterKind(string kind) => kind != null && kind.Length > 1 && kind[0] == 'A';
         public override string[] LookModel(string kind, string key) => new[] { key };
         // FL-T400 proportions: a "long" tank is this many times as tall as it is wide.
         public const double LongAspect = 1.894225 / 1.25;
@@ -494,6 +608,15 @@ namespace PIP
         // stock ones: a long 2.5 m tank is an FL-T400 twice as big every way (X200-32).
         public static double Volume(string variant)
         {
+            int side = Array.IndexOf(SideCodes, variant);
+            if (side >= 0) return SideVolume[side];
+            if (IsAdapter(variant))
+            {
+                Ratio r = RatioOf(variant, out double big, out double length);
+                if (r == null) return 0;
+                double k = big / r.Big;
+                return r.Volume * k * k * k * length;
+            }
             string[] p = (variant ?? "125-L").Split('-');
             int s = Math.Max(0, Array.IndexOf(SizeCodes, p[0]));
             int l = p.Length > 1 ? Math.Max(0, Array.IndexOf(LengthCodes, p[1])) : 2;

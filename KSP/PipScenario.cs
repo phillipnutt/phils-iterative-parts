@@ -124,18 +124,24 @@ namespace PIP
             else gimbal = "";
             if (!PipSettings.On(type)) { error = $"{type.Title} are off in this game."; return null; }
             if (!TechUnlocks.Available(type, model)) { error = "That model isn't unlocked yet."; return null; }
-            bool sized = type.Variants(model) != null, side = sized && PartType.IsSide(variant);
+            bool sized = type.Variants(model) != null, side = sized && PartType.IsSide(variant), adapter = sized && PartType.IsAdapter(variant);
             if (sized)
             {
                 if (type.VariantOption(model, variant) == null) { error = "Pick a size."; return null; }
                 if (!TechUnlocks.Available(type, model, variant)) { error = $"Research {TechUnlocks.Missing(type, model, variant)} for that size."; return null; }
                 if (side && (string.IsNullOrEmpty(sideLook) || !Looks.Exists(type, true, sideLook, model))) { error = "No side-mount look is installed for this."; return null; }
+                // An adapter wears an installed adapter of its ratio (DESIGN.md 20.2), passed as sideLook.
+                if (adapter && (string.IsNullOrEmpty(sideLook) || !Looks.Exists(type, "A", sideLook, model, variant)))
+                {
+                    error = $"No adapter of that taper is installed: it needs {type.AdapterNeeds(type.AdapterKind(variant)) ?? "an adapter part"}.";
+                    return null;
+                }
             }
             else variant = "";
             // Never charge for a part that can't be made (DESIGN.md section 17).
             if (!PartFactory.Made(type, model)) { error = $"That model needs {PartFactory.Needs(type, model)}, which isn't installed."; return null; }
             if (!string.IsNullOrEmpty(look) && !Looks.Exists(type, false, look, model)) { error = "That look isn't installed, or doesn't suit this model."; return null; }
-            if (!string.IsNullOrEmpty(sideLook) && !Looks.Exists(type, true, sideLook, model)) { error = "That side-mount look isn't installed."; return null; }
+            if (!adapter && !string.IsNullOrEmpty(sideLook) && !Looks.Exists(type, true, sideLook, model)) { error = "That side-mount look isn't installed."; return null; }
             int cap = TechUnlocks.Cap(type);
             for (int i = 0; i < type.Categories.Length; i++)
             {
@@ -147,9 +153,9 @@ namespace PIP
             if (!Pay(cost, out error)) return null;
 
             Program program = Program.Create(Program.NewId(), name, type, model, points, Planetarium.GetUniversalTime(), cost);
-            // A side-mount program wears only its side look, an in-line one only its look.
-            program.Look = side ? "" : look ?? "";
-            program.SideLook = side ? sideLook ?? "" : "";
+            // A side-mount or adapter program wears only that look, an in-line one only its look.
+            program.Look = side || adapter ? "" : look ?? "";
+            program.SideLook = side || adapter ? sideLook ?? "" : "";
             program.Variant = variant ?? "";
             program.Gimbal = gimbal;
             Programs.Add(program);
@@ -192,8 +198,13 @@ namespace PIP
         {
             error = NextBlocked(p);
             if (error != null) return null;
-            bool side = p.FixedSize && p.IsSide;
-            if (!string.IsNullOrEmpty(look) && !Looks.Exists(p.Type, side, look, p.Model)) { error = "That look isn't installed, or doesn't suit this model."; return null; }
+            // Side-mount and adapter programs change their mount look (SideLook).
+            bool side = p.Mounted;
+            if (!string.IsNullOrEmpty(look) && !Looks.Exists(p.Type, side ? PartType.MountOf(p.Variant) : "", look, p.Model, p.Variant))
+            {
+                error = "That look isn't installed, or doesn't suit this model.";
+                return null;
+            }
             if (p.GimbalDegrees > 0 && !side && p.Type.HasLooks && !Looks.Gimbals(p.Type, look ?? p.Look, p.Model))
             {
                 error = "That look has a fixed nozzle, and this family gimbals.";

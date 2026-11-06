@@ -9,7 +9,17 @@ namespace PIP
     public sealed class Option
     {
         public readonly string Code, Label, Tech;
-        public Option(string code, string label, string tech = null) { Code = code; Label = label; Tech = tech; }
+        // Every node it needs. Most options need one (Tech); an adapter tank's size
+        // needs Fuel Systems and its size's tooling (DESIGN.md 20.2).
+        public readonly string[] Techs;
+        public Option(string code, string label, string tech = null)
+        {
+            Code = code; Label = label; Tech = tech;
+            Techs = string.IsNullOrEmpty(tech) ? new string[0] : new[] { tech };
+        }
+        Option(string code, string label, string[] techs) { Code = code; Label = label; Techs = techs; Tech = techs.LastOrDefault(); }
+        public static Option Needing(string code, string label, params string[] techs) =>
+            new Option(code, label, techs.Where(t => !string.IsNullOrEmpty(t)).Distinct().ToArray());
     }
 
     // A free choice made when a program starts (fuel, size, nozzle...).
@@ -145,16 +155,38 @@ namespace PIP
         public static bool IsSide(string variant) => variant != null && variant.StartsWith("R", StringComparison.Ordinal);
         public Option[] VariantsFor(string[] model, bool side) => side ? SideVariants(model) : Variants(model);
 
-        // A size code, in-line or side-mount, or null when this model has no such size.
+        // Adapter tanks (DESIGN.md 20.2): a program can be an adapter between two
+        // sizes, picked for its life. Their codes start "A-". An adapter's taper is
+        // built into its model, so each size pair needs an installed adapter of the
+        // same ratio: AdapterKind names the ratio, the look kind it needs.
+        public virtual bool HasAdapters => false;
+        public virtual Option[] AdapterVariants(string[] model) => null;
+        public static bool IsAdapter(string variant) => variant != null && variant.StartsWith("A-", StringComparison.Ordinal);
+        public virtual string AdapterKind(string variant) => null;
+        // The looks to try first for a ratio, and what to install when none is.
+        public virtual string[] AdapterLookPreference(string kind) => new string[0];
+        public virtual string AdapterNeeds(string kind) => null;
+        // An adapter look is stretched to this height (m) for a size.
+        public virtual double NominalHeight(string variant) => 0;
+
+        // Where a size's part goes: "" in-line, "R" side-mount, "A" adapter. Side-mount
+        // and adapter parts are always made from a look (Looks.cs).
+        public static string MountOf(string variant) => IsSide(variant) ? "R" : IsAdapter(variant) ? "A" : "";
+        public Option[] VariantsForMount(string[] model, string mount) =>
+            mount == "R" ? SideVariants(model) : mount == "A" ? AdapterVariants(model) : Variants(model);
+
+        // A size code, in-line, side-mount or adapter, or null when this model has no such size.
         public Option VariantOption(string[] model, string code) =>
             string.IsNullOrEmpty(code) ? null
-            : (Variants(model) ?? new Option[0]).Concat(SideVariants(model) ?? new Option[0]).FirstOrDefault(o => o.Code == code);
+            : (Variants(model) ?? new Option[0]).Concat(SideVariants(model) ?? new Option[0]).Concat(AdapterVariants(model) ?? new Option[0])
+                .FirstOrDefault(o => o.Code == code);
 
-        // "1.25 m long", "Small", "Side-mount", "Side-mount, small".
+        // "1.25 m long", "Small", "Side-mount", "Side-mount, small", "Adapter, 2.5 to 1.25 m long".
         public string VariantLabel(string[] model, string code)
         {
             Option o = VariantOption(model, code);
             if (o == null) return code ?? "";
+            if (IsAdapter(code)) return "Adapter, " + o.Label;
             if (!IsSide(code)) return o.Label;
             return o.Label == "Side-mount" ? o.Label : "Side-mount, " + o.Label.ToLowerInvariant();
         }
@@ -168,11 +200,13 @@ namespace PIP
 
         // How a look's model is scaled to each size on the part: by diameter, by
         // mass (side-mount batteries, RTGs, dishes), by output (solar panels), by
-        // diameter and length (tanks), or not at all (one size). kind: what the
+        // diameter and length (tanks), by volume (radial tanks), or not at all (one
+        // size). kind: what the
         // installed part is ("F"/"D" panel, "O"/"D" antenna, tank contents).
         public virtual LookScale ScaleBasis(bool side, string kind) => LookScale.Diameter;
         public virtual double NominalMass(string variant) => 0;
         public virtual double NominalOutput(string variant) => 0;
+        public virtual double NominalVolume(string variant) => 0;
 
         // Some types need a separate look part per program choice, because the
         // choice changes the part's config: a tank's propellants, an RCS block's.
@@ -226,8 +260,7 @@ namespace PIP
                 string tech = Choices[i].Find(model[i])?.Tech;
                 if (!string.IsNullOrEmpty(tech)) yield return tech;
             }
-            string sizeTech = VariantOption(model, variant)?.Tech;
-            if (!string.IsNullOrEmpty(sizeTech)) yield return sizeTech;
+            foreach (string sizeTech in VariantOption(model, variant)?.Techs ?? new string[0]) yield return sizeTech;
         }
 
         protected static int P(int[] points, int i) => points != null && i < points.Length ? Pricing.Clamp(points[i]) : 0;
@@ -261,7 +294,7 @@ namespace PIP
 
     }
 
-    public enum LookScale { Diameter, Mass, Output, Tank, None }
+    public enum LookScale { Diameter, Mass, Output, Tank, Volume, Adapter, None }
 
     public static class PartTypes
     {

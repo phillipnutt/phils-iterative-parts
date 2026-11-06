@@ -54,6 +54,27 @@ namespace PIP
                 if (hide) counts[t.Id] = (counts.TryGetValue(t.Id, out int c) ? c : 0) + 1;
             }
             Debug.Log("[PIP] Hidden in R&D: " + (counts.Count == 0 ? "nothing" : string.Join(", ", counts.Select(kv => $"{kv.Value} {kv.Key}"))));
+            if (!tanksListed && PipSettings.Replacing(PartTypes.Tank)) ListTanks();
+        }
+
+        // Once a session: which fuel tanks Replace hides and which it leaves, by name.
+        // Tanks are the type where "is this a plain tank?" is a judgment call.
+        static bool tanksListed;
+        static void ListTanks()
+        {
+            tanksListed = true;
+            var hidden = new List<string>();
+            var left = new List<string>();
+            foreach (AvailablePart ap in PartLoader.LoadedPartsList)
+            {
+                if (ap == null || PartFactory.IsPip(ap)) continue;
+                if (TypeOf(ap) == PartTypes.Tank) hidden.Add(ap.name);
+                else if (ap.category == PartCategories.FuelTank && !ap.TechHidden) left.Add(ap.name);
+            }
+            hidden.Sort(System.StringComparer.OrdinalIgnoreCase);
+            left.Sort(System.StringComparer.OrdinalIgnoreCase);
+            Debug.Log($"[PIP] Replace hides {hidden.Count} tanks: {string.Join(", ", hidden)}");
+            Debug.Log($"[PIP] Fuel tanks Replace leaves ({left.Count}): {string.Join(", ", left)}");
         }
 
         // The PIP part type a non-PIP part would be replaced by, or null.
@@ -126,24 +147,51 @@ namespace PIP
             if (ap.category == PartCategories.Electrical && resources.Count == 1 && resources.Contains("ElectricCharge") &&
                 !modules.Overlaps(new[] { "ModuleGenerator", "ModuleResourceConverter", "ModuleDeployableSolarPanel" }))
                 return PartTypes.Battery;
-            // Round stack tanks only: plane fuselages, radial and odd shapes stay.
+            // Round stack tanks, radial tanks and adapters: plane fuselages and odd
+            // shapes stay.
             // CryoTanks gives stock tanks a B9PartSwitch fuel switch instead of
             // resources, and B9 only adds the resources to parts in the VAB, so the
             // prefab is empty: the switch itself marks them as tanks (as for looks).
             bool switched = resources.Count == 0 && HasFuelSwitch(ap);
+            string[] profiles = (ap.bulkheadProfiles ?? "").Split(',').Select(x => x.Trim()).Where(x => x.Length > 0).ToArray();
             // The stock 3.75 m tanks are filed under Propulsion (this method never sees engines).
             if ((ap.category == PartCategories.FuelTank || ap.category == PartCategories.Propulsion) &&
-                (switched || resources.Count > 0 && resources.All(n => TankResources.Contains(n) || FuelTable.AllResources.Contains(n))) &&
-                prefab.attachNodes.Count >= 2)
+                (switched || resources.Count > 0 && resources.All(n => TankResources.Contains(n) || FuelTable.AllResources.Contains(n))))
             {
-                string[] profiles = (ap.bulkheadProfiles ?? "").Split(',').Select(x => x.Trim()).Where(x => x.Length > 0).ToArray();
-                if (profiles.Count(RoundSizes.Contains) == 1 && profiles.All(x => RoundSizes.Contains(x) || x == "srf")) return PartTypes.Tank;
+                // Cluster tanks, nosecones and the like stay, whatever their shape.
+                if (FuelTanks.KeptTank(ap.name, ap.title)) return null;
+                if (prefab.attachNodes.Count >= 2 && profiles.Count(RoundSizes.Contains) == 1 && profiles.All(x => RoundSizes.Contains(x) || x == "srf")) return PartTypes.Tank;
+                // Radial tanks (DESIGN.md 20.1): no stack nodes, stick to a surface.
+                if (prefab.attachNodes.Count == 0 && prefab.attachRules.srfAttach && profiles.All(x => x == "srf")) return PartTypes.Tank;
+                // Fuel adapters (DESIGN.md 20.2).
+                if (IsPipAdapter(ap, prefab, profiles)) return PartTypes.Tank;
             }
+            // Plain structural adapters: an empty PIP adapter stands in (DESIGN.md 20.2).
+            if (ap.category == PartCategories.Structural && resources.Count == 0 && modules.All(Looks.PlainStructuralModules.Contains) &&
+                IsPipAdapter(ap, prefab, profiles))
+                return PartTypes.Tank;
             return null;
         }
 
+        static readonly Dictionary<string, string> SizeCodes = new Dictionary<string, string>
+            { { "size0", "0625" }, { "size1", "125" }, { "size1p5", "1875" }, { "size2", "25" }, { "size3", "375" }, { "size4", "5" } };
+
+        // An adapter between two sizes PIP makes as a pair, every stack node on the
+        // axis (slanted and multi-adapters have theirs off it), and not one of the
+        // parts kept on purpose (skeletal, truss, cluster tanks, nosecones).
+        static bool IsPipAdapter(AvailablePart ap, Part prefab, string[] profiles)
+        {
+            if (profiles.Any(x => !SizeCodes.ContainsKey(x) && x != "srf")) return false;
+            string[] ends = profiles.Where(SizeCodes.ContainsKey).Select(x => SizeCodes[x]).Distinct().ToArray();
+            if (ends.Length != 2 || prefab.attachNodes.Count < 2) return false;
+            if (prefab.attachNodes.Any(n => Mathf.Abs(n.originalPosition.x) > 1e-3f || Mathf.Abs(n.originalPosition.z) > 1e-3f)) return false;
+            if (FuelTanks.KeptTank(ap.name, ap.title)) return false;
+            string big = ends.OrderByDescending(Sizes.IndexOf).First(), small = ends.OrderBy(Sizes.IndexOf).First();
+            return FuelTanks.AdapterPairs.Any(p => p[0] == big && p[1] == small);
+        }
+
         static bool HasFuelSwitch(AvailablePart ap) =>
-            ap.partConfig != null && ap.partConfig.GetNodes("MODULE").Any(m => m.GetValue("name") == "ModuleB9PartSwitch" && m.GetValue("moduleID") == "fuelSwitch");
+            Looks.FuelSwitchOf(ap.partConfig) != null;
 
         static PartType ClassifyEngine(AvailablePart ap)
         {

@@ -88,6 +88,8 @@ $u = @(
     # Fuel tanks
     @('basicRocketry', 'Welded Tanks', 'PIP-TNK-S', 'First fuel tank programs', 'Start standard fuel tank programs: any fuel, size and length picked on the part. No insulation, so cryogenic fuels boil off. Caps 25.'),
     @('flightControl', 'Monopropellant Tanks', 'PIP-TNK-M', 'Monopropellant tanks', 'Fuel tank programs can hold monopropellant.'),
+    @('propulsionSystems', 'Radial Tanks', 'PIP-TNK-S', 'Radial tanks', 'Fuel tank programs can be side-mount: tiny, small or medium radial tanks; large with 1.875 m tooling, huge with 2.5 m.'),
+    @('fuelSystems', 'Adapter Tanks', 'PIP-TNK-S', 'Adapter tanks', 'Fuel tank programs can be adapters between two sizes, short or long, or empty structural adapters. Each size needs its tooling; 4:3 and 3:1 tapers need Making History, ReStock+ or Near Future Launch Vehicles.'),
     @('fuelSystems', 'Stir-Welded Aluminum', 'PIP-TNK-S', 'Tank caps 50', 'New fuel tank programs can put up to 50 points into every category.'),
     @('largeVolumeContainment', 'Cryogenic Tanks', 'PIP-TNK-C', 'Cryogenic tanks', 'Fuel tank programs can be cryogenic: insulated and cooled, so hydrogen, methane and fluorine keep.'),
     @('largeVolumeContainment', 'Aluminum-Lithium Tanks', 'PIP-TNK-S', 'Tank caps 75', 'New fuel tank programs can put up to 75 points into every category.'),

@@ -21,8 +21,10 @@ namespace PIP
         public const string Prefix = "PIP-LOOK-";
 
         // KSP turns "_" into "." in part names; looks are named after the part as KSP lists it.
-        public static string ChassisName(PartType t, bool side, string source, string key = "") =>
-            Prefix + t.ChassisCode + (string.IsNullOrEmpty(key) ? "" : "-" + key) + (side ? "-R-" : "-") + (source ?? "").Replace('_', '.');
+        // mount: "" in-line, "R" side-mount, "A" adapter (PartType.MountOf).
+        public static string ChassisName(PartType t, bool side, string source, string key = "") => ChassisName(t, side ? "R" : "", source, key);
+        public static string ChassisName(PartType t, string mount, string source, string key = "") =>
+            Prefix + t.ChassisCode + (string.IsNullOrEmpty(key) ? "" : "-" + key) + (string.IsNullOrEmpty(mount) ? "-" : "-" + mount + "-") + (source ?? "").Replace('_', '.');
 
         #region Making the look chassis (at load)
 
@@ -59,7 +61,86 @@ namespace PIP
             public string Kind = "";        // "F"/"D" panel, "O"/"D" antenna, "F"/"M"/"E" tank contents; engines: size and shape
             public string Fuel = "";        // a liquid engine's own fuel (a fuel table code), to list same-fuel looks first
             public double Diameter, Mass, Output, Height;
+            public double Volume;           // a radial tank's, in units of tank volume (an FL-T400 is 400)
+            public bool Adapter;            // an adapter tank's look (DESIGN.md 20.2): Diameter is its big end
             public LookScale Basis => Type.ScaleBasis(Side, Kind);
+            public string Mount => Side ? "R" : Adapter ? "A" : "";
+        }
+
+        // Plain structural adapters (FL-A10, Rockomax Brand Adapter) can dress an
+        // adapter tank too. Only these modules may be on one: anything else (a
+        // habitat, a docking port, a switch) makes it more than a plain adapter.
+        internal static readonly HashSet<string> PlainStructuralModules = new HashSet<string>
+        {
+            "ModulePartVariants", "ModuleCargoPart", "TweakScale", "ModuleFreeIva", "SCANRPMStorage",
+            "FundsKeeper", "StealBackMyFunds", "AttachedOnEditor", "ModuleToggleCrossfeed",
+        };
+
+        static string Localized(string text)
+        {
+            if (string.IsNullOrEmpty(text) || text[0] != '#') return text ?? "";
+            try { return KSP.Localization.Localizer.Format(text); }
+            catch { return text; }
+        }
+
+        // An adapter (DESIGN.md 20.2): two round sizes of a ratio PIP makes, every
+        // stack node on the axis (not slanted, not a multi-adapter), not a part kept
+        // on purpose, and not so flat that stretching it would wreck it (a cap).
+        static Source ClassifyAdapter(ConfigNode n, Source src, List<string> profiles, List<Vector3> stack)
+        {
+            if (profiles.Any(p => !RoundSizes.ContainsKey(p) && p != "srf")) return null;
+            if (stack.Count < 2 || stack.Any(v => Math.Abs(v.x) > 1e-3f || Math.Abs(v.z) > 1e-3f)) return null;
+            if (FuelTanks.KeptTank(n.GetValue("name"), Localized(n.GetValue("title")))) return null;
+            List<double> ends = profiles.Where(RoundSizes.ContainsKey).Select(p => RoundSizes[p]).Distinct().ToList();
+            double big = ends.Max(), small = ends.Min();
+            string kind = FuelTanks.AdapterKindOf(big, small);
+            if (kind == null) return null;
+            src.Adapter = true;
+            src.Kind = kind;
+            src.Diameter = big;
+            src.Height = stack.Max(v => v.y) - stack.Min(v => v.y);
+            return src.Height >= 0.25 * FuelTanks.AdapterHeight(kind, big) ? src : null;
+        }
+
+        // A tank's volume in units of tank volume (an FL-T400 is 400): its fuel
+        // switch's base volume, or what it holds at PIP's units per volume. Stock
+        // LF and Ox are 5 L units, one per unit of volume; Community Resource Pack
+        // fuels are 1 L units, five per unit of volume.
+        static readonly Dictionary<string, double> UnitsPerVolume = new Dictionary<string, double>
+        {
+            { "LiquidFuel", 1 }, { "Oxidizer", 1 }, { "MonoPropellant", 1.5 }, { "XenonGas", 15.75 },
+            { "ArgonGas", 1000 }, { "Lithium", 5 }, { "LqdHydrogen", 7.5 }, { "LqdMethane", 5 },
+        };
+        static double TankVolume(ConfigNode n)
+        {
+            ConfigNode sw = FuelSwitchOf(n);
+            if (sw != null && double.TryParse(sw.GetValue("baseVolume") ?? "", NumberStyles.Float, Inv, out double b) && b > 0) return b;
+            double v = 0;
+            foreach (ConfigNode r in n.GetNodes("RESOURCE"))
+            {
+                if (!double.TryParse(r.GetValue("maxAmount") ?? "", NumberStyles.Float, Inv, out double units)) continue;
+                v += units / (UnitsPerVolume.TryGetValue(r.GetValue("name") ?? "", out double per) ? per : 5);
+            }
+            return v;
+        }
+
+        // A B9PartSwitch that switches propellants, whatever its ID: CryoTanks'
+        // "fuelSwitch", Near Future Exploration's "surfaceSwitch" (the MLT tanks,
+        // missed until 2026-11-06). One whose subtypes name tank types holding only
+        // rocket propellants; an ore or supplies switch doesn't count. B9 only puts
+        // the resources on parts in the VAB, so the switch marks a tank.
+        internal static ConfigNode FuelSwitchOf(ConfigNode part) =>
+            part?.GetNodes("MODULE").FirstOrDefault(m => m.GetValue("name") == "ModuleB9PartSwitch" &&
+                m.GetNodes("SUBTYPE").Any(s => IsPropellantTankType(s.GetValue("tankType"))));
+
+        static readonly Dictionary<string, bool> propellantTankTypes = new Dictionary<string, bool>();
+        static bool IsPropellantTankType(string name)
+        {
+            if (string.IsNullOrEmpty(name) || GameDatabase.Instance == null) return false;
+            if (propellantTankTypes.TryGetValue(name, out bool ok)) return ok;
+            ConfigNode type = GameDatabase.Instance.GetConfigNodes("B9_TANK_TYPE").FirstOrDefault(n => n.GetValue("name") == name);
+            string[] held = type?.GetNodes("RESOURCE").Select(r => r.GetValue("name") ?? "").ToArray() ?? new string[0];
+            return propellantTankTypes[name] = held.Length > 0 && held.All(IsTankResource);
         }
 
         static readonly HashSet<string> NuclearFuels = new HashSet<string> { "LqdHydrogen", "LiquidFuel", "EnrichedUranium" };
@@ -216,7 +297,7 @@ namespace PIP
                 if (src == null) continue;
                 foreach (string key in src.Type.LookKeys(src.Kind))
                 {
-                    string look = ChassisName(src.Type, src.Side, name, key);
+                    string look = ChassisName(src.Type, src.Mount, name, key);
                     if (names.Contains(look)) continue;   // the database was reloaded
                     try
                     {
@@ -224,7 +305,7 @@ namespace PIP
                         if (c == null) { skipped++; continue; }
                         u.parent.AddConfig(c);
                         names.Add(look);
-                        string label = src.Type.Id + (src.Side ? " side" : "");
+                        string label = src.Type.Id + (src.Side ? " side" : src.Adapter ? " adapter" : "");
                         counts[label] = (counts.TryGetValue(label, out int k) ? k : 0) + 1;
                     }
                     catch (Exception e)
@@ -295,12 +376,18 @@ namespace PIP
                 src.Type = PartTypes.Intake;
             else if (category == "Electrical" && resources.Count == 1 && resources.Contains("ElectricCharge") && !modules.Overlaps(Generators))
                 src.Type = PartTypes.Battery;
-            else if (category == "FuelTank" && (resources.Count > 0 ? resources.All(IsTankResource)
-                         : moduleNodes.Any(m => m.GetValue("name") == "ModuleB9PartSwitch" && m.GetValue("moduleID") == "fuelSwitch")))
+            else if ((category == "FuelTank" || category == "Propulsion") && (resources.Count > 0 ? resources.All(IsTankResource)
+                         : FuelSwitchOf(n) != null))
             {
                 src.Type = PartTypes.Tank;
                 src.Kind = resources.Count > 0 && resources.All(ElectricPropellants.Contains) ? "E"
                     : resources.Count == 1 && resources.Contains("MonoPropellant") ? "M" : "F";
+            }
+            // A plain structural adapter: only ever an adapter tank's look.
+            else if (category == "Structural" && resources.Count == 0 && modules.All(PlainStructuralModules.Contains))
+            {
+                src.Type = PartTypes.Tank;
+                src.Kind = "";
             }
             PartType t = src.Type;
             if (t == null || !t.HasLooks) return null;
@@ -309,15 +396,30 @@ namespace PIP
             var profiles = (n.GetValue("bulkheadProfiles") ?? "").Split(',').Select(p => p.Trim()).Where(p => p.Length > 0).ToList();
             foreach (string p in profiles)
                 if (RoundSizes.TryGetValue(p, out double d)) { src.Diameter = d; break; }
-            var stackY = new List<float>();
+            var stackPos = new List<Vector3>();
             foreach (ConfigNode.Value v in n.values)
-                if (v.name.StartsWith("node_stack_", StringComparison.Ordinal)) stackY.Add(Vec(v.value).y);
+                if (v.name.StartsWith("node_stack_", StringComparison.Ordinal)) stackPos.Add(Vec(v.value));
+            List<float> stackY = stackPos.Select(p => p.y).ToList();
             string[] rules = (n.GetValue("attachRules") ?? "").Split(',');
             bool surface = rules.Length > 1 && rules[1].Trim() == "1";
             bool inline = src.Diameter > 0 && stackY.Count > 0;
 
             if (t == PartTypes.Tank)
             {
+                // Two round sizes: an adapter (DESIGN.md 20.2), or nothing.
+                if (profiles.Where(RoundSizes.ContainsKey).Distinct().Count() == 2) return ClassifyAdapter(n, src, profiles, stackPos);
+                if (src.Kind == "") return null;   // a structural part that isn't an adapter
+                // Cluster tanks, nosecones and the like: not a look, as Replace leaves them.
+                if (FuelTanks.KeptTank(n.GetValue("name"), Localized(n.GetValue("title")))) return null;
+                // A radial tank (DESIGN.md 20.1): no stack nodes, sticks to a surface,
+                // scaled by its volume.
+                if (stackY.Count == 0)
+                {
+                    if (!surface || profiles.Any(p => p != "srf")) return null;
+                    src.Side = true;
+                    src.Volume = TankVolume(n);
+                    return src.Volume > 0 ? src : null;
+                }
                 // Round stack tanks only, as for Replace: one round size, two stack nodes.
                 if (stackY.Count < 2 || profiles.Count(RoundSizes.ContainsKey) != 1 || profiles.Any(p => !RoundSizes.ContainsKey(p) && p != "srf")) return null;
                 src.Height = stackY.Max() - stackY.Min();
@@ -343,7 +445,7 @@ namespace PIP
             ConfigNode orig = u.config;
             string name = orig.GetValue("name");
             ConfigNode c = orig.CreateCopy();
-            c.SetValue("name", ChassisName(t, src.Side, name, key), true);
+            c.SetValue("name", ChassisName(t, src.Mount, name, key), true);
             c.SetValue("title", "PIP look: " + (orig.GetValue("title") ?? name), true);
             c.SetValue("manufacturer", "Phil's Iterative Parts", true);
             c.SetValue("category", "none", true);
@@ -393,7 +495,24 @@ namespace PIP
                 foreach (ConfigNode m in tank.GetNodes("MODULE"))
                 {
                     string mn = m.GetValue("name");
-                    if (mn == nameof(ModulePipBoiloff) || (mn == "ModuleB9PartSwitch" && m.GetValue("moduleID") == "fuelSwitch")) c.AddNode(m.CreateCopy());
+                    if (mn == nameof(ModulePipBoiloff) || (mn == "ModuleB9PartSwitch" && m.GetValue("moduleID") == "fuelSwitch"))
+                    {
+                        ConfigNode copy = m.CreateCopy();
+                        // An adapter can also be empty: a plain structural adapter
+                        // (DESIGN.md 20.2, decision 11), a quarter of a tank's weight.
+                        if (src.Adapter && mn == "ModuleB9PartSwitch")
+                        {
+                            ConfigNode empty = copy.AddNode("SUBTYPE");
+                            empty.AddValue("name", "Empty");
+                            empty.AddValue("title", "Empty");
+                            empty.AddValue("tankType", EmptyTankType);
+                            // A new part with no resources gets B9PartSwitch's resourceless
+                            // subtype (seen 2026-11-06: adapters came out Empty). The kind's
+                            // first propellant on the chassis makes B9 pick that instead.
+                            AddFirstPropellant(c, copy);
+                        }
+                        c.AddNode(copy);
+                    }
                 }
                 c.SetValue("mass", "0.001", true);
                 parentId = "fuelSwitch";
@@ -407,6 +526,7 @@ namespace PIP
 
             List<Subtype> subtypes = Subtypes(src, key, templates);
             if (subtypes.Count == 0) return null;
+            if (src.Adapter) SetAdapterNodeSizes(subtypes, orig);
             ConfigNode pip = c.AddNode("MODULE");
             pip.AddValue("name", nameof(ModulePipPart));
             pip.AddValue("typeId", t.Id);
@@ -516,7 +636,64 @@ namespace PIP
             public double XZ = 1, Y = 1;    // model scale across and along
             public bool Default;
             public int NodeSize = -1;
+            public Dictionary<string, int> NodeSizeById;   // an adapter's: each end its own
         }
+
+        // PIP's resourceless tank type for an empty adapter (Tools\Generate-PartChassis.ps1).
+        public const string EmptyTankType = "PIP-EMPTY";
+
+        // The resources of a fuel switch's first subtype, as placeholders: B9PartSwitch
+        // matches a new part's resources to a subtype, then sets their amounts itself.
+        static void AddFirstPropellant(ConfigNode part, ConfigNode fuelSwitch)
+        {
+            string tankType = fuelSwitch.GetNodes("SUBTYPE").FirstOrDefault()?.GetValue("tankType");
+            ConfigNode type = string.IsNullOrEmpty(tankType) ? null
+                : GameDatabase.Instance.GetConfigNodes("B9_TANK_TYPE").FirstOrDefault(n => n.GetValue("name") == tankType);
+            if (type == null) return;
+            foreach (ConfigNode r in type.GetNodes("RESOURCE"))
+            {
+                ConfigNode res = part.AddNode("RESOURCE");
+                res.AddValue("name", r.GetValue("name"));
+                res.AddValue("amount", "1");
+                res.AddValue("maxAmount", "1");
+            }
+        }
+
+        // An adapter's two ends take their sizes from the size pair; any other node
+        // (an NR-AD's inner ones) is scaled with the model. The small end is the
+        // smaller node, or the top one when both say the same size: adapters are
+        // drawn narrow end up (Making History gives both of its ends size 2).
+        static void SetAdapterNodeSizes(List<Subtype> subtypes, ConfigNode orig)
+        {
+            var ids = new List<string>();
+            var ys = new List<float>();
+            var sizes = new List<int>();
+            foreach (ConfigNode.Value v in orig.values)
+            {
+                if (!v.name.StartsWith("node_stack_", StringComparison.Ordinal)) continue;
+                ids.Add(v.name.Substring("node_stack_".Length));
+                ys.Add(Vec(v.value).y);
+                string[] p = v.value.Split(',');
+                sizes.Add(p.Length >= 7 && int.TryParse(p[6].Trim(), NumberStyles.Integer, Inv, out int z) ? z : -1);
+            }
+            if (ids.Count < 2) return;
+            int top = ys.IndexOf(ys.Max()), bottom = ys.IndexOf(ys.Min());
+            bool topSmall = sizes[top] < 0 || sizes[bottom] < 0 || sizes[top] <= sizes[bottom];
+            foreach (Subtype s in subtypes)
+            {
+                string[] p = s.Code.Split('-');
+                if (p.Length < 4 || Sizes.IndexOf(p[1]) < 0 || Sizes.IndexOf(p[2]) < 0) continue;
+                double big = Sizes.Diameters[Sizes.IndexOf(p[1])], small = Sizes.Diameters[Sizes.IndexOf(p[2])];
+                s.NodeSizeById = new Dictionary<string, int>();
+                for (int i = 0; i < ids.Count; i++)
+                    s.NodeSizeById[ids[i]] = i == top ? NodeSizeFor(topSmall ? small : big)
+                        : i == bottom ? NodeSizeFor(topSmall ? big : small)
+                        : sizes[i] >= 0 ? NodeSizeFor(Math.Max(0.625, sizes[i] * 1.25) * s.XZ) : -1;
+            }
+        }
+
+        // KSP's node size for a diameter: 0.625 m is 0, 1.25 m 1, 2.5 m 2 ... (1.875 m is 1).
+        static int NodeSizeFor(double d) => Math.Abs(d - 1.875) < 0.05 ? 1 : d < 0.94 ? 0 : (int)Math.Round(d / 1.25);
 
         // The sizes a look comes in, and how much its model is scaled for each.
         static List<Subtype> Subtypes(Source src, string key, Dictionary<string, ConfigNode> templates)
@@ -524,14 +701,17 @@ namespace PIP
             PartType t = src.Type;
             var list = new List<Subtype>();
             string[] model = t.LookModel(src.Kind, key);
-            Option[] options = t.VariantsFor(model, src.Side);
+            // An adapter look serves the size pairs of its own ratio.
+            Option[] options = src.Adapter ? t.AdapterVariants(model)?.Where(o => t.AdapterKind(o.Code) == src.Kind).ToArray()
+                : t.VariantsFor(model, src.Side);
+            if (src.Adapter && (options == null || options.Length == 0)) return list;
             if (options == null || options.Length == 0)
             {
                 list.Add(new Subtype { Code = "", Title = "", Default = true });
                 return list;
             }
-            ConfigNode template = src.Side ? null : SizeSwitchOf(templates, Template(t, src.Kind, key));
-            string def = src.Side ? t.DefaultSideVariant(model) : t.DefaultVariant(model);
+            ConfigNode template = src.Side || src.Adapter ? null : SizeSwitchOf(templates, Template(t, src.Kind, key));
+            string def = src.Side ? t.DefaultSideVariant(model) : src.Adapter ? options[0].Code : t.DefaultVariant(model);
             foreach (Option o in options)
             {
                 ConfigNode ts = template?.GetNodes("SUBTYPE").FirstOrDefault(s => s.GetValue("name") == o.Code);
@@ -559,6 +739,23 @@ namespace PIP
                     case LookScale.Output:
                         s.XZ = s.Y = Math.Sqrt(t.NominalOutput(o.Code) / src.Output);
                         break;
+                    case LookScale.Volume:
+                        // A radial tank: the look's own shape, scaled to hold the size's volume.
+                        s.XZ = s.Y = Math.Pow(t.NominalVolume(o.Code) / src.Volume, 1 / 3.0);
+                        if (string.IsNullOrEmpty(s.Volume)) s.Volume = t.NominalVolume(o.Code).ToString("R", Inv);
+                        break;
+                    case LookScale.Adapter:
+                    {
+                        // "A-25-125-L": the big end at 2.5 m, stretched to the ratio's height.
+                        string[] p = o.Code.Split('-');
+                        int bi = p.Length > 1 ? Sizes.IndexOf(p[1]) : -1;
+                        double h = t.NominalHeight(o.Code);
+                        if (bi < 0 || h <= 0 || src.Height <= 0) continue;
+                        s.XZ = Sizes.Diameters[bi] / src.Diameter;
+                        s.Y = h / src.Height;
+                        s.Volume = t.NominalVolume(o.Code).ToString("R", Inv);
+                        break;
+                    }
                     case LookScale.Tank:
                     {
                         // "125-L": a 1.25 m tank as long as an FL-T400, stretched from the look's own shape.
@@ -614,7 +811,8 @@ namespace PIP
                     nn.AddValue("name", n.Key);
                     Vector3 p = Vector3.Scale(n.Value, scale);
                     nn.AddValue("position", $"{N(p.x)}, {N(p.y)}, {N(p.z)}");
-                    if (s.NodeSize >= 0) nn.AddValue("size", s.NodeSize.ToString(Inv));
+                    int size = s.NodeSizeById != null && s.NodeSizeById.TryGetValue(n.Key, out int own) ? own : s.NodeSize;
+                    if (size >= 0) nn.AddValue("size", size.ToString(Inv));
                 }
                 ConfigNode mod = st.AddNode("MODULE");
                 mod.AddNode("IDENTIFIER").AddValue("name", nameof(ModulePipPart));
@@ -721,31 +919,38 @@ namespace PIP
 
         // The looks that suit a program (inline or side-mount), by title. The parts
         // list doesn't change after loading, so each type's list is built once.
-        public static List<Look> List(PartType t, bool side, string[] model)
+        public static List<Look> List(PartType t, bool side, string[] model) => List(t, side ? "R" : "", model, null);
+
+        // mount: "" in-line, "R" side-mount, "A" adapter. An adapter program's looks
+        // are the adapters of its size pair's ratio (every adapter look, with no variant).
+        public static List<Look> List(PartType t, string mount, string[] model, string variant)
         {
             if (model == null || !t.HasLooks || PartLoader.Instance == null) return new List<Look>();
+            mount = mount ?? "";
             string key = t.LookKey(model);
-            string cacheKey = t.Id + "/" + key + (side ? "/side" : "");
+            string cacheKey = t.Id + "/" + key + "/" + mount;
             if (!lists.TryGetValue(cacheKey, out List<Look> all))
             {
                 all = new List<Look>();
-                string inline = Prefix + t.ChassisCode + (key == "" ? "" : "-" + key) + "-", sidePrefix = inline + "R-";
+                string inline = Prefix + t.ChassisCode + (key == "" ? "" : "-" + key) + "-";
                 foreach (AvailablePart ap in PartLoader.LoadedPartsList)
                 {
                     if (ap?.name == null || !ap.name.StartsWith(inline, StringComparison.Ordinal)) continue;
-                    bool isSide = ap.name.StartsWith(sidePrefix, StringComparison.Ordinal);
-                    if (isSide != side) continue;
-                    string source = ap.name.Substring((side ? sidePrefix : inline).Length);
+                    string rest = ap.name.Substring(inline.Length);
+                    string own = rest.StartsWith("R-", StringComparison.Ordinal) ? "R" : rest.StartsWith("A-", StringComparison.Ordinal) ? "A" : "";
+                    if (own != mount) continue;
+                    string source = own == "" ? rest : rest.Substring(2);
                     all.Add(new Look
                     {
-                        Source = source, Title = Title(source), Kind = KindOf(t, ap), Side = side,
+                        Source = source, Title = Title(source), Kind = KindOf(t, ap), Side = own == "R",
                         Fuel = ap.partPrefab?.FindModuleImplementing<ModulePipEngine>()?.lookFuel ?? "",
                     });
                 }
                 all.Sort((a, b) => string.Compare(a.Title, b.Title, StringComparison.OrdinalIgnoreCase));
                 lists[cacheKey] = all;
             }
-            return all.Where(l => t.LookFits(model, l.Kind)).ToList();
+            string ratio = mount == "A" && variant != null ? t.AdapterKind(variant) : null;
+            return all.Where(l => t.LookFits(model, l.Kind) && (ratio == null || l.Kind == ratio)).ToList();
         }
 
         // What a look chassis is: written on it at load, except an RCS block's
@@ -773,15 +978,22 @@ namespace PIP
         }
 
         // The look chassis a program uses for this look, if it's installed and suits it.
-        public static string Chassis(PartType t, bool side, string source, string[] model)
+        public static string Chassis(PartType t, bool side, string source, string[] model) => Chassis(t, side ? "R" : "", source, model, null);
+
+        // An adapter look must also be of the size pair's ratio.
+        public static string Chassis(PartType t, string mount, string source, string[] model, string variant)
         {
             if (string.IsNullOrEmpty(source) || model == null) return null;
-            string name = ChassisName(t, side, source, t.LookKey(model));
+            string name = ChassisName(t, mount ?? "", source, t.LookKey(model));
             AvailablePart ap = PartLoader.getPartInfoByName(name);
-            return ap != null && t.LookFits(model, KindOf(t, ap)) ? name : null;
+            if (ap == null) return null;
+            string kind = KindOf(t, ap);
+            if (!t.LookFits(model, kind)) return null;
+            return mount == "A" && variant != null && kind != t.AdapterKind(variant) ? null : name;
         }
 
         public static bool Exists(PartType t, bool side, string source, string[] model) => Chassis(t, side, source, model) != null;
+        public static bool Exists(PartType t, string mount, string source, string[] model, string variant) => Chassis(t, mount, source, model, variant) != null;
 
         // Whether a program with this look (empty: PIP's own model) can gimbal at all.
         // Some engines have a fixed nozzle; their Gimbal category does nothing.
@@ -801,6 +1013,20 @@ namespace PIP
             foreach (string s in t.SideLookPreference(model)) if (Exists(t, true, s, model)) return s;
             return List(t, true, model).FirstOrDefault()?.Source;
         }
+
+        // The adapter look for a size pair when none was picked: the ratio's stock
+        // adapter first (the C7 for 2:1), then the first by title. Null when no
+        // adapter of that ratio is installed: the pair is padlocked.
+        public static string DefaultAdapter(PartType t, string[] model, string variant)
+        {
+            if (!t.HasAdapters || !PartType.IsAdapter(variant)) return null;
+            foreach (string s in t.AdapterLookPreference(t.AdapterKind(variant))) if (Exists(t, "A", s, model, variant)) return s;
+            return List(t, "A", model, variant).FirstOrDefault()?.Source;
+        }
+
+        // The look a side-mount or adapter program gets when none was picked.
+        public static string DefaultMount(PartType t, string[] model, string variant) =>
+            PartType.IsAdapter(variant) ? DefaultAdapter(t, model, variant) : DefaultSide(t, model);
 
         #endregion
     }

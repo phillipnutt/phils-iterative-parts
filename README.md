@@ -14,7 +14,8 @@ version (Kestrel I, II, III … Max), each one better again. Sixteen part types 
 liquid, solid, monopropellant, nuclear, electric and jet engines, plus RCS,
 batteries, reaction wheels, heat shields, solar panels, antennas, probe cores,
 fuel tanks, RTGs and air intakes. Any installed part can lend a program its
-model ("looks").
+model ("looks"). Fuel tank programs can be in-line, radial or adapters between
+two sizes.
 
 The full design and build log is [DESIGN.md](DESIGN.md); what changed in each
 release is in [CHANGELOG.md](CHANGELOG.md).

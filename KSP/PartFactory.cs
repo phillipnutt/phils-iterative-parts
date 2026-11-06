@@ -143,6 +143,13 @@ namespace PIP
                 Debug.LogError($"[PIP] No side-mount chassis for program {p.Name}");
                 return null;
             }
+            if (p.FixedSize && p.IsAdapter)
+            {
+                string adapter = AdapterChassis(p);
+                if (adapter != null) return Make(p, p.PartName, adapter);
+                Debug.LogError($"[PIP] No adapter of {p.Name}'s ratio is installed");
+                return null;
+            }
             AvailablePart ap = Make(p, p.PartName, InlineChassis(p));
             if (!p.FixedSize && p.Type.HasSideMount && p.Type.HasLooks)
             {
@@ -158,6 +165,16 @@ namespace PIP
             if (!p.Type.HasSideMount || !p.Type.HasLooks) return null;
             if (string.IsNullOrEmpty(p.SideLook)) p.SideLook = Looks.DefaultSide(p.Type, p.Model) ?? "";
             return Looks.Chassis(p.Type, true, p.SideLook, p.Model);
+        }
+
+        // An adapter program's look (DESIGN.md 20.2), kept in SideLook. If the mod it
+        // came from is gone, the ratio's default stands in until it's back.
+        static string AdapterChassis(Program p)
+        {
+            if (!p.Type.HasAdapters || !p.Type.HasLooks) return null;
+            if (string.IsNullOrEmpty(p.SideLook)) p.SideLook = Looks.DefaultAdapter(p.Type, p.Model, p.Variant) ?? "";
+            return Looks.Chassis(p.Type, "A", p.SideLook, p.Model, p.Variant)
+                   ?? Looks.Chassis(p.Type, "A", Looks.DefaultAdapter(p.Type, p.Model, p.Variant), p.Model, p.Variant);
         }
 
         // Every part a program has made (one, or two with a side-mount part).
@@ -259,7 +276,7 @@ namespace PIP
             bool side = IsSidePart(ap.name);
             string variant = ListVariant(p, ap.name);
             Stats s = p.Stats(mk, PipSettings.Failures, variant);
-            ap.title = p.DisplayName(mk) + (side ? " (side-mount)" : "");
+            ap.title = p.DisplayName(mk) + (side ? " (side-mount)" : p.FixedSize && p.IsAdapter ? " (adapter)" : "");
             ap.cost = (float)Math.Round(s.BuildPrice);
             string chassis = chassisOf.TryGetValue(ap.name, out string c) ? c : ChassisFor(p.Type, p.Model) ?? p.ChassisPart;
             ap.moduleInfos = PartInfo.ModuleInfos(PartLoader.getPartInfoByName(chassis), p, s, side);

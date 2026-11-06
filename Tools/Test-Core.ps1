@@ -185,8 +185,39 @@ Check 'part types have no failures' (PStat 'Rcs' 'M-4' @(100, 0, 100) 0 'fail' $
 
 Write-Host 'Side-mount parts and looks (sections 15, 16)'
 $bat = TypeOf 'Battery'; $whl = TypeOf 'Wheel'; $int = TypeOf 'Intake'; $rtg = TypeOf 'Rtg'
-Check 'side-mount types' "$($bat.HasSideMount),$($whl.HasSideMount),$($int.HasSideMount),$($rtg.HasSideMount),$($liq.HasSideMount)" 'True,True,True,False,False'
+Check 'side-mount types' "$($bat.HasSideMount),$($whl.HasSideMount),$($int.HasSideMount),$($rtg.HasSideMount),$($liq.HasSideMount),$((TypeOf 'Tank').HasSideMount)" 'True,True,True,False,False,True'
 Check 'battery side sizes' (($bat.SideVariants((M '')) | ForEach-Object { $_.Code }) -join ',') 'R-S,R-M,R-L'
+# Section 20.1: radial tanks, five sizes by volume, scaled by volume.
+$tk = TypeOf 'Tank'
+Check 'radial tanks: side-mount, five sizes' "$($tk.HasSideMount)|$(($tk.SideVariants((M 'S')) | ForEach-Object { $_.Code }) -join ',')" 'True|R-T,R-S,R-M,R-L,R-H'
+Check 'radial tank volumes' "$((@('R-T','R-S','R-M','R-L','R-H') | ForEach-Object { [PIP.FuelTanks]::Volume($_) }) -join ',')" '5,25,50,200,1600'
+Check 'radial unlocks: Propulsion Systems, tooling for large and huge' (($tk.SideVariants((M 'S')) | ForEach-Object { $_.Tech }) -join ',') 'propulsionSystems,propulsionSystems,propulsionSystems,heavyRocketry,heavierRocketry'
+Check 'radial looks scale by volume, in-line by size and length' "$($tk.ScaleBasis($true, 'F')),$($tk.ScaleBasis($false, 'F')),$($tk.NominalVolume('R-M'))" 'Volume,Tank,50'
+Check 'a medium radial tank weighs as 50 units of tank' (PStat 'Tank' 'S' @(100, 0, 0) 10 'mass' 'R-M') (0.001 + 50 * 0.000625 * 0.8) 1e-9
+Check 'standard radial looks by kind' "$($tk.SideLookPreference((M 'S'))[0]),$($tk.SideLookPreference((M 'M'))[0]),$($tk.SideLookPreference((M 'E'))[0])" 'externalTankCapsule,rcsTankRadialLong,xenonTankRadial'
+Check 'a radial program is labelled with its size' ($tk.VariantLabel((M 'S'), 'R-L')) 'Side-mount, large'
+# Section 20.2: adapter tanks, nine size pairs, short and long, by taper ratio.
+$ad = $tk.AdapterVariants((M 'S'))
+Check 'adapters: nine pairs, short and long' "$($tk.HasAdapters)|$($ad.Count)|$($ad[0].Code)|$($ad[-1].Code)" 'True|18|A-125-0625-S|A-5-375-L'
+Check 'an adapter is labelled with its ends' ($tk.VariantLabel((M 'S'), 'A-25-125-L')) 'Adapter, 2.5 to 1.25 m long'
+Check 'adapter codes are neither in-line nor side-mount' "$([PIP.PartType]::MountOf('A-25-125-L')),$([PIP.PartType]::MountOf('R-M')),$([PIP.PartType]::MountOf('125-L'))" 'A,R,'
+Check 'adapter tapers' "$((@('A-125-0625-L','A-1875-125-L','A-25-1875-L','A-1875-0625-L','A-5-375-S') | ForEach-Object { $tk.AdapterKind($_) }) -join ',')" 'A2,A32,A43,A3,A43'
+# Each ratio holds what its stock adapter holds (C7 800, ADTP-2-3 3000, FL-A215 1200, FL-A150 160), by size cubed; short holds half.
+Check 'long 2.5 to 1.25 holds 800, as the C7' ([PIP.FuelTanks]::Volume('A-25-125-L')) 800 1e-9
+Check 'short 2.5 to 1.25 holds 400' ([PIP.FuelTanks]::Volume('A-25-125-S')) 400 1e-9
+Check '1.25 to 0.625 is the C7 at half size' ([PIP.FuelTanks]::Volume('A-125-0625-L')) 100 1e-9
+Check '3.75 to 2.5 holds 3000, as the ADTP-2-3' ([PIP.FuelTanks]::Volume('A-375-25-L')) 3000 1e-9
+Check '2.5 to 1.875 holds 1200, as the FL-A215' ([PIP.FuelTanks]::Volume('A-25-1875-L')) 1200 1e-9
+Check '5 to 3.75 is the FL-A215 at twice the size' ([PIP.FuelTanks]::Volume('A-5-375-L')) 9600 1e-9
+Check '1.875 to 0.625 holds 160, as the FL-A150' ([PIP.FuelTanks]::Volume('A-1875-0625-L')) 160 1e-9
+Check 'adapter heights: C7 2.5 m, half when short, ADTP-2-3 2.25 m' "$($tk.NominalHeight('A-25-125-L')),$($tk.NominalHeight('A-25-125-S')),$([Math]::Round($tk.NominalHeight('A-375-25-L'), 3))" '2.5,1.25,2.25'
+Check 'adapter unlocks: Fuel Systems, then tooling' "$(($tk.VariantOption((M 'S'), 'A-125-0625-L').Techs) -join '+')|$(($tk.VariantOption((M 'S'), 'A-375-25-L').Techs) -join '+')" 'fuelSystems|fuelSystems+heavierRocketry+veryHeavyRocketry'
+Check 'a program needs every node its adapter does' (($tk.Techs((M 'S'), 'A-25-1875-L') | Select-Object -Unique) -join ',') 'basicRocketry,fuelSystems,heavyRocketry,heavierRocketry'
+Check 'adapter looks: scaled as adapters; serve every kind' "$($tk.ScaleBasis($false, 'A2')),$(($tk.LookKeys('A2')) -join '')" 'Adapter,SCME'
+Check 'standard adapter looks' "$($tk.AdapterLookPreference('A2')[0]),$($tk.AdapterLookPreference('A32')[0]),$($tk.AdapterLookPreference('A43')[0]),$($tk.AdapterLookPreference('A3')[0])" 'adapterSize2-Size1,Size3To2Adapter.v2,Size1p5.Size2.Adapter.01,Size1p5.Size0.Adapter.01'
+Check 'adapter tapers by their ends' "$([PIP.FuelTanks]::AdapterKindOf(2.5, 1.25)),$([PIP.FuelTanks]::AdapterKindOf(7.5, 5)),$([PIP.FuelTanks]::AdapterKindOf(5, 1.25))" 'A2,A32,'
+Check 'kept tank-shaped parts' "$([PIP.FuelTanks]::KeptTank('noseConeAdapter', 'NCS Adapter')),$([PIP.FuelTanks]::KeptTank('nfex-fueltank-stack-medium-1', 'MLT-240 Multipurpose Fuel Tank Cluster')),$([PIP.FuelTanks]::KeptTank('adapter-25-125', 'Rockomax Skeletal Structural Adapter')),$([PIP.FuelTanks]::KeptTank('adapterSize2-Size1', 'C7 Brand Adapter - 2.5m to 1.25m'))" 'True,True,True,False'
+Check 'a long 2.5 to 1.25 adapter weighs as 800 units of tank' (PStat 'Tank' 'S' @(100, 0, 0) 10 'mass' 'A-25-125-L') (0.001 + 800 * 0.000625 * 0.8) 1e-9
 Check 'battery side default is small' ($bat.DefaultSideVariant((M ''))) 'R-S'
 Check 'battery: side medium holds 400 EC at stock capacity' (PStat 'Battery' '' @(45) 10 'ec' 'R-M') 402 1e-9
 Check 'battery: side small weighs 0.005 t' (PStat 'Battery' '' @(45) 10 'mass' 'R-S') 0.005
