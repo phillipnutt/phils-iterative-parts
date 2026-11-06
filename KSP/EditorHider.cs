@@ -68,7 +68,8 @@ namespace PIP
             foreach (AvailablePart ap in PartLoader.LoadedPartsList)
             {
                 if (ap == null || PartFactory.IsPip(ap)) continue;
-                if (TypeOf(ap) == PartTypes.Tank) hidden.Add(ap.name);
+                PartType t = TypeOf(ap);
+                if ((t == PartTypes.Tank || t == PartTypes.Plane) && PipSettings.Replacing(t)) hidden.Add(ap.name);
                 else if (ap.category == PartCategories.FuelTank && !ap.TechHidden) left.Add(ap.name);
             }
             hidden.Sort(System.StringComparer.OrdinalIgnoreCase);
@@ -134,6 +135,19 @@ namespace PIP
                 bool chemical = props.Count > 0 && props.All(n => n == "MonoPropellant" || n == "LiquidFuel" || n == "Oxidizer");
                 return chemical ? PartTypes.Rcs : null;
             }
+            // Decouplers (DESIGN.md 21.1): plain stack decouplers and separators of PIP's
+            // sizes, and radial decouplers. Engine plates, docking ports, hardpoints
+            // and the 7.5 m ones stay.
+            if (ap.category == PartCategories.Coupling && (modules.Contains("ModuleDecouple") || modules.Contains("ModuleAnchoredDecoupler")))
+            {
+                if (modules.Overlaps(Looks.DecouplerExtras)) return null;
+                string[] shape = (ap.bulkheadProfiles ?? "").Split(',').Select(x => x.Trim()).Where(x => x.Length > 0).ToArray();
+                if (modules.Contains("ModuleAnchoredDecoupler"))
+                    return prefab.attachNodes.Count == 0 && prefab.attachRules.srfAttach ? PartTypes.Decoupler : null;
+                bool onAxis = prefab.attachNodes.All(n => Mathf.Abs(n.originalPosition.x) < 1e-3f && Mathf.Abs(n.originalPosition.z) < 1e-3f);
+                return prefab.attachNodes.Count >= 2 && onAxis && shape.Count(RoundSizes.Contains) == 1 && shape.All(x => RoundSizes.Contains(x) || x == "srf")
+                    ? PartTypes.Decoupler : null;
+            }
             if (modules.Contains("ModuleDeployableSolarPanel") || modules.Contains("ModuleCurvedSolarPanel")) return PartTypes.Solar;
             // Service bays with an RTG inside (Near Future's utility pods) aren't RTGs.
             if (modules.Contains("ModuleRadioisotopeGenerator")) return ap.category == PartCategories.Electrical ? PartTypes.Rtg : null;
@@ -160,6 +174,13 @@ namespace PIP
             {
                 // Cluster tanks, nosecones and the like stay, whatever their shape.
                 if (FuelTanks.KeptTank(ap.name, ap.title)) return null;
+                // Mk2 and Mk3 fuel fuselages are plane fuselages (DESIGN.md 21.2); parts joining
+                // two shapes are plane adapters.
+                string[] sections = profiles.Where(Looks.IsPlaneSection).Distinct().ToArray();
+                if (sections.Length > 0)
+                    return sections.Length == 1 && profiles.All(x => x == sections[0] || x == "srf") && prefab.attachNodes.Count >= 2 &&
+                           prefab.attachNodes.All(n => Mathf.Abs(n.originalPosition.x) < 1e-3f && Mathf.Abs(n.originalPosition.z) < 1e-3f)
+                        ? PartTypes.Plane : null;
                 if (prefab.attachNodes.Count >= 2 && profiles.Count(RoundSizes.Contains) == 1 && profiles.All(x => RoundSizes.Contains(x) || x == "srf")) return PartTypes.Tank;
                 // Radial tanks (DESIGN.md 20.1): no stack nodes, stick to a surface.
                 if (prefab.attachNodes.Count == 0 && prefab.attachRules.srfAttach && profiles.All(x => x == "srf")) return PartTypes.Tank;

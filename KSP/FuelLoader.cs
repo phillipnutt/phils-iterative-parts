@@ -201,7 +201,9 @@ namespace PIP
         {
             var wanted = new HashSet<string>(codes);
             var tankTypes = new HashSet<string>(GameDatabase.Instance.GetConfigNodes("B9_TANK_TYPE").Select(t => t.GetValue("name") ?? ""));
-            var tanks = GameDatabase.Instance.GetConfigs("PART").Where(u => (u.config.GetValue("name") ?? "").StartsWith("PIP-TNK-", StringComparison.Ordinal))
+            // PIP's fuel tanks, and its plane fuselages (PIP-PLN-<kind>-<section>), which hold the same.
+            var tankParts = GameDatabase.Instance.GetConfigs("PART")
+                .Where(u => { string n = u.config.GetValue("name") ?? ""; return n.StartsWith("PIP-TNK-", StringComparison.Ordinal) || n.StartsWith("PIP-PLN-", StringComparison.Ordinal); })
                 .GroupBy(u => u.config.GetValue("name")).ToDictionary(g => g.Key, g => g.First().config);
             var added = new List<string>();
             foreach (ConfigNode n in GameDatabase.Instance.GetConfigNodes("PIP_FUEL"))
@@ -213,15 +215,16 @@ namespace PIP
                     if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(type)) continue;
                     if (!tankTypes.Contains(type)) { Debug.LogWarning($"[PIP] Fuels.cfg: no B9_TANK_TYPE {type} for tank {name}"); continue; }
                     foreach (string on in kind == "C" ? new[] { "S", "C" } : new[] { "S" })
+                    foreach (KeyValuePair<string, ConfigNode> tank in tankParts)
                     {
-                        if (!tanks.TryGetValue("PIP-TNK-" + on, out ConfigNode part)) continue;
-                        ConfigNode sw = part.GetNodes("MODULE").FirstOrDefault(m => m.GetValue("name") == "ModuleB9PartSwitch" && m.GetValue("moduleID") == "fuelSwitch");
+                        if (tank.Key != "PIP-TNK-" + on && !tank.Key.StartsWith("PIP-PLN-" + on + "-", StringComparison.Ordinal)) continue;
+                        ConfigNode sw = tank.Value.GetNodes("MODULE").FirstOrDefault(m => m.GetValue("name") == "ModuleB9PartSwitch" && m.GetValue("moduleID") == "fuelSwitch");
                         if (sw == null || sw.GetNodes("SUBTYPE").Any(s => s.GetValue("name") == name)) continue;
                         ConfigNode s2 = sw.AddNode("SUBTYPE");
                         s2.AddValue("name", name);
                         s2.AddValue("title", t.GetValue("title") ?? name);
                         s2.AddValue("tankType", type);
-                        added.Add($"{name} ({on})");
+                        added.Add($"{name} ({tank.Key.Substring(4)})");
                     }
                 }
             }

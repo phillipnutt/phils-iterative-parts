@@ -270,8 +270,8 @@ foreach ($t in $tankTypes) {
     L '}'
 }
 $lengths = @(@('S', 'short', 0.25), @('M', 'medium', 0.5), @('L', 'long', 1), @('X', 'extra long', 2))
-foreach ($k in $kinds) {
-    Begin "PIP-TNK-$($k[0])" "$($k[1]) tank" 'fuelTank' 300 @('ModuleCryoTank', 'ModuleFuelTanks', 'FSfuelSwitch', 'InterstellarFuelSwitch')
+# A tank chassis's propellants: PIP's fuel switch for kind $k, and its boil-off.
+function TankInsides($k) {
     L '    %mass = 0.001'
     L '    !RESOURCE,* {}'
     L '    !MODULE[ModuleB9PartSwitch]:HAS[#moduleID[FreeIvaSwitch]] {}'
@@ -298,6 +298,11 @@ foreach ($k in $kinds) {
         if ($k[3] -eq 'leak') { L '        canCool = False' }
         L '    }'
     }
+}
+$tankStrip = @('ModuleCryoTank', 'ModuleFuelTanks', 'FSfuelSwitch', 'InterstellarFuelSwitch')
+foreach ($k in $kinds) {
+    Begin "PIP-TNK-$($k[0])" "$($k[1]) tank" 'fuelTank' 300 $tankStrip
+    TankInsides $k
     $subs = foreach ($c in '0625', '125', '1875', '25', '375', '5') {
         $s = $diameter[$c] / 1.25
         foreach ($len in $lengths) {
@@ -309,6 +314,37 @@ foreach ($k in $kinds) {
     }
     SizeSwitch $subs 'Size and length' 'fuelSwitch'
     PipModule 'tank' $k[0]
+    L '}'
+}
+
+# --- Plane fuselages (DESIGN.md 21.2): the Mk2 and Mk3 rocket fuel fuselages, one
+# chassis per kind and section, stretched along their length (never widened).
+#            section, base part, its length, node size, lengths (code, title, length m, volume)
+$sections = @(
+    @('2', 'mk2FuselageLongLFO', 3.75, 1, @(@('2-S', 'Short', 1.875, 400), @('2-L', 'Long', 3.75, 800))),
+    @('3', 'mk3FuselageLFO_50', 5.0, 3, @(@('3-S', 'Short', 2.5, 2500), @('3-M', 'Medium', 5.0, 5000), @('3-L', 'Long', 10.0, 10000)))
+)
+foreach ($k in $kinds) {
+    foreach ($sec in $sections) {
+        Begin "PIP-PLN-$($k[0])-$($sec[0])" "Mk$($sec[0]) $($k[1]) fuselage" $sec[1] 300 $tankStrip
+        TankInsides $k
+        $half = $sec[2] / 2
+        $subs = foreach ($len in $sec[4]) {
+            @{ code = $len[0]; title = $len[1]; scale = 1; scaleY = $len[2] / $sec[2]; nodes = @{ top = $half; bottom = -$half }
+               nodeSize = $sec[3]; volume = $len[3]; default = ($len[2] -eq $sec[2]) }
+        }
+        SizeSwitch $subs 'Length' 'fuelSwitch'
+        PipModule 'plane' "$($k[0])-$($sec[0])"
+        L '}'
+    }
+}
+
+# --- Decouplers (DESIGN.md 21.1): the TD-12 and TS-12, scaled from 1.25 m. Radial
+# decoupler programs are always made from a look, so they need no chassis here.
+foreach ($d in @(@('D', 'decoupler', 'Decoupler_1', 200), @('S', 'separator', 'Separator_1', 275))) {
+    Begin "PIP-DEC-$($d[0])" "stack $($d[1])" $d[2] $d[3] @()
+    SizeSwitch (Sizes @('0625', '125', '1875', '25', '375', '5') 1.25 @{ top = 0.05; bottom = -0.05 } '125')
+    PipModule 'decoupler' $d[0]
     L '}'
 }
 

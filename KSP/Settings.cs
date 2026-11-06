@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace PIP
 {
     // Game-start options, in the difficulty settings. One row per part type:
@@ -66,6 +68,8 @@ namespace PIP
                 case "tank": return p?.tanks ?? Inclusion.Replace;
                 case "rtg": return p?.rtgs ?? Inclusion.Replace;
                 case "intake": return p?.intakes ?? Inclusion.Replace;
+                case "plane": return p?.planes ?? Inclusion.Replace;
+                case "decoupler": return p?.decouplers ?? Inclusion.Replace;
                 default: return Inclusion.Off;
             }
         }
@@ -117,7 +121,7 @@ namespace PIP
         [GameParameters.CustomParameterUI("Probe cores", toolTip = RowTip)]
         public Inclusion probes = Inclusion.Replace;
 
-        [GameParameters.CustomParameterUI("Fuel tanks", toolTip = RowTip + " Plane fuselages, radial and odd-shaped tanks stay.")]
+        [GameParameters.CustomParameterUI("Fuel tanks", toolTip = RowTip + " In-line, radial and adapter tanks. Cluster tanks, nosecones and odd shapes stay.")]
         public Inclusion tanks = Inclusion.Replace;
 
         [GameParameters.CustomParameterUI("RTGs", toolTip = RowTip)]
@@ -125,6 +129,12 @@ namespace PIP
 
         [GameParameters.CustomParameterUI("Air intakes", toolTip = RowTip)]
         public Inclusion intakes = Inclusion.Replace;
+
+        [GameParameters.CustomParameterUI("Plane fuselages", toolTip = RowTip + " Mk2 and Mk3 fuel fuselages. Cockpits, cabins and cargo bays stay.")]
+        public Inclusion planes = Inclusion.Replace;
+
+        [GameParameters.CustomParameterUI("Decouplers", toolTip = RowTip + " Stack decouplers, separators and radial decouplers. Engine plates stay.")]
+        public Inclusion decouplers = Inclusion.Replace;
 
         public static PipPartSettings Current => HighLogic.CurrentGame?.Parameters?.CustomParams<PipPartSettings>();
     }
@@ -140,7 +150,33 @@ namespace PIP
                 s.liquidEngines = s.solidMotors = s.monopropEngines = s.nuclearEngines = s.electricEngines = s.jetEngines = Inclusion.Off;
             PipPartSettings p = PipPartSettings.Current;
             if (p != null)
-                p.rcs = p.batteries = p.wheels = p.shields = p.solar = p.antennas = p.probes = p.tanks = p.rtgs = p.intakes = Inclusion.Off;
+                p.rcs = p.batteries = p.wheels = p.shields = p.solar = p.antennas = p.probes = p.tanks = p.rtgs = p.intakes = p.planes = p.decouplers = Inclusion.Off;
+        }
+
+        // The part types of PIP 0.3.0 and before, which games didn't record.
+        public static readonly string[] FirstTypes =
+            { "liquid", "solid", "monoprop", "nuclear", "electric", "jet", "rcs", "battery", "wheel", "shield", "solar", "antenna", "probe", "tank", "rtg", "intake" };
+
+        // A type that's new in this version of PIP starts off in a game already
+        // under way. Its setting would otherwise take its default, Replace, and
+        // hide that game's stock parts unasked. A brand-new game gets the default.
+        // Returns the types switched off.
+        public static List<PartType> NewTypesOff(ICollection<string> known)
+        {
+            var off = new List<PartType>();
+            PipPartSettings p = PipPartSettings.Current;
+            foreach (PartType t in PartTypes.All)
+            {
+                if (known.Contains(t.Id)) continue;
+                switch (t.Id)
+                {
+                    case "plane": if (p != null) p.planes = Inclusion.Off; break;
+                    case "decoupler": if (p != null) p.decouplers = Inclusion.Off; break;
+                    default: continue;
+                }
+                off.Add(t);
+            }
+            return off;
         }
 
         // Whether a game PIP is seeing for the first time was started with PIP:

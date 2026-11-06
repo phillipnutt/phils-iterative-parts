@@ -140,7 +140,7 @@ Check 'ramjet top speed at 100 points' (Stat $jet 'R-125' $jmax 10 'topMach') 6.
 
 Write-Host 'Part types (size per program)'
 function PStat($name, [string]$model, [int[]]$pts, [int]$mk, $key, $variant) { $t = TypeOf $name; $m = $(if ($model) { M $model } else { , [string[]]@() }); ($t.Compute($m, $pts, $mk, (Level 'Normal'), $variant)).Item($key) }
-Check 'sixteen types' $Types.GetField('All').GetValue($null).Length 16
+Check 'eighteen types' $Types.GetField('All').GetValue($null).Length 18
 Check 'battery: stock capacity at ~45 points' (PStat 'Battery' '' @(45) 10 'capacity' '125') 20100
 Check 'battery: 1.25 m holds 600 EC at 0 points' (PStat 'Battery' '' @(0) 0 'ec' '125') 600
 Check 'battery: 1.25 m holds 1,500 EC at 100' (PStat 'Battery' '' @(100) 10 'ec' '125') 1500
@@ -218,6 +218,33 @@ Check 'standard adapter looks' "$($tk.AdapterLookPreference('A2')[0]),$($tk.Adap
 Check 'adapter tapers by their ends' "$([PIP.FuelTanks]::AdapterKindOf(2.5, 1.25)),$([PIP.FuelTanks]::AdapterKindOf(7.5, 5)),$([PIP.FuelTanks]::AdapterKindOf(5, 1.25))" 'A2,A32,'
 Check 'kept tank-shaped parts' "$([PIP.FuelTanks]::KeptTank('noseConeAdapter', 'NCS Adapter')),$([PIP.FuelTanks]::KeptTank('nfex-fueltank-stack-medium-1', 'MLT-240 Multipurpose Fuel Tank Cluster')),$([PIP.FuelTanks]::KeptTank('adapter-25-125', 'Rockomax Skeletal Structural Adapter')),$([PIP.FuelTanks]::KeptTank('adapterSize2-Size1', 'C7 Brand Adapter - 2.5m to 1.25m'))" 'True,True,True,False'
 Check 'a long 2.5 to 1.25 adapter weighs as 800 units of tank' (PStat 'Tank' 'S' @(100, 0, 0) 10 'mass' 'A-25-125-L') (0.001 + 800 * 0.000625 * 0.8) 1e-9
+# Section 21.1: decouplers. Today's TD-12 (100 kN, 0.04 t) sits at 25 points of ejection, 50 of weight.
+$dec = TypeOf 'Decoupler'
+Check 'decouplers: kinds, sizes, side sizes' "$(($dec.Choices[0].Options | ForEach-Object { $_.Code }) -join ',')|$(($dec.Variants((M 'D')) | ForEach-Object { $_.Code }) -join ',')|$(($dec.SideVariants((M 'D')) | ForEach-Object { $_.Code }) -join ',')" 'D,S|0625,125,1875,25,375,5|R-S,R-M,R-L'
+Check 'separators have no side-mount' ($null -eq $dec.SideVariants((M 'S'))) $true
+Check 'TD-12 ejection at 25 points' (PStat 'Decoupler' 'D' @(25, 50, 25, 25) 10 'eject' '125') 100 1e-9
+Check '0.625 m ejects about as the TD-06' (PStat 'Decoupler' 'D' @(25, 50, 25, 25) 10 'eject' '0625') (100 * [Math]::Pow(0.5, 0.6)) 1e-9
+Check 'TD-12 weight at 50 points' (PStat 'Decoupler' 'D' @(25, 50, 25, 25) 10 'mass' '125') 0.048 1e-9
+Check 'a separator weighs a quarter more' (PStat 'Decoupler' 'S' @(25, 50, 25, 25) 10 'mass' '125') 0.06 1e-9
+Check 'a 2.5 m decoupler weighs by diameter squared' (PStat 'Decoupler' 'D' @(25, 100, 25, 25) 10 'mass' '25') (0.16 * 0.8) 1e-9
+Check 'a medium radial decoupler ejects as the TT-38K' (PStat 'Decoupler' 'D' @(25, 50, 25, 25) 10 'eject' 'R-M') 250 1e-9
+Check 'decoupler looks: radial ones dress decouplers only' "$(($dec.LookKeys('R')) -join '')|$(($dec.LookKeys('')) -join '')|$($dec.ScaleBasis($true, 'R')),$($dec.ScaleBasis($false, ''))" 'D|DS|Mass,Diameter'
+Check 'a 2.5 m separator needs its node and tooling' (($dec.Techs((M 'S'), '25') | Select-Object -Unique) -join ',') 'engineering101,generalConstruction,heavierRocketry'
+Check 'large radial decouplers at Specialized Construction' (($dec.Techs((M 'D'), 'R-L') | Select-Object -Unique) -join ',') 'engineering101,specializedConstruction'
+Check 'a radial decoupler program is labelled' ($dec.VariantLabel((M 'D'), 'R-M')) 'Side-mount, medium'
+# Section 21.2: plane fuselages, a type of their own, tanks in every other way.
+$pln = TypeOf 'Plane'
+Check 'fuselages: kinds as tanks, Mk2 and Mk3' "$(($pln.Choices[0].Options | ForEach-Object { $_.Code }) -join ',')|$(($pln.Choices[1].Options | ForEach-Object { $_.Code }) -join ',')" 'S,C,M,E|2,3'
+Check 'Mk2 short and long, Mk3 short, medium and long' "$(($pln.Variants((M 'S-2')) | ForEach-Object { $_.Code }) -join ',')|$(($pln.Variants((M 'S-3')) | ForEach-Object { $_.Code }) -join ',')" '2-S,2-L|3-S,3-M,3-L'
+Check 'fuselages hold what stock ones do' "$((@('2-S','2-L','3-S','3-M','3-L') | ForEach-Object { PStat 'Plane' 'S-3' @(25, 25, 0) 10 'volume' $_ }) -join ',')" '400,800,2500,5000,10000'
+Check 'a fuselage weighs as a tank of its volume' (PStat 'Plane' 'S-3' @(100, 0, 0) 10 'mass' '3-M') (0.001 + 5000 * 0.000625 * 0.8) 1e-9
+Check 'and as the same tank does' (PStat 'Plane' 'S-2' @(40, 60, 0) 10 'mass' '2-L') (PStat 'Tank' 'S' @(40, 60, 0) 10 'mass' 'A-25-125-L') 1e-9
+Check 'a cryogenic fuselage uses Insulation' "$($pln.CategoryUsed((M 'C-2'), 2)),$($pln.CategoryUsed((M 'S-2'), 2))" 'True,False'
+Check 'fuselage labels' "$($pln.Label((M 'S-2')))|$($pln.Label((M 'C-3')))|$($pln.VariantLabel((M 'S-2'), '2-L'))" 'Mk2 standard fuselages|Mk3 cryogenic fuselages|Long'
+Check 'a long Mk3 fuselage needs its nodes' (($pln.Techs((M 'S-3'), '3-L') | Select-Object -Unique) -join ',') 'supersonicFlight,heavyAerodynamics,experimentalAerodynamics'
+Check 'Mk2 lift goes with length, as stock' "$([PIP.PlaneFuselages]::Length('2-S') * [PIP.PlaneFuselages]::Mk2LiftPerMeter),$([PIP.PlaneFuselages]::Length('2-L') * [PIP.PlaneFuselages]::Mk2LiftPerMeter)" '0.35,0.7'
+Check 'fuselage looks: by section, stretched only' "$($pln.LookFits((M 'S-3'), '3')),$($pln.LookFits((M 'S-3'), '2')),$($pln.ScaleBasis($false, '2')),$($pln.NominalLength('3-L'))" 'True,False,Length,10'
+Check 'fuselage chassis by kind and section' ($pln.ChassisPart((M 'M-3'))) 'PIP-PLN-M-3'
 Check 'battery side default is small' ($bat.DefaultSideVariant((M ''))) 'R-S'
 Check 'battery: side medium holds 400 EC at stock capacity' (PStat 'Battery' '' @(45) 10 'ec' 'R-M') 402 1e-9
 Check 'battery: side small weighs 0.005 t' (PStat 'Battery' '' @(45) 10 'mass' 'R-S') 0.005
@@ -232,7 +259,7 @@ Check 'intake: shock cone weight at 0 points' (PStat 'Intake' 'H' @(0, 0, 0) 0 '
 Check 'intake: standard look by speed type' "$($int.DefaultLook((M 'S'))),$($int.DefaultLook((M 'H')))" 'CircularIntake,shockConeIntake'
 Check 'intake: side looks prefer the XM-G50 for subsonic' ($int.SideLookPreference((M 'S'))[0]) 'airScoop'
 Check 'rtg: scaled by mass' "$($rtg.ScaleBasis($false, '')),$($rtg.NominalMass('L'))" 'Mass,0.3'
-Check 'types with looks' (($Types.GetField('All').GetValue($null) | Where-Object { $_.HasLooks } | ForEach-Object { $_.Id }) -join ',') 'liquid,solid,monoprop,nuclear,electric,jet,rcs,battery,wheel,shield,solar,antenna,probe,tank,rtg,intake'
+Check 'types with looks' (($Types.GetField('All').GetValue($null) | Where-Object { $_.HasLooks } | ForEach-Object { $_.Id }) -join ',') 'liquid,solid,monoprop,nuclear,electric,jet,rcs,battery,wheel,shield,solar,antenna,probe,tank,plane,rtg,intake,decoupler'
 
 Write-Host 'Looks step 2: solar, antennas, tanks, RCS'
 $sol = TypeOf 'Solar'; $ant = TypeOf 'Antenna'; $tnk = TypeOf 'Tank'; $rcsT = TypeOf 'Rcs'

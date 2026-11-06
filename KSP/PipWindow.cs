@@ -40,7 +40,9 @@ namespace PIP
             { PartTypes.Wheel, new[] { "Rw", "Wheels" } }, { PartTypes.Shield, new[] { "Hs", "Shields" } },
             { PartTypes.Solar, new[] { "Sp", "Solar" } }, { PartTypes.Antenna, new[] { "An", "Antennas" } },
             { PartTypes.Probe, new[] { "Pc", "Probes" } }, { PartTypes.Tank, new[] { "Tk", "Tanks" } },
+            { PartTypes.Plane, new[] { "Pf", "Fuselages" } },
             { PartTypes.Rtg, new[] { "Rt", "RTGs" } }, { PartTypes.Intake, new[] { "In", "Intakes" } },
+            { PartTypes.Decoupler, new[] { "Dc", "Decouplers" } },
         };
         static string Sym(PartType t) => Short.TryGetValue(t, out string[] s) ? s[0] : t.Id.Substring(0, 2);
         static string ShortName(PartType t) => Short.TryGetValue(t, out string[] s) ? s[1] : t.Title;
@@ -531,8 +533,19 @@ namespace PIP
                 }
             }
             else
-                SizeRow(type.VariantName == "Class" ? "Class" : "Size", list.Select(v => v.Label).ToArray(), Array.FindIndex(list, v => v.Code == current),
-                    i => SizeLocked(type, model, list[i]), i => previewVariants[type.Id] = list[i].Code);
+            {
+                SizeRow(type.VariantName == "Class" || type.VariantName == "Length" ? type.VariantName : "Size", list.Select(v => v.Label).ToArray(),
+                    Array.FindIndex(list, v => v.Code == current), i => SizeLocked(type, model, list[i]), i => previewVariants[type.Id] = list[i].Code);
+                // A plane fuselage: what each length holds, as the fuselage comes.
+                if (type == PartTypes.Plane)
+                {
+                    var content = new GUIContent("Holds: " + string.Join("  ·  ", list.Select(v => $"{v.Label.ToLowerInvariant()} {PlaneFuselages.Units(model, v.Code):N0}")) +
+                                                 $" units of {FuelTanks.Contents(model)}");
+                    float hh = PipSkin.Hint.CalcHeight(content, w - 64);
+                    GUI.Label(new Rect(x + 64, y - 2, w - 64, hh), content, PipSkin.Hint);
+                    y += hh + 6;
+                }
+            }
             return y;
         }
 

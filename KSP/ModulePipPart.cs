@@ -136,7 +136,7 @@ namespace PIP
 
         // A tank's boil-off and cooling factor (ModulePipBoiloff): from Insulation on a
         // cryogenic tank, FuelTanks.Uninsulated on a standard one.
-        public double BoiloffFactor => Assigned && typeId == "tank" ? Stats[FuelTanks.Boiloff] : 1;
+        public double BoiloffFactor => Assigned && (typeId == "tank" || typeId == "plane") ? Stats[FuelTanks.Boiloff] : 1;
 
         Stats Stats
         {
@@ -172,8 +172,10 @@ namespace PIP
                     case "antenna": ApplyAntenna(); break;
                     case "probe": ApplyProbe(); break;
                     case "tank": ApplyTank(); break;
+                    case "plane": ApplyTank(); ApplyLift(); break;
                     case "rtg": SetField("ModuleRadioisotopeGenerator", "BasePower", (float)stats[K.EcRate]); SetField("ModuleRadioisotopeGenerator", "HalfLife", (float)stats[Rtgs.HalfLife]); break;
                     case "intake": ApplyIntake(); break;
+                    case "decoupler": ApplyDecoupler(); break;
                 }
             }
             catch (Exception e)
@@ -310,6 +312,25 @@ namespace PIP
             // Boil-off is PIP's own module (ModulePipBoiloff), which reads BoiloffFactor.
         }
 
+        // A Mk2 fuselage's body lift goes with its length, as stock's do (0.35 short,
+        // 0.7 long), whatever the look's own model had. Mk3 fuselages have none.
+        void ApplyLift()
+        {
+            double length = PlaneFuselages.Length(Variant);
+            if (length <= 0) return;
+            foreach (ModuleLiftingSurface l in part.FindModulesImplementing<ModuleLiftingSurface>())
+                if (!(l is ModuleControlSurface)) l.deflectionLiftCoeff = (float)(PlaneFuselages.Mk2LiftPerMeter * length);
+        }
+
+        // Stack and radial decouplers alike (ModuleDecouple, ModuleAnchoredDecoupler).
+        void ApplyDecoupler()
+        {
+            part.crashTolerance = (float)stats[Decouplers.Crash];
+            part.maxTemp = part.skinMaxTemp = stats[Decouplers.MaxTemp];
+            foreach (ModuleDecouplerBase d in part.FindModulesImplementing<ModuleDecouplerBase>())
+                d.ejectionForce = (float)stats[Decouplers.Eject];
+        }
+
         // Area from the program; the speed curve from PIP's standard intake of this
         // speed type, stretched by Top speed.
         void ApplyIntake()
@@ -356,9 +377,10 @@ namespace PIP
             switch (typeId)
             {
                 case "tank":
+                case "plane":
                     // Today's tank of this volume and propellant (the tank type's own
                     // mass, from B9PartSwitch), times the Weight factor.
-                    double today = others > 0 ? others : defaultMass * FuelTanks.Volume(Variant) / 400.0;
+                    double today = others > 0 ? others : defaultMass * stats[FuelTanks.VolumeKey] / 400.0;
                     return defaultMass + today * stats[FuelTanks.WeightFactor];
                 default:
                     return stats.Mass;

@@ -95,6 +95,17 @@ $u = @(
     @('largeVolumeContainment', 'Aluminum-Lithium Tanks', 'PIP-TNK-S', 'Tank caps 75', 'New fuel tank programs can put up to 75 points into every category.'),
     @('ionPropulsion', 'Pressurized Gas Tanks', 'PIP-TNK-E', 'Electric propellant tanks', 'Fuel tank programs can hold xenon, argon or lithium.'),
     @('specializedFuelStorage', 'Composite Tanks', 'PIP-TNK-S', 'Tank caps 100', 'New fuel tank programs can put up to 100 points into every category.'),
+    # Plane fuselages (DESIGN.md 21.2)
+    @('supersonicFlight', 'Mk2 Fuselages', 'PIP-PLN-S-2', 'First plane fuselage programs', 'Start Mk2 fuselage programs: short; long at High Altitude Flight. Any fuel, as tanks. Caps 25.'),
+    @('highAltitudeFlight', 'Long Mk2 Fuselages', 'PIP-PLN-S-2', 'Long Mk2 fuselages; caps 50', 'Mk2 fuselages can be long, and new fuselage programs can put up to 50 points into every category.'),
+    @('heavyAerodynamics', 'Mk3 Fuselages', 'PIP-PLN-S-3', 'Mk3 fuselages; caps 75', 'Fuselage programs can be Mk3, short or medium, and new ones can put up to 75 points into every category.'),
+    @('experimentalAerodynamics', 'Long Mk3 Fuselages', 'PIP-PLN-S-3', 'Long Mk3 fuselages; caps 100', 'Mk3 fuselages can be long, and new fuselage programs can put up to 100 points into every category.'),
+    # Decouplers (DESIGN.md 21.1)
+    @('engineering101', 'Pyrotechnic Bolts', 'PIP-DEC-D', 'First decoupler programs', 'Start stack decoupler programs: 0.625 and 1.25 m, larger sizes with their tooling. Caps 25.'),
+    @('stability', 'Radial Decouplers', 'PIP-DEC-D', 'Radial decouplers', 'Decoupler programs can be side-mount: small or medium radial decouplers; large at Specialized Construction.'),
+    @('generalConstruction', 'Stack Separators', 'PIP-DEC-S', 'Separators; decoupler caps 50', 'Decoupler programs can be separators, which let go of both sides, and new ones can put up to 50 points into every category.'),
+    @('advConstruction', 'Frangible Joints', 'PIP-DEC-D', 'Decoupler caps 75', 'New decoupler programs can put up to 75 points into every category.'),
+    @('specializedConstruction', 'Hydraulic Separation', 'PIP-DEC-D', 'Large radial decouplers; caps 100', 'Radial decouplers can be large, and new decoupler programs can put up to 100 points into every category.'),
     # RTGs
     @('specializedElectrics', 'Radioisotope Power', 'PIP-RTG', 'First RTG program', 'Start an RTG program: small, large later. Caps 25.'),
     @('experimentalElectrics', 'Thermocouple Upgrades', 'PIP-RTG', 'RTG caps 50', 'New RTG programs can put up to 50 points into every category.'),

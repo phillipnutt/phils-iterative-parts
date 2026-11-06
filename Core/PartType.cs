@@ -207,6 +207,8 @@ namespace PIP
         public virtual double NominalMass(string variant) => 0;
         public virtual double NominalOutput(string variant) => 0;
         public virtual double NominalVolume(string variant) => 0;
+        // A plane fuselage look is stretched to this length (m), never widened.
+        public virtual double NominalLength(string variant) => 0;
 
         // Some types need a separate look part per program choice, because the
         // choice changes the part's config: a tank's propellants, an RCS block's.
@@ -294,7 +296,7 @@ namespace PIP
 
     }
 
-    public enum LookScale { Diameter, Mass, Output, Tank, Volume, Adapter, None }
+    public enum LookScale { Diameter, Mass, Output, Tank, Volume, Adapter, Length, None }
 
     public static class PartTypes
     {
@@ -313,11 +315,13 @@ namespace PIP
         public static readonly PartType Antenna = new Antennas();
         public static readonly PartType Probe = new ProbeCores();
         public static readonly PartType Tank = new FuelTanks();
+        public static readonly PartType Plane = new PlaneFuselages();
         public static readonly PartType Rtg = new Rtgs();
         public static readonly PartType Intake = new AirIntakes();
+        public static readonly PartType Decoupler = new Decouplers();
 
         public static readonly PartType[] Engines = { Liquid, Solid, Monoprop, Nuclear, Electric, Jet };
-        public static readonly PartType[] Parts = { Rcs, Battery, Wheel, Shield, Solar, Antenna, Probe, Tank, Rtg, Intake };
+        public static readonly PartType[] Parts = { Rcs, Battery, Wheel, Shield, Solar, Antenna, Probe, Tank, Plane, Rtg, Intake, Decoupler };
         public static readonly PartType[] All = Engines.Concat(Parts).ToArray();
 
         public static PartType Get(string id) =>

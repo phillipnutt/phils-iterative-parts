@@ -442,11 +442,68 @@ namespace PIP
         public override string Character(string[] m) => "Autopilot comes in steps: 10, 25, 50 and 75 points.";
     }
 
+    // What fuel tanks and plane fuselages share: the tank's kind (what it holds), the
+    // Weight / Strength / Insulation sliders, and numbers by propellant volume
+    // (an FL-T400 holds 400), so a fuselage and a round tank of the same volume
+    // weigh and cost the same. The statics live on FuelTanks.
+    public abstract class TankKind : PartKind
+    {
+        public static readonly Option[] KindOptions =
+        {
+            new Option("S", "Standard"), new Option("C", "Cryogenic", "largeVolumeContainment"),
+            new Option("M", "Monopropellant", "flightControl"), new Option("E", "Electric propellant", "ionPropulsion"),
+        };
+
+        // Propellant volume for a size.
+        public abstract double TankVolume(string variant);
+
+        protected override Category[] OwnCategories => new[] { new Category("Weight"), new Category("Strength"), new Category("Insulation", 0) };
+        public override double CostCeiling => 1e5;
+        public override bool CategoryUsed(string[] m, int category) => category != 2 || FuelTanks.Cryogenic(m);
+
+        public override Stats Compute(string[] m, int[] pts, int mk, FailureLevel level, string variant = null)
+        {
+            var s = new Stats();
+            s[FuelTanks.WeightFactor] = Lerp(1.6, 0.8, E(pts, 0, mk));
+            s[FuelTanks.Crash] = Lerp(4, 20, E(pts, 1, mk));
+            s[FuelTanks.MaxTemp] = Lerp(1400, 2600, E(pts, 1, mk));
+            s[FuelTanks.Boiloff] = FuelTanks.Cryogenic(m) ? Lerp(2, 0.2, E(pts, 2, mk)) : FuelTanks.Uninsulated;
+            s[FuelTanks.BoiloffRate] = FuelTanks.HydrogenBoiloff * s[FuelTanks.Boiloff];
+            s[FuelTanks.VolumeKey] = TankVolume(variant ?? DefaultVariant(m));
+            s[FuelTanks.UnitsKey] = s[FuelTanks.VolumeKey] * FuelTanks.UnitsPerVolume(m);
+            s[K.Mass] = FuelTanks.ChassisMass + s[FuelTanks.VolumeKey] * FuelTanks.MassPerVolume(m) * s[FuelTanks.WeightFactor];
+            // Dry price: about 0.8 a unit of volume (an FL-T400 is ~500 with its fuel).
+            s[K.Price] = BuildPrice(0.8 * s[FuelTanks.VolumeKey], pts, mk);
+            return s;
+        }
+
+        protected override Row[] OwnRows(string[] m) => new[]
+        {
+            new Row("Empty weight", K.Mass, 0, Fmt.Tons),
+            new Row("Survives impacts to", FuelTanks.Crash, 1, v => $"{v:0} m/s"),
+            new Row("  and heat to", FuelTanks.MaxTemp, -1, v => $"{v:N0} K"),
+            FuelTanks.Cryogenic(m) ? new Row("Hydrogen boil-off", FuelTanks.BoiloffRate, 2, v => $"{v:0.###}% an hour")
+                : new Row("Hydrogen boil-off, uninsulated", FuelTanks.BoiloffRate, m != null && m.Length > 0 && m[0] == "S" ? -1 : 2, v => $"{v:0.###}% an hour"),
+            new Row($"  holds ({FuelTanks.Contents(m)})", FuelTanks.UnitsKey, -1, v => $"{v:N0} units"),
+        };
+
+        public override string Character(string[] m)
+        {
+            switch (m[0])
+            {
+                case "S": return "Any fuel's mix, picked on the part. No insulation: hydrogen and other cryogenic fuels boil off fast.";
+                case "C": return "Hydrolox, methalox or another cryogenic mix, picked on the part. Boils off unless cooled.";
+                case "M": return "Monopropellant.";
+                default: return "Xenon, argon or lithium, picked on the part.";
+            }
+        }
+    }
+
     // Fuel tanks: kind, size and length per program; propellant on the part. Weight is a
     // factor on today's tanks. Standard tanks hold any fuel's mix but have no
     // insulation or cooling, so cryogenic fuels boil off fast in them; cryogenic tanks
     // (later in the tree) have Insulation and cooling (DESIGN.md 19.7).
-    public sealed class FuelTanks : PartKind
+    public sealed class FuelTanks : TankKind
     {
         public override string Id => "tank";
         public override string Title => "Fuel tanks";
@@ -455,8 +512,7 @@ namespace PIP
 
         static readonly Choice[] choices =
         {
-            new Choice("Kind", new Option("S", "Standard"), new Option("C", "Cryogenic", "largeVolumeContainment"),
-                new Option("M", "Monopropellant", "flightControl"), new Option("E", "Electric propellant", "ionPropulsion")),
+            new Choice("Kind", KindOptions),
         };
         public static readonly string[] SizeCodes = { "0625", "125", "1875", "25", "375", "5" };
         public static readonly string[] LengthCodes = { "S", "M", "L", "X" };
@@ -561,13 +617,10 @@ namespace PIP
         }
 
         public override Choice[] Choices => choices;
-        protected override Category[] OwnCategories => new[] { new Category("Weight"), new Category("Strength"), new Category("Insulation", 0) };
         public override string[] CapTechs => new[] { "basicRocketry", "fuelSystems", "largeVolumeContainment", "specializedFuelStorage" };
-        public override double CostCeiling => 1e5;
         public override Option[] Variants(string[] m) => variants;
         public override string VariantName => "Size and length";
         public override string DefaultVariant(string[] m) => "125-L";
-        public override bool CategoryUsed(string[] m, int category) => category != 2 || Cryogenic(m);
 
         // Looks: one look part per kind, since each kind has its own propellants.
         // A tank's kind is what it holds: fuel tanks serve standard and cryogenic
@@ -676,43 +729,141 @@ namespace PIP
         // (a cryogenic tank with no Insulation points is 2).
         public const double Uninsulated = 4;
 
+        public override double TankVolume(string variant) => Volume(variant ?? "125-L");
+
+        public override string Label(string[] m) => choices[0].Find(m[0])?.Label + " tanks";
+    }
+
+    // Plane fuselages (DESIGN.md 21.2): Mk2 and Mk3 fuel tanks, a type of their own in
+    // PIP's window but tanks in every other way: the same kinds, sliders and numbers
+    // by volume. Mk2 short and long (1.875 and 3.75 m, holding 400 and 800, as
+    // stock's); Mk3 short, medium and long (2.5, 5 and 10 m: 2,500, 5,000, 10,000).
+    // In the VAB they're under Fuel Tanks. Mk2 fuselages keep their body lift.
+    public sealed class PlaneFuselages : TankKind
+    {
+        public override string Id => "plane";
+        public override string Title => "Plane fuselages";
+        public override string Noun => "fuselage";
+        public override string ChassisCode => "PLN";
+
+        static readonly Choice[] choices =
+        {
+            new Choice("Kind", KindOptions),
+            new Choice("Section", new Option("2", "Mk2"), new Option("3", "Mk3", "heavyAerodynamics")),
+        };
+        static readonly Option[] mk2 = { new Option("2-S", "Short"), new Option("2-L", "Long", "highAltitudeFlight") };
+        static readonly Option[] mk3 = { new Option("3-S", "Short"), new Option("3-M", "Medium"), new Option("3-L", "Long", "experimentalAerodynamics") };
+        static readonly Dictionary<string, double[]> lengthAndVolume = new Dictionary<string, double[]>
+        {
+            { "2-S", new[] { 1.875, 400.0 } }, { "2-L", new[] { 3.75, 800.0 } },
+            { "3-S", new[] { 2.5, 2500.0 } }, { "3-M", new[] { 5.0, 5000.0 } }, { "3-L", new[] { 10.0, 10000.0 } },
+        };
+        // Stock Mk2 fuselages' body lift, per meter of length (0.7 on the long one).
+        public const double Mk2LiftPerMeter = 0.7 / 3.75;
+
+        public override Choice[] Choices => choices;
+        public override string[] CapTechs => new[] { "supersonicFlight", "highAltitudeFlight", "heavyAerodynamics", "experimentalAerodynamics" };
+        public override Option[] Variants(string[] m) => Mk3(m) ? mk3 : mk2;
+        public override string VariantName => "Length";
+        public override string DefaultVariant(string[] m) => Mk3(m) ? "3-M" : "2-L";
+        public static bool Mk3(string[] m) => m != null && m.Length > 1 && m[1] == "3";
+
+        public static double Length(string variant) => lengthAndVolume.TryGetValue(variant ?? "", out double[] lv) ? lv[0] : 0;
+        public static double Volume(string variant) => lengthAndVolume.TryGetValue(variant ?? "", out double[] lv) ? lv[1] : 0;
+        public override double TankVolume(string variant) => Volume(variant ?? "2-L");
+        public static double Units(string[] m, string variant) => Volume(variant) * FuelTanks.UnitsPerVolume(m);
+
+        // Looks: any Mk2 or Mk3 fuel fuselage of the program's section (its kind, "2" or
+        // "3"), stretched to the length; one serves every kind, as adapters do.
+        public override bool HasLooks => true;
+        public override string DefaultLook(string[] m) => Mk3(m) ? "mk3FuselageLFO.50" : "mk2FuselageLongLFO";
+        public override LookScale ScaleBasis(bool side, string kind) => LookScale.Length;
+        public override double NominalLength(string variant) => Length(variant);
+        public override string LookKey(string[] m) => m[0];
+        public override string[] LookKeys(string kind) => new[] { "S", "C", "M", "E" };
+        public override bool LookFits(string[] m, string kind) => kind == (Mk3(m) ? "3" : "2");
+        public override string[] LookModel(string kind, string key) => new[] { key, kind };
+
+        public override string Label(string[] m) => $"Mk{m[1]} {Fmt.Lower(KindOptions.First(o => o.Code == m[0]).Label)} fuselages";
+    }
+
+    // Decouplers (DESIGN.md 21.1): a stack decoupler or a stack separator, picked
+    // for the program's life; a decoupler can also be side-mount, a radial
+    // decoupler. Today's parts set the middle of each range: mass by diameter
+    // squared (the TD-12's 0.04 t at 1.25 m), ejection force by diameter^0.6 (its
+    // 100 kN; 50 at 0.625 m, 200 at 3.75 m); separators weigh a quarter more.
+    public sealed class Decouplers : PartKind
+    {
+        public override string Id => "decoupler";
+        public override string Title => "Decouplers";
+        public override string Noun => "decoupler";
+        public override string ChassisCode => "DEC";
+
+        static readonly Choice[] choices =
+        {
+            new Choice("Kind", new Option("D", "Decoupler"), new Option("S", "Separator", "generalConstruction")),
+        };
+        static readonly Option[] variants = { Size("0625", ""), Size("125", ""), Size("1875"), Size("25"), Size("375"), Size("5") };
+        // Radial: the TT-14, the TT-38K and TT-70, the hydraulic manifold and TTR-6R.
+        static readonly Option[] sideVariants =
+            { new Option("R-S", "Small", "stability"), new Option("R-M", "Medium", "stability"), new Option("R-L", "Large", "specializedConstruction") };
+        static readonly double[] SideMass = { 0.0125, 0.04, 0.4 };
+        static readonly double[] SideEject = { 70, 250, 600 };
+        static readonly double[] SidePrice = { 250, 600, 770 };
+
+        public override Choice[] Choices => choices;
+        protected override Category[] OwnCategories => new[] { new Category("Ejection force"), new Category("Weight"), new Category("Strength") };
+        public override string[] CapTechs => new[] { "engineering101", "generalConstruction", "advConstruction", "specializedConstruction" };
+        public override double CostCeiling => 5e4;
+        public override Option[] Variants(string[] m) => variants;
+        public override string DefaultVariant(string[] m) => "125";
+        // Only a decoupler goes on a side: separators are stack parts.
+        public override bool HasSideMount => true;
+        public override Option[] SideVariants(string[] m) => Separator(m) ? null : sideVariants;
+        public override bool HasLooks => true;
+        public override string DefaultLook(string[] m) => Separator(m) ? "Separator.1" : "Decoupler.1";
+        public override string[] SideLookPreference(string[] m) => new[] { "radialDecoupler", "radialDecoupler2" };
+        public override LookScale ScaleBasis(bool side, string kind) => side ? LookScale.Mass : LookScale.Diameter;
+        public override double NominalMass(string variant) => IsSide(variant) ? SideMass[Index(sideVariants, variant)] : 0;
+        // A look is only the model: any stack decoupler or separator dresses
+        // either kind (its look chassis is set to the program's kind); radial
+        // decouplers (kind "R") dress decouplers.
+        public override string LookKey(string[] m) => m[0];
+        public override string[] LookKeys(string kind) => kind == "R" ? new[] { "D" } : new[] { "D", "S" };
+        public override string[] LookModel(string kind, string key) => new[] { key };
+
+        public const string Eject = "eject", Crash = "crash", MaxTemp = "maxTemp";
+        public static bool Separator(string[] m) => m != null && m.Length > 0 && m[0] == "S";
+
         public override Stats Compute(string[] m, int[] pts, int mk, FailureLevel level, string variant = null)
         {
+            variant = variant ?? DefaultVariant(m);
+            bool side = IsSide(variant);
+            int v = Index(sideVariants, variant);
+            int si = Sizes.IndexOf(variant);
+            double d = (si < 0 ? 1.25 : Sizes.Diameters[si]) / 1.25;
+            double sep = Separator(m) ? 1.25 : 1;
             var s = new Stats();
-            s[WeightFactor] = Lerp(1.6, 0.8, E(pts, 0, mk));
-            s[Crash] = Lerp(4, 20, E(pts, 1, mk));
-            s[MaxTemp] = Lerp(1400, 2600, E(pts, 1, mk));
-            s[Boiloff] = Cryogenic(m) ? Lerp(2, 0.2, E(pts, 2, mk)) : Uninsulated;
-            s[BoiloffRate] = HydrogenBoiloff * s[Boiloff];
-            s[VolumeKey] = Volume(variant ?? "125-L");
-            s[UnitsKey] = s[VolumeKey] * UnitsPerVolume(m);
-            s[K.Mass] = ChassisMass + s[VolumeKey] * MassPerVolume(m) * s[WeightFactor];
-            // Dry price: about 0.8 a unit of volume (an FL-T400 is ~500 with its fuel).
-            s[K.Price] = BuildPrice(0.8 * s[VolumeKey], pts, mk);
+            s[Eject] = (side ? SideEject[v] : 100 * Math.Pow(d, 0.6)) * Lerp(0.5, 2.5, E(pts, 0, mk));
+            s[K.Mass] = (side ? SideMass[v] : 0.04 * d * d * sep) * Lerp(1.6, 0.8, E(pts, 1, mk));
+            s[Crash] = Lerp(4, 20, E(pts, 2, mk));
+            s[MaxTemp] = Lerp(1400, 2600, E(pts, 2, mk));
+            s[K.Price] = BuildPrice(side ? SidePrice[v] : 200 * Math.Pow(d, 0.6) * (Separator(m) ? 1.3 : 1), pts, mk);
             return s;
         }
 
         protected override Row[] OwnRows(string[] m) => new[]
         {
-            new Row("Empty weight", K.Mass, 0, Fmt.Tons),
-            new Row("Survives impacts to", Crash, 1, v => $"{v:0} m/s"),
+            new Row("Ejection force", Eject, 0, v => $"{v:N0} kN"),
+            new Row("Weight", K.Mass, 1, Fmt.Tons),
+            new Row("Survives impacts to", Crash, 2, v => $"{v:0} m/s"),
             new Row("  and heat to", MaxTemp, -1, v => $"{v:N0} K"),
-            Cryogenic(m) ? new Row("Hydrogen boil-off", BoiloffRate, 2, v => $"{v:0.###}% an hour")
-                : new Row("Hydrogen boil-off, uninsulated", BoiloffRate, m != null && m.Length > 0 && m[0] == "S" ? -1 : 2, v => $"{v:0.###}% an hour"),
-            new Row($"  holds ({Contents(m)})", UnitsKey, -1, v => $"{v:N0} units"),
         };
 
-        public override string Label(string[] m) => choices[0].Find(m[0])?.Label + " tanks";
-        public override string Character(string[] m)
-        {
-            switch (m[0])
-            {
-                case "S": return "Any fuel's mix, picked on the part. No insulation: hydrogen and other cryogenic fuels boil off fast.";
-                case "C": return "Hydrolox, methalox or another cryogenic mix, picked on the part. Boils off unless cooled.";
-                case "M": return "Monopropellant.";
-                default: return "Xenon, argon or lithium, picked on the part.";
-            }
-        }
+        public override string Label(string[] m) => Separator(m) ? "Separators" : "Decouplers";
+        public override string Character(string[] m) => Separator(m)
+            ? "Lets go of both sides when it fires and falls away: a clean break."
+            : "Stays with one side when it fires. Can be side-mount, for radial boosters.";
     }
 
     // RTGs (Near Future): output per ton and half-life; size on the part.

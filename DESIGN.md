@@ -2059,6 +2059,9 @@ port). Phil's answers are under each decision.
    the same sliders; Mk2 short and long, Mk3 short, medium and long; they keep
    the fuselage's body lift), **but as their own type**, not under Tanks. Phil:
    "I do want a separate category for plane parts, not just also under Tanks."
+   Then: "I meant their own category in PIP ... In the VAB they should stay in
+   tanks." So: their own tile, programs and Replace setting in PIP's window; in
+   the VAB they're under Fuel Tanks like any tank.
 6. **Plane adapters** (Mk3 to Mk2, Mk3 to 2.5 and 3.75 m, Mk2 to 1.25 m short and
    long, 2.5 m to Mk2, the Mk2 bicoupler) are adapter-tank pairs under Tanks, each
    worn by its own stock part, unscaled. The slanted Mk3 to 2.5 m stays stock.
@@ -2072,13 +2075,15 @@ port). Phil's answers are under each decision.
 
 - **Flight-test 0.3.0's radial and adapter tanks** (agreed).
 - **Docking ports:** Phil, of leaving them stock: "I could see us adding those
-  unless the code is wacky." Proposed below, built last, after a prototype.
+  unless the code is wacky." Proposed below. Then: "Docking ports is for later,
+  maybe 0.5, let's build 0.4 and come back to that." **Moved to 0.5**; 21.4 is
+  a starting point, not agreed.
 - **Not yet on CKAN:** that waits for a full (not pre-) release (agreed).
 - **Later, their own releases:** fuel cells and generators, radiators, landing
   legs, crewed pods, wings. **Stock:** parachutes (RealChute), science, lights,
   fairings.
 
-### 21.4 Docking ports (proposed)
+### 21.4 Docking ports (proposed; moved to 0.5, not agreed)
 
 9. **One Docking ports type**, plain or shielded (a door), sizes 0.625 to 5 m
    (Jr. to Mondo). Each size docks with any port of its size, stock or PIP: KSP

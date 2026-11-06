@@ -83,6 +83,23 @@ namespace PIP
             catch { return text; }
         }
 
+        internal static bool IsPlaneSection(string profile) => profile == "mk2" || profile == "mk3";
+
+        // A plane fuselage (DESIGN.md 21.2): a fuel tank of one plane section (Mk2 or
+        // Mk3), straight along the axis. Its kind is the section, "2" or "3". Parts
+        // joining two shapes are plane adapters, not fuselages.
+        static Source ClassifyPlane(ConfigNode n, Source src, List<string> profiles, List<Vector3> stack)
+        {
+            string[] sections = profiles.Where(IsPlaneSection).Distinct().ToArray();
+            if (src.Kind == "" || sections.Length != 1 || profiles.Any(p => p != sections[0] && p != "srf")) return null;
+            if (stack.Count < 2 || stack.Any(v => Math.Abs(v.x) > 1e-3f || Math.Abs(v.z) > 1e-3f)) return null;
+            if (FuelTanks.KeptTank(n.GetValue("name"), Localized(n.GetValue("title")))) return null;
+            src.Type = PartTypes.Plane;
+            src.Kind = sections[0] == "mk3" ? "3" : "2";
+            src.Height = stack.Max(v => v.y) - stack.Min(v => v.y);
+            return src.Height > 0 ? src : null;
+        }
+
         // An adapter (DESIGN.md 20.2): two round sizes of a ratio PIP makes, every
         // stack node on the axis (not slanted, not a multi-adapter), not a part kept
         // on purpose, and not so flat that stretching it would wreck it (a cap).
@@ -225,6 +242,8 @@ namespace PIP
             if (t == PartTypes.Intake) return "PIP-INT-S";
             if (t == PartTypes.Solar || t == PartTypes.Antenna) return "PIP-" + t.ChassisCode + "-" + kind;
             if (t == PartTypes.Tank) return "PIP-TNK-" + key;
+            if (t == PartTypes.Decoupler) return "PIP-DEC-" + key;
+            if (t == PartTypes.Plane) return "PIP-PLN-" + key + "-" + kind;
             if (t == PartTypes.Rcs) return null;
             return "PIP-" + t.ChassisCode;
         }
@@ -350,6 +369,16 @@ namespace PIP
                 if (props.Count == 0 && !string.IsNullOrEmpty(rcs.GetValue("resourceName"))) props.Add(rcs.GetValue("resourceName"));
                 if (props.Count > 0 && props.All(RcsPropellants.Contains)) src.Type = PartTypes.Rcs;
             }
+            // Decouplers (DESIGN.md 21.1): plain stack decouplers and separators, and
+            // radial decouplers (kind "R"). Engine plates, docking ports and the like stay.
+            else if (category == "Coupling" && (modules.Contains("ModuleDecouple") || modules.Contains("ModuleAnchoredDecoupler")))
+            {
+                if (!modules.Overlaps(DecouplerExtras))
+                {
+                    src.Type = PartTypes.Decoupler;
+                    src.Kind = modules.Contains("ModuleAnchoredDecoupler") ? "R" : "";
+                }
+            }
             else if (Module("ModuleDeployableSolarPanel") is ConfigNode panel)
             {
                 src.Type = PartTypes.Solar;
@@ -406,6 +435,8 @@ namespace PIP
 
             if (t == PartTypes.Tank)
             {
+                // Mk2 and Mk3: a plane fuselage (DESIGN.md 21.2).
+                if (profiles.Any(IsPlaneSection)) return ClassifyPlane(n, src, profiles, stackPos);
                 // Two round sizes: an adapter (DESIGN.md 20.2), or nothing.
                 if (profiles.Where(RoundSizes.ContainsKey).Distinct().Count() == 2) return ClassifyAdapter(n, src, profiles, stackPos);
                 if (src.Kind == "") return null;   // a structural part that isn't an adapter
@@ -430,6 +461,8 @@ namespace PIP
                 if (!surface) return null;
                 src.Side = true;
             }
+            // A radial decoupler goes on a side, a stack one in a stack, never the other way.
+            if (t == PartTypes.Decoupler && (src.Kind == "R") != src.Side) return null;
             switch (src.Basis)
             {
                 case LookScale.Diameter: return inline ? src : null;
@@ -456,7 +489,7 @@ namespace PIP
             foreach (ConfigNode m in c.GetNodes("MODULE"))
             {
                 string mn = m.GetValue("name") ?? "";
-                if (Stripped.Contains(mn) || (mn == "ModuleB9PartSwitch" && !Cosmetic(m)) || (t == PartTypes.Tank && TankModules.Contains(mn)))
+                if (Stripped.Contains(mn) || (mn == "ModuleB9PartSwitch" && !Cosmetic(m)) || ((t == PartTypes.Tank || t == PartTypes.Plane) && TankModules.Contains(mn)))
                     c.RemoveNode(m);
                 else if (mn == "ModulePartVariants")
                     foreach (ConfigNode variant in m.GetNodes("VARIANT"))
@@ -487,8 +520,9 @@ namespace PIP
 
             if (t == PartTypes.Probe) AddProbeParts(c);
             if (t == PartTypes.Rcs) SetRcsPropellant(c, key);
+            if (t == PartTypes.Decoupler) SetDecouplerKind(c, key);
             string parentId = null;
-            if (t == PartTypes.Tank)
+            if (t == PartTypes.Tank || t == PartTypes.Plane)
             {
                 // Propellants from PIP's own tank of this kind; empty mass from the program.
                 if (!templates.TryGetValue("PIP-TNK-" + key, out ConfigNode tank)) return null;
@@ -756,6 +790,15 @@ namespace PIP
                         s.Volume = t.NominalVolume(o.Code).ToString("R", Inv);
                         break;
                     }
+                    case LookScale.Length:
+                    {
+                        // A plane fuselage: its own cross-section, stretched to the length.
+                        double length = t.NominalLength(o.Code);
+                        if (length <= 0 || src.Height <= 0) continue;
+                        s.Y = length / src.Height;
+                        if (string.IsNullOrEmpty(s.Volume) && t is TankKind tk) s.Volume = tk.TankVolume(o.Code).ToString("R", Inv);
+                        break;
+                    }
                     case LookScale.Tank:
                     {
                         // "125-L": a 1.25 m tank as long as an FL-T400, stretched from the look's own shape.
@@ -850,6 +893,20 @@ namespace PIP
                 r.AddValue("amount", "50");
                 r.AddValue("maxAmount", "50");
             }
+        }
+
+        // Parts that decouple but are more than a decoupler: engine plates (their
+        // shroud and node mounts), docking ports, cargo bays and structural tubes, the
+        // Klaw. They're never decoupler looks and Replace leaves them (DESIGN.md 21.1).
+        internal static readonly HashSet<string> DecouplerExtras = new HashSet<string>
+            { "ModuleDynamicNodes", "ModuleJettison", "ModuleDockingNode", "ModuleGrappleNode", "ModuleCargoBay", "ModuleCommand", "ModuleAblator" };
+
+        // A stack decoupler's look fires as the program's kind: a separator lets go
+        // of both sides (isOmniDecoupler), a decoupler of one.
+        static void SetDecouplerKind(ConfigNode c, string key)
+        {
+            foreach (ConfigNode m in c.GetNodes("MODULE"))
+                if (m.GetValue("name") == "ModuleDecouple") m.SetValue("isOmniDecoupler", key == "S" ? "true" : "false", true);
         }
 
         // RCS looks burn the program's propellant: monopropellant, or kerolox (B).

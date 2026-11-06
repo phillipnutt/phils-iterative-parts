@@ -305,10 +305,22 @@ namespace PIP
                 PartFactory.Ensure(p);
             }
 
-            if (node.HasValue("startedWithPip")) startedWithPip = node.GetValue("startedWithPip") != "False";
+            FlightState state = HighLogic.CurrentGame?.flightState;
+            bool underWay = !PipGuard.StartedWithPip(false, state?.universalTime ?? 0, state?.protoVessels?.Count ?? 0);
+            if (node.HasValue("startedWithPip"))
+            {
+                startedWithPip = node.GetValue("startedWithPip") != "False";
+                // Types added to PIP since this game last saved start off in it,
+                // unless it's still brand new (DESIGN.md 21).
+                var known = new HashSet<string>(node.HasValue("knownTypes")
+                    ? node.GetValue("knownTypes").Split(',').Select(x => x.Trim())
+                    : PipGuard.FirstTypes);
+                if (underWay)
+                    foreach (PartType t in PipGuard.NewTypesOff(known))
+                        Debug.Log($"[PIP] {t.Title} are new in this version of PIP: off in this game, which was already under way. The difficulty settings can turn them on.");
+            }
             else
             {
-                FlightState state = HighLogic.CurrentGame?.flightState;
                 startedWithPip = PipGuard.StartedWithPip(Programs.Count > 0, state?.universalTime ?? 0, state?.protoVessels?.Count ?? 0);
                 if (!startedWithPip)
                 {
@@ -322,6 +334,7 @@ namespace PIP
         public override void OnSave(ConfigNode node)
         {
             node.AddValue("startedWithPip", startedWithPip ? "True" : "False");
+            node.AddValue("knownTypes", string.Join(",", PartTypes.All.Select(t => t.Id)));
             foreach (Program p in Programs)
             {
                 ConfigNode n = node.AddNode("PROGRAM");

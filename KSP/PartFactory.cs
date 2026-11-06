@@ -240,8 +240,9 @@ namespace PIP
                 case "shield": return PartCategories.Thermal;
                 case "antenna": return PartCategories.Communication;
                 case "probe": return PartCategories.Pods;
-                case "tank": return PartCategories.FuelTank;
+                case "tank": case "plane": return PartCategories.FuelTank;
                 case "intake": return PartCategories.Aero;
+                case "decoupler": return PartCategories.Coupling;
                 default: return PartCategories.Engine;
             }
         }
