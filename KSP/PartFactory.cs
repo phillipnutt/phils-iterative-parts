@@ -217,7 +217,6 @@ namespace PIP
                     ap.TechHidden = true;
                     ap.TechRequired = p.Type.CapTechs[0];
                     ap.manufacturer = "Phil's Iterative Parts";
-                    ap.tags = $"pip program {p.Type.Noun} {p.Type.Id} {p.Name.ToLowerInvariant()}" + (IsSidePart(partName) ? " side radial" : "");
                     PartLoader.LoadedPartsList.Add(ap);
                     // getPartInfoByName reads this dictionary, not the list.
                     if (FinderByName?.GetValue(PartLoader.Instance) is Dictionary<string, AvailablePart> finder) finder[ap.name] = ap;
@@ -279,6 +278,8 @@ namespace PIP
             Stats s = p.Stats(mk, PipSettings.Failures, variant);
             ap.title = p.DisplayName(mk) + (side ? " (side-mount)" : p.FixedSize && p.IsAdapter ? $" ({(p.Type == PartTypes.Tank ? "adapter" : p.Type.MountName("A"))})" : "");
             ap.cost = (float)Math.Round(s.BuildPrice);
+            // VAB search: the name follows a rename.
+            ap.tags = $"pip program {p.Type.Noun} {p.Type.Id} {p.Name.ToLowerInvariant()}" + (side ? " side radial" : "");
             string chassis = chassisOf.TryGetValue(ap.name, out string c) ? c : ChassisFor(p.Type, p.Model) ?? p.ChassisPart;
             ap.moduleInfos = PartInfo.ModuleInfos(PartLoader.getPartInfoByName(chassis), p, s, side);
             // A tank's contents are picked on the part. An adapter look's placeholder

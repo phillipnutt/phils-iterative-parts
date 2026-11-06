@@ -38,7 +38,7 @@ namespace PIP
             RowCaption, Placeholder, TrackLabel, TrackLabelOn;
 
         static readonly Dictionary<Color, Texture2D> solids = new Dictionary<Color, Texture2D>();
-        public static Texture2D Lock, Hatch, DiceIcon;
+        public static Texture2D Lock, Hatch, DiceIcon, PencilIcon;
 
         public static void Init()
         {
@@ -64,6 +64,7 @@ namespace PIP
             Lock = LockTexture();
             Hatch = HatchTexture();
             DiceIcon = DiceTexture();
+            PencilIcon = PencilTexture();
 
             Window = Box(Round(Panel, Line, 10), 11);
             Title = Text(Display, 19, Ink, FontStyle.Bold);
@@ -339,6 +340,30 @@ namespace PIP
                 float d = new Vector2(Mathf.Max(qx, 0), Mathf.Max(qy, 0)).magnitude + Mathf.Min(Mathf.Max(qx, qy), 0) - 3.5f;
                 float a = Mathf.Clamp01(1.3f - Mathf.Abs(d));
                 foreach (Vector2 pip in pips) a = Mathf.Max(a, Mathf.Clamp01(1.9f - (new Vector2(px, py) - pip).magnitude));
+                Color c = Ink2;
+                c.a = a;
+                return c;
+            });
+        }
+
+        // A pencil, point down to the left, for "rename". Its body is a capsule; the
+        // point tapers to nothing; a thin gap near the top marks the eraser.
+        static Texture2D PencilTexture()
+        {
+            const int size = 22;
+            Vector2 tip = new Vector2(4, 4), shoulder = new Vector2(8.5f, 8.5f), end = new Vector2(17.5f, 17.5f);
+            return Make(size, size, (x, y) =>
+            {
+                var p = new Vector2(x + 0.5f, y + 0.5f);
+                float along = Vector2.Dot(p - tip, (end - tip).normalized);
+                float off = (p - tip - (end - tip).normalized * Mathf.Clamp(along, 0, (end - tip).magnitude)).magnitude;
+                float shoulderAt = (shoulder - tip).magnitude;
+                float radius = along < shoulderAt ? Mathf.Lerp(0.4f, 2.6f, Mathf.Clamp01(along / shoulderAt)) : 2.6f;
+                float a = Mathf.Clamp01(radius + 0.5f - off);
+                if (along > (end - tip).magnitude) a = 0;
+                // The eraser band.
+                float band = Mathf.Abs(along - ((end - tip).magnitude - 3.2f));
+                if (band < 0.6f) a *= 0.15f;
                 Color c = Ink2;
                 c.a = a;
                 return c;

@@ -510,5 +510,54 @@ $plumeBlocks = [regex]::Matches($cfg, '(?ms)^\s+PLUME\s*\{(.*?)^\s+\}') | ForEac
 Check 'Fuels.cfg: a plume per fuel' $plumeBlocks.Count 11
 $keys = $plumeBlocks | ForEach-Object { [regex]::Matches($_, '(?m)^\s*(\w+) =') | ForEach-Object { $_.Groups[1].Value } } | Sort-Object -Unique
 Check 'Fuels.cfg: plume keys' ($keys -join ',') 'core,generator,lower,match,upper'
+
+Write-Host 'Program names (section 22)'
+$Names = T 'ProgramNames'; $DeckT = T 'NameDeck'
+$byType = $Names::ByType; $themes = $Names::Themes
+$allTypes = (T 'PartTypes').GetField('All').GetValue($null)
+Check 'every part type has a name group' (($allTypes | Where-Object { -not $byType.ContainsKey($_.Id) } | ForEach-Object { $_.Id }) -join ',') ''
+Check 'every part type has a theme' (($allTypes | Where-Object { -not $themes.ContainsKey($_.Id) } | ForEach-Object { $_.Id }) -join ',') ''
+Check 'no group for a type that doesn''t exist' (($byType.Keys | Where-Object { $k = $_; -not ($allTypes | Where-Object { $_.Id -eq $k }) }) -join ',') ''
+Check 'groups of 40 or more' (($byType.Keys | Where-Object { $byType[$_].Length -lt 40 } | ForEach-Object { "$_ $($byType[$_].Length)" }) -join ',') ''
+$sum = ($byType.Values | ForEach-Object { $_.Length } | Measure-Object -Sum).Sum
+$dupes = $byType.Values | ForEach-Object { $_ } | Group-Object | Where-Object { $_.Count -gt 1 } | ForEach-Object { $_.Name }
+Check 'no name in two groups, or twice in one' ($dupes -join ',') ''
+Check 'All is every group''s names once' $Names::All.Length $sum
+Check 'one word of letters, 20 at most' (($Names::All | Where-Object { $_ -notmatch '^[A-Z][a-z]{1,19}$' }) -join ',') ''
+Check 'every suggestion passes the name rules' (($Names::All | Where-Object { $null -ne $Names::Problem($_, $null) }) -join ',') ''
+# Stock and common mod part names: a program must never read like one of them.
+$stock = 'Flea','Hammer','Thumper','Kickback','Clydesdale','Pollux','Thoroughbred','Shrimp','Mite','Sepratron','Swivel','Reliant','Terrier','Spark','Ant','Spider','Twitch','Thud','Puff','Poodle','Skipper','Mainsail','Rhino','Mammoth','Vector','Dart','Kodiak','Cub','Wolfhound','Bobcat','Skiff','Mastodon','Cheetah','Frog','Nerv','Dawn','Rapier','Panther','Whiplash','Juno','Goliath','Wheesley','Hawk','Harrier','Galleon','Caravel','Pandora','Stayputnik','Okto','Hecs','Communotron','Reflectron','Gigantor','Kerbodyne'
+Check 'no stock part names' (($Names::All | Where-Object { $stock -contains $_ }) -join ',') ''
+Check 'a type''s group' ($Names::For('tank')[0]) 'Cask'
+Check 'an unknown type gets every name' $Names::For('dock').Length $Names::All.Length
+Check 'theme for the dice' ($Names::Theme('rtg')) 'hearths, lamps and slow fires'
+
+$none = [Func[string, bool]] { param($n) $false }
+$falcon = [Func[string, bool]] { param($n) $n -eq 'Falcon' }
+Check 'a name' "$($Names::Problem('Falcon', $none))" ''
+Check 'empty' ($Names::Problem('', $none)) 'Give the program a name.'
+Check 'a version on the end' ($Names::Problem('Falcon II', $none)) 'Leave the version off the name: it''s added for you (I, II, III ... Max).'
+Check '"Max" on the end' ($Names::Problem('Falcon max', $none)) 'Leave the version off the name: it''s added for you (I, II, III ... Max).'
+Check 'a numeral inside a word is fine' "$($Names::Problem('Mix', $none))" ''
+Check 'a number is fine' "$($Names::Problem('Apollo 11', $none))" ''
+Check '30 characters' "$($Names::Problem(('a' * 30), $none))" ''
+Check '31 is too long' ($Names::Problem(('a' * 31), $none)) 'Keep the name to 30 characters.'
+Check 'taken' ($Names::Problem('Falcon', $falcon)) 'There''s already a program called Falcon.'
+Check 'cleaned for the save file' ($Names::Clean('  Fal{c}on, ')) 'Falcon'
+
+function Deck([int]$seed, [string[]]$n) { $DeckT.GetConstructor([type[]]@([int], [string[]])).Invoke([object[]]@($seed, $n)) }
+$four = [string[]]@('Ash', 'Birch', 'Cedar', 'Dogwood')
+$d = Deck 7 $four
+$round1 = 1..4 | ForEach-Object { $d.Next($none) }; $round2 = 1..4 | ForEach-Object { $d.Next($none) }
+Check 'a deck deals every name once' (($round1 | Sort-Object) -join ',') 'Ash,Birch,Cedar,Dogwood'
+Check 'then shuffles and deals them again' (($round2 | Sort-Object) -join ',') 'Ash,Birch,Cedar,Dogwood'
+$d = Deck 7 $four; $noBirch = [Func[string, bool]] { param($n) $n -eq 'Birch' }
+Check 'taken names are skipped' ((1..12 | ForEach-Object { $d.Next($noBirch) } | Where-Object { $_ -eq 'Birch' }).Count) 0
+Check 'every name taken: none' "$((Deck 7 $four).Next([Func[string, bool]] { param($n) $true }))" ''
+$group = $Names::For('liquid'); $d = Deck 1 $group
+$dealt = 1..10 | ForEach-Object { $d.Next($none) }
+Check 'dealt at random, not down the list' (($dealt -join ',') -ne (($group | Select-Object -First 10) -join ',')) True
+$d2 = Deck 2 $group
+Check 'another session, another order' (($dealt -join ',') -ne ((1..10 | ForEach-Object { $d2.Next($none) }) -join ',')) True
 Write-Host ''
 if ($script:failed -eq 0) { Write-Host "All $script:passed checks passed." -ForegroundColor Green } else { Write-Host "$script:failed failed, $script:passed passed." -ForegroundColor Red; exit 1 }

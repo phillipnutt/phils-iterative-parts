@@ -4,6 +4,21 @@ Written by Claude (AI) at Phil Nutt's direction, like the rest of PIP (see
 [NOTICE.md](NOTICE.md)). The reasoning behind each change is in
 [DESIGN.md](DESIGN.md); fuel numbers and sources are in [FUELS.md](FUELS.md).
 
+## Unreleased
+
+**Rename programs** (DESIGN.md 22.1): the pencil after the Mk badge on a
+program's page. The whole family takes the new name (Kestrel I, II, Max become
+Falcon I, II, Max), free, with the same rules as a new program's name. Craft
+files and vessels in flight keep working; parts already built show the new name
+the next time they load.
+
+**Suggested names** (DESIGN.md 22.2): 751 names in a themed group for each part
+type, tied to what the part does: birds of prey for liquid engines, winds for
+jets, casks and great bottles for tanks, dances for RCS, turtles and shields for
+heat shields, and so on. The die now deals them at random (each comes up once
+before any repeats) instead of going down a list of 30, and a suggested name
+changes with the type you pick.
+
 ## 0.4.0 (2026-11-06, pre-release)
 
 **Decouplers** (DESIGN.md 21.1): a new part type. A program is a stack

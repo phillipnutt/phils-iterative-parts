@@ -2153,6 +2153,65 @@ Built as agreed (21.1 to 21.3), with these details settled in the build:
   force (a 75 kN program said 100); an adapter's tooltip listed its placeholder
   propellant as 1.0 units. Not yet seen in game.
 
+## 22. Program names (2026-11-06)
+
+Phil: "We should have the ability to rename programs", then "could you make the
+name generator have a longer list of more interesting names and also make the
+dice actually randomly shuffle through them? It currently just goes down the list"
+and "let's have interesting name groups that actually make sense and tie into
+what the part is".
+
+### 22.1 Renaming (agreed)
+
+- A pencil after the Mk badge on a program's page. The name becomes a text box
+  with Save and Cancel; Enter saves, Escape cancels.
+- **The family is renamed:** Kestrel I, II and Max become Falcon I, II and Max.
+  Names belong to the family, like the version numerals.
+- **Same rules as a new program** (`ProgramNames.Problem` in `Core/Names.cs`, now
+  shared by both): not empty, no version numeral on the end, at most 30
+  characters, not another family's name. Characters that would break the save
+  file are removed (`ProgramNames.Clean`).
+- **Free.**
+- **Nothing breaks:** parts are found by the program's id (`PIP.<id>`), never its
+  name, so craft files and vessels in flight keep working. The parts list,
+  tooltips and VAB search tags change at once (`PartFactory.Refresh` now sets
+  the tags too). A part already built keeps its saved name until it next loads,
+  then shows the new one; it keeps its version and Mk.
+
+### 22.2 Suggested names (agreed)
+
+- **A themed group per part type**, 40 to 45 names each (751 in all), in
+  `ProgramNames.ByType`. No name is in two groups.
+  - Liquid engines: birds of prey and firebirds (Kestrel, Gyrfalcon, Stoop).
+  - Solid boosters: fireworks, cannon and siege engines (Petard, Culverin, Girandole).
+  - Monopropellant engines: small darting birds and insects (Hummingbird, Damselfly).
+  - Nuclear engines: titans, giants and gods of the forge (Prometheus, Talos, Svarog).
+  - Electric engines: lightning and the gods who throw it (Raijin, Levin, Vajra).
+  - Jet engines: the world's winds (Mistral, Williwaw, Haboob).
+  - RCS thrusters: dances (Pirouette, Glissade, Rigadoon).
+  - Batteries: the pioneers of electricity (Volta, Leyden, Amber).
+  - Reaction wheels: things that spin (Dervish, Teetotum, Tourbillon).
+  - Heat shields: turtles, shields and armor (Testudo, Pavise, Salamander).
+  - Solar panels: the sun, sunflowers and the dawn (Helios, Heliotrope, Parhelion).
+  - Antennas: messengers, heralds and voices (Hermes, Hugin, Clarion).
+  - Probe cores: seers, navigators and thinking machines (Mimir, Astrolabe, Lovelace).
+  - Fuel tanks: casks, jars and great bottles (Hogshead, Amphora, Nebuchadnezzar).
+  - Plane fuselages: whales, sharks and great fish (Beluga, Cachalot, Wobbegong).
+  - Decouplers: blades and farewells (Guillotine, Godspeed, Valediction).
+  - RTGs: hearths, lamps and slow fires (Hestia, Athanor, Foxfire).
+  - Air intakes: lungs, gills and bellows (Spiracle, Badgir, Bandoneon).
+- **Random:** each type's names are a shuffled deck (`NameDeck`), shuffled again
+  each session. Every name comes up once before any repeats; names already in
+  use are skipped. The old version had 30 names in one list and dealt them in
+  order.
+- **The name follows the type:** a dealt name is re-dealt when the type changes;
+  one the player typed stays. The die's tooltip names the theme.
+- **None is a stock or common mod part's name** (no Terrier, Poodle, Panther,
+  Rapier ...), so a program never reads like a stock part. The tests check a list
+  of them.
+- A type whose names are all taken borrows from every group; a type with no
+  group yet (docking ports, later) uses every name.
+
 ## Looks and side-mount build (2026-11-04)
 
 Built from sections 15 and 16 after Phil's "Yes, build it". This is Looks

@@ -41,6 +41,7 @@
     <Compile Include="Core\OtherEngines.cs" />
     <Compile Include="Core\Parts.cs" />
     <Compile Include="Core\Program.cs" />
+    <Compile Include="Core\Names.cs" />
     <Compile Include="KSP\Settings.cs" />
     <Compile Include="KSP\TechUnlocks.cs" />
     <Compile Include="KSP\PartFactory.cs" />

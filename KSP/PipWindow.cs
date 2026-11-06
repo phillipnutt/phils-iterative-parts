@@ -23,12 +23,6 @@ namespace PIP
         const string IconPath = "PIP/Icons/toolbar";
         const float W = 1100, H = 720, TitleH = 46, RailW = 240, CfgW = 400, FootH = 76, Pad = 20;
 
-        static readonly string[] SuggestedNames =
-        {
-            "Kestrel", "Harrier", "Comet", "Tempest", "Zephyr", "Corsair", "Sabre", "Talon", "Ember", "Aurora",
-            "Halberd", "Lancer", "Mistral", "Pioneer", "Sirocco", "Valkyrie", "Peregrine", "Gale", "Vortex", "Osprey",
-            "Albatross", "Bolide", "Cirrus", "Dervish", "Equinox", "Falcon", "Gannet", "Heron", "Ibis", "Jaeger",
-        };
 
         // The tile symbol and short name of each type.
         static readonly Dictionary<PartType, string[]> Short = new Dictionary<PartType, string[]>
@@ -82,7 +76,6 @@ namespace PIP
         void Start()
         {
             if (window.x < 0) window = new Rect(Screen.width / 2f - W / 2, Screen.height / 2f - H / 2, W, H);
-            if (string.IsNullOrEmpty(newName)) newName = SuggestName();
             preview = new PartPreview();
             GameEvents.onGUIApplicationLauncherReady.Add(AddButton);
             if (ApplicationLauncher.Ready) AddButton();
@@ -112,17 +105,33 @@ namespace PIP
             else visible = false;
         }
 
-        static string SuggestName(string after = null)
+        // A random name for the type, not in use and not the one showing (Core/Names.cs).
+        // Each type has its own themed deck, shuffled per session, so every name comes
+        // up once before any repeats. A type whose names are all taken borrows from all.
+        static readonly System.Random seeds = new System.Random();
+        static readonly Dictionary<string, NameDeck> decks = new Dictionary<string, NameDeck>();
+        static string suggested;       // the name last dealt: it follows the type until edited
+        static PartType nameType;      // the type it was dealt for
+
+        static NameDeck DeckFor(string typeId)
         {
-            var used = PipScenario.Instance?.Programs.Select(p => p.Name).ToList() ?? new List<string>();
-            int start = after == null ? 0 : Array.IndexOf(SuggestedNames, after) + 1;
-            for (int i = 0; i < SuggestedNames.Length; i++)
-            {
-                string n = SuggestedNames[(start + i) % SuggestedNames.Length];
-                if (!used.Contains(n) && n != after) return n;
-            }
-            return "Program " + (used.Count + 1);
+            if (!decks.TryGetValue(typeId, out NameDeck d))
+                decks[typeId] = d = new NameDeck(seeds.Next(), typeId == "" ? ProgramNames.All : ProgramNames.For(typeId));
+            return d;
         }
+
+        static string SuggestName(PartType t, string after = null)
+        {
+            var used = new HashSet<string>(PipScenario.Instance?.Programs.Select(p => p.Name) ?? new string[0], StringComparer.OrdinalIgnoreCase);
+            Func<string, bool> taken = n => used.Contains(n) || string.Equals(n, after, StringComparison.OrdinalIgnoreCase);
+            nameType = t;
+            suggested = DeckFor(t?.Id ?? "").Next(taken) ?? DeckFor("").Next(taken) ?? "Program " + (used.Count + 1);
+            return suggested;
+        }
+
+        // Renaming a program (DESIGN.md 22): which one, and the name being typed.
+        static string renamingId, renameText, renameError;
+        static bool renameFocus;
 
         static string[] ModelOf(PartType t)
         {
@@ -351,6 +360,8 @@ namespace PIP
         {
             if (!PipSettings.On(newType)) newType = PartTypes.All.FirstOrDefault(PipSettings.On) ?? PartTypes.Liquid;
             PartType type = newType;
+            // A dealt name follows the type (a tank gets a tank's name); a typed one stays.
+            if (nameType != type && (string.IsNullOrEmpty(newName) || newName == suggested)) newName = SuggestName(type);
             string[] model = ModelOf(type);
             int[] pts = PointsOf(type);
             bool valid = type.Valid(model);
@@ -558,7 +569,7 @@ namespace PIP
             GUI.Label(new Rect(x, y, w, 16), "PROGRAM NAME", PipSkin.Section);
             y += 22;
             newName = GUI.TextField(new Rect(x, y, w - 52, 44), newName ?? "", 30, PipSkin.NameField);
-            if (GUI.Button(new Rect(x + w - 44, y, 44, 44), new GUIContent("", "Suggest another name"), PipSkin.Dice)) newName = SuggestName(newName);
+            if (GUI.Button(new Rect(x + w - 44, y, 44, 44), new GUIContent("", $"Suggest another name: {ProgramNames.Theme(newType?.Id)}"), PipSkin.Dice)) newName = SuggestName(newType, newName);
             if (Event.current.type == EventType.Repaint) GUI.DrawTexture(new Rect(x + w - 33, y + 11, 22, 22), PipSkin.DiceIcon);
             y += 44 + 20;
 
@@ -881,7 +892,7 @@ namespace PIP
                     message = null;
                     creating = false;
                     selectedId = p.Id;
-                    newName = SuggestName();
+                    newName = SuggestName(type);
                     ScreenMessages.PostScreenMessage($"Program {p.Title} started. {p.DisplayName()} is in the parts list.", 6f, ScreenMessageStyle.UPPER_CENTER);
                 }
             }
@@ -1163,6 +1174,50 @@ namespace PIP
 
         #region A program
 
+        // Renaming a family, in place of its title: the name in a text box, Save and
+        // Cancel. Enter saves, Escape cancels. The rules are a new program's.
+        void DrawRename(PipScenario scenario, Program p, float x, float y, float w)
+        {
+            const string Control = "pipRename";
+            Event e = Event.current;
+            bool save = false, cancel = false;
+            if (e.type == EventType.KeyDown && GUI.GetNameOfFocusedControl() == Control)
+            {
+                if (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter) { save = true; e.Use(); }
+                else if (e.keyCode == KeyCode.Escape) { cancel = true; e.Use(); }
+            }
+            GUI.SetNextControlName(Control);
+            renameText = GUI.TextField(new Rect(x, y + 4, w - 200, 46), renameText ?? "", ProgramNames.MaxLength, PipSkin.NameField);
+            if (renameFocus)
+            {
+                GUI.FocusControl(Control);
+                if (GUI.GetNameOfFocusedControl() == Control) renameFocus = false;
+            }
+            if (GUI.Button(new Rect(x + w - 192, y + 10, 92, 34), new GUIContent("Save", "Every version takes the new name"), PipSkin.ConfirmButton)) save = true;
+            if (GUI.Button(new Rect(x + w - 92, y + 10, 92, 34), "Cancel", PipSkin.Retire)) cancel = true;
+            if (cancel)
+            {
+                renamingId = null;
+                renameError = null;
+                return;
+            }
+            if (save)
+            {
+                string was = p.Name;
+                if (scenario.Rename(p, renameText, out string error))
+                {
+                    renamingId = null;
+                    renameError = null;
+                    int versions = scenario.Family(p).Count;
+                    if (p.Name != was)
+                        ScreenMessages.PostScreenMessage($"{was} is now {p.Name}" + (versions > 1 ? $", all {versions} versions." : "."), 5f, ScreenMessageStyle.UPPER_CENTER);
+                    return;
+                }
+                renameError = error;
+            }
+            if (!string.IsNullOrEmpty(renameError)) GUI.Label(new Rect(x, y + 50, w, 18), renameError, PipSkin.CompareBad);
+        }
+
         void DrawProgram(PipScenario scenario, Program p, Rect area)
         {
             int mk = p.Mk;
@@ -1174,10 +1229,26 @@ namespace PIP
             float x = 282, w = area.width - x - 26, y = 24;
             GUI.Label(new Rect(x, y, w, 18), $"{p.Type.Title}  ·  {p.Label}", PipSkin.Eyebrow);
             y += 20;
-            GUI.Label(new Rect(x, y, w, 54), p.Title, PipSkin.Big);
-            string badge = "Mk " + mk;
-            float nameW = Mathf.Min(w - 100, PipSkin.Width(PipSkin.Big, p.Title));
-            PipSkin.Draw(new Rect(x + nameW + 14, y + 12, PipSkin.Width(PipSkin.BigMk, badge) + 22, 34), PipSkin.BigMk, badge);
+            if (renamingId != null && renamingId != p.Id) renamingId = null;
+            if (renamingId == p.Id) DrawRename(scenario, p, x, y, w);
+            else
+            {
+                GUI.Label(new Rect(x, y, w, 54), p.Title, PipSkin.Big);
+                string badge = "Mk " + mk;
+                float nameW = Mathf.Min(w - 150, PipSkin.Width(PipSkin.Big, p.Title));
+                float badgeW = PipSkin.Width(PipSkin.BigMk, badge) + 22;
+                PipSkin.Draw(new Rect(x + nameW + 14, y + 12, badgeW, 34), PipSkin.BigMk, badge);
+                // Rename: the pencil after the Mk badge.
+                var pencil = new Rect(x + nameW + 14 + badgeW + 10, y + 12, 34, 34);
+                if (GUI.Button(pencil, new GUIContent("", $"Rename {p.Name}: every version takes the new name. Free."), PipSkin.Dice))
+                {
+                    renamingId = p.Id;
+                    renameText = p.Name;
+                    renameError = null;
+                    renameFocus = true;
+                }
+                if (Event.current.type == EventType.Repaint) GUI.DrawTexture(new Rect(pencil.x + 6, pencil.y + 6, 22, 22), PipSkin.PencilIcon);
+            }
             y += 66;
 
             // The experience track: one segment for each Mk. after the first.

@@ -80,6 +80,8 @@ namespace PIP
             // New builds use the family's newest version.
             if (HighLogic.LoadedSceneIsEditor) program = PipScenario.Instance?.Latest(program);
             if (HighLogic.LoadedSceneIsEditor || (program != null && !Assigned)) Assign(program);
+            // A renamed program: the part keeps its version and Mk, and shows the new name.
+            else if (program != null && program.Id == programId) programName = program.Title;
             if (HighLogic.LoadedSceneIsEditor) flew = false;
             started = true;
             Apply();

@@ -85,12 +85,32 @@ namespace PIP
             return list;
         }
 
-        // Names are the family's: the version ("I", "II", "Max") is added for you.
-        static readonly System.Text.RegularExpressions.Regex Numeral =
-            new System.Text.RegularExpressions.Regex(@"\s(M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})|Max)$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        // Names are the family's: the version ("I", "II", "Max") is added for you. The
+        // rules are in Core/Names.cs.
+        bool NameTaken(string name, Program except = null)
+        {
+            var family = except != null ? Family(except) : null;
+            return Programs.Any(p => (family == null || !family.Contains(p)) && string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
+        }
 
-        public static string CleanName(string name) =>
-            (name ?? "").Replace("{", "").Replace("}", "").Replace("//", "/").Replace(",", "").Trim();
+        // Renames a whole family (Kestrel I, II, Max become Falcon I, II, Max), free.
+        // Parts are found by the program's id, never its name, so craft files and
+        // vessels in flight keep working; built parts show the new name when they
+        // next load (DESIGN.md 22).
+        public bool Rename(Program p, string name, out string error)
+        {
+            name = ProgramNames.Clean(name);
+            error = ProgramNames.Problem(name, n => NameTaken(n, p));
+            if (error != null) return false;
+            if (name == p.Name) return true;
+            foreach (Program v in Family(p))
+            {
+                v.Name = name;
+                PartFactory.Refresh(v);
+            }
+            RefreshEditor();
+            return true;
+        }
 
         public Program Create(string name, PartType type, string[] model, int[] points, out string error) =>
             Create(name, type, model, points, "", "", type.DefaultVariant(model), "", out error);
@@ -102,18 +122,9 @@ namespace PIP
         public Program Create(string name, PartType type, string[] model, int[] points, string look, string sideLook, string variant, string gimbal, out string error)
         {
             error = null;
-            name = CleanName(name);
-            if (name.Length == 0) { error = "Give the program a name."; return null; }
-            if (Numeral.IsMatch(name) && Numeral.Match(name).Value.Trim().Length > 0)
-            {
-                error = "Leave the version off the name: it's added for you (I, II, III ... Max).";
-                return null;
-            }
-            if (Programs.Any(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase)))
-            {
-                error = $"There's already a program called {name}.";
-                return null;
-            }
+            name = ProgramNames.Clean(name);
+            error = ProgramNames.Problem(name, n => NameTaken(n));
+            if (error != null) return null;
             if (type.HasGimbalPick)
             {
                 Option g = PartType.GimbalOptions.FirstOrDefault(o => o.Code == gimbal) ?? PartType.GimbalOptions[0];
