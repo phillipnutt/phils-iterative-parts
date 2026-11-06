@@ -24,6 +24,11 @@ release is in [CHANGELOG.md](CHANGELOG.md).
 CKAN installs these with PIP. Without any one of them PIP stays off and says
 which is missing at the main menu.
 
+Installing by hand? Each release has two downloads: **PIP only**, or **with
+dependencies**, which includes these five mods unmodified (credits and licenses
+in `GameData/PIP/Bundled/BUNDLED.md`). Use the PIP-only one if you already have
+them, so an older bundled copy never replaces a newer one.
+
 | Mod | Why |
 |---|---|
 | Harmony 2 | PIP's plugin patches the game with it |
@@ -83,9 +88,10 @@ and PIP makes its engines and tank recipe. FUELS.md says how.
 - **Written by:** Claude (Anthropic), directed by Phil Nutt. Phil designed the
   mod and tests it; the code is entirely AI-written and hasn't been reviewed by
   a human programmer.
-- **Includes nothing from anyone else:** no other mod's code, models or
-  textures, and no KSP assets. The mods PIP needs are installed separately.
-  Parts copy what's already installed in your game. See [NOTICE.md](NOTICE.md).
+- **PIP includes nothing from anyone else:** no other mod's code, models or
+  textures, and no KSP assets. Parts copy what's already installed in your game.
+  The "with dependencies" download adds the five mods PIP needs, unmodified and
+  under their own licenses. See [NOTICE.md](NOTICE.md).
 - Unofficial fan-made mod; not affiliated with the makers of Kerbal Space
   Program or of the mods it works with.
 
@@ -97,4 +103,5 @@ after a build; build with `/p:NoInstall=true` to leave the game alone. The chass
 configs are generated: run `Tools\Generate-Chassis.ps1`,
 `Tools\Generate-PartChassis.ps1`, `Tools\Generate-Upgrades.ps1` and
 `Tools\Generate-Fuels.ps1`.
-`Tools\Test-Core.ps1` tests the rules in `Core\`.
+`Tools\Test-Core.ps1` tests the rules in `Core\`. `Tools\Make-Release.ps1`
+builds a release's two zips.

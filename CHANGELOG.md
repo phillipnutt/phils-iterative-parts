@@ -50,6 +50,11 @@ sized to the engine. PIP ships none of Waterfall's files; it names its templates
 their names, so saved craft load with the same propellant. Checked on craft
 built during this work, not yet on a full 0.1.1 career.
 
+**Downloads:** a second zip, "with dependencies", bundles the five required mods
+unmodified for installing by hand, with their credits and licenses in
+`GameData/PIP/Bundled/` (added the same day; `Tools/Make-Release.ps1` builds
+both zips).
+
 ## 0.1.1 (2026-11-05, pre-release)
 
 - Same build as 0.1.0, plus the MIT license and NOTICE.md, which says plainly

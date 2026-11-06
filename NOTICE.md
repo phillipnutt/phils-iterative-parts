@@ -21,12 +21,19 @@ direction are his own.
 
 ## What it uses, and what it doesn't include
 
-PIP contains **no code, models, textures or other files from anyone else.**
+PIP itself contains **no code, models, textures or other files from anyone else.**
 
-- **No other mod's files are included.** PIP needs Harmony, Module Manager,
-  B9PartSwitch, Community Tech Tree and Community Resource Pack, but they are installed
-  separately (CKAN does this). PIP calls them while the game runs. It is built
-  against KSP's, Unity's and Harmony's libraries, but none of them is shipped.
+- **The PIP-only download includes no other mod's files.** PIP needs Harmony,
+  Module Manager, B9PartSwitch, Community Tech Tree and Community Resource Pack,
+  installed separately (CKAN does this). PIP calls them while the game runs. It
+  is built against KSP's, Unity's and Harmony's libraries, but none of them is
+  shipped with it.
+- **The "with dependencies" download bundles those five mods, unmodified,** as
+  their authors distribute them, each under its own license (MIT, CC BY-SA,
+  LGPL-3.0, and two non-commercial Creative Commons licenses). Their authors,
+  versions, licenses and sources are in `GameData/PIP/Bundled/BUNDLED.md`, with
+  their license texts. PIP's MIT license covers only PIP; the bundle may not be
+  sold.
 - **No KSP assets are included.** PIP's parts copy parts already installed in
   your game when it loads: stock parts and, if you have them, parts from other
   mods (its "looks"). The configs only name those parts. They don't contain
