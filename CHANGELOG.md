@@ -4,7 +4,7 @@ Written by Claude (AI) at Phil Nutt's direction, like the rest of PIP (see
 [NOTICE.md](NOTICE.md)). The reasoning behind each change is in
 [DESIGN.md](DESIGN.md); fuel numbers and sources are in [FUELS.md](FUELS.md).
 
-## Unreleased (next: 0.2.0)
+## 0.2.0 (2026-11-05, pre-release)
 
 **Requirements changed:** PIP no longer needs CryoTanks. It needs **Community
 Resource Pack** instead (CKAN installs it). CryoTanks can stay installed; PIP

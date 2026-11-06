@@ -5,7 +5,7 @@
 > Phil's; the wording and the code are Claude's. See [NOTICE.md](NOTICE.md).
 
 **Status, 2026-11-05:** sixteen part types built and play-tested, in Phil's
-modded game and on a clean install. Released as 0.1.1 (pre-release); what has
+modded game and on a clean install. Released as 0.2.0 (pre-release); what has
 changed since is in [CHANGELOG.md](CHANGELOG.md).
 
 **This is a log, not one spec.** Later sections change earlier ones; where they
