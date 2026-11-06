@@ -16,7 +16,8 @@ batteries, reaction wheels, heat shields, solar panels, antennas, probe cores,
 fuel tanks, RTGs and air intakes. Any installed part can lend a program its
 model ("looks").
 
-The full design and build log is [DESIGN.md](DESIGN.md).
+The full design and build log is [DESIGN.md](DESIGN.md); what changed in each
+release is in [CHANGELOG.md](CHANGELOG.md).
 
 ## Requirements
 

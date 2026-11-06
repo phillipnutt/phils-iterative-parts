@@ -1,11 +1,23 @@
-# PIP: Phil's Iterative Parts — Engine Spec (v1)
+# PIP: Phil's Iterative Parts — design log
 
 > Written by an AI: this design log, and all of PIP's code, were written by
 > Claude (Anthropic) at Phil Nutt's direction. The decisions recorded here are
 > Phil's; the wording and the code are Claude's. See [NOTICE.md](NOTICE.md).
 
-Status: **first draft built and flight-tested**, 2026-11-03 (see "First draft
-status" at the end). This replaces the old "Iterative Development" design
+**Status, 2026-11-05:** sixteen part types built and play-tested, in Phil's
+modded game and on a clean install. Released as 0.1.1 (pre-release); what has
+changed since is in [CHANGELOG.md](CHANGELOG.md).
+
+**This is a log, not one spec.** Later sections change earlier ones; where they
+disagree, the later one stands. The big ones:
+- **Section 18** replaced Mk. 0–10 with Mk. 1–5 and versions (I, II … Max), and
+  added the Build cost slider and the free gimbal pick.
+- **Section 19** replaced CryoTanks with PIP's own fuel table (eleven fuels,
+  [FUELS.md](FUELS.md)), tanks, boil-off and plumes; 19.6 made dense fuels pay off
+  and capped fuel prices; 19.7 let every fuel into standard tanks and moved
+  cryogenic tanks to 300 science.
+
+The first draft (2026-11-03) replaced the old "Iterative Development" design
 (design blocks and development points); that version is retired.
 
 ---
@@ -2255,6 +2267,28 @@ editor broke) and the R&D unlock pictures. See section 17, "Phil's own test".
 Crew moves it in Phil's pack; PIP never touches crewed pods); stock shows TWR in
 the staging list through the Δv app's display options. No decoupler type: there's
 too little to put points into.
+
+**Later the same day (fuels work, section 19):**
+- **Plumes far too big** on small engines (Claude's flight test): the Goldfish's
+  own plume is a vernier template, and swapping it 1:1 for Aerozine's main plume
+  made a column meters wide. Swapped templates are now rescaled by their measured
+  size per meter of engine (19.4). Fixed, re-flown.
+- **"Pushing more GUIClips than popping" and "Value cannot be null, key",
+  repeated a million times** (Phil, new career on the clean install): the
+  program window's gimbal row asked R&D for the name of the free gimbal options'
+  tech node (none) while liquid engines weren't researched. It now names the
+  type's own node, a missing node has no name instead of an error, and any
+  drawing error closes the window with one message (commit b13ccce). Fixed.
+- **ClF5 cost 311,000 to fill a Jumbo-64** (Phil: "exorbitant") and was barely
+  better than kerolox: fixed by 19.6.
+- **Methalox and hydrazine/ClF5 plumes looked the same on the clean install**
+  (Phil): expected, since that install has no Waterfall. In Phil's pack they
+  differ.
+- **"Are the separate fuel options for cryo and standard actually real?"**
+  (Phil): half. The storables really are storable; kerolox counts as standard
+  only because KSP's oxidizer never boils (real liquid oxygen is as cryogenic
+  as methane). Led to 19.7. Sunlight-based boil-off and boiling oxygen were
+  discussed and parked.
 
 ---
 
