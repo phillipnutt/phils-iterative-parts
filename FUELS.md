@@ -16,20 +16,20 @@ nozzle; vacuum for the vacuum nozzle). Thrust, engine price and thrust-to-weight
 are against kerolox's. "Fails to light" is a mature engine at 0 and 100
 Reliability points. "Per ton of tank" is how many tons of propellant a full tank
 holds for each ton of empty tank. "A full tank" is what filling an FL-T400-sized
-tank (400 volume) costs.
+tank (400 volume) costs. "Kind": cryogenic fuels boil off (see Boil-off).
 
-| Code | Fuel | Propellants | Unlocks at | Isp SL/vac | Vac. nozzle | Thrust | TWR | Engine price | Fails to light | Mix kg/L | Per ton of tank | A full tank | Tank |
+| Code | Fuel | Propellants | Unlocks at | Isp SL/vac | Vac. nozzle | Thrust | TWR | Engine price | Fails to light | Mix kg/L | Per ton of tank | A full tank | Kind |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| K | Kerolox | LiquidFuel + Oxidizer | first liquid engines | 310/340 | 385 | 1 | 24.5 | 1 | 2% → 0.1% | 1.00 | 8 | 184 | standard |
-| E | Ethalox | Ethanol75 + Oxidizer | first liquid engines | 288/317 | 358 | 0.9 | 21 | 0.7 | 1.5% → 0.08% | 0.92 | 7.4 | 158 | standard |
-| N | Nitric acid | UDMH + IRFNA-III | General Rocketry | 281/306 | 346 | 1.05 | 23 | 0.85 | 0.8% → 0.03% | 1.30 | 10.4 | 220 | standard |
-| P | Peroxide | LiquidFuel + HTP | Fuel Systems | 285/313 | 354 | 1 | 25 | 0.9 | 1.2% → 0.06% | 1.36 | 10.9 | 260 | standard |
-| A | Aerozine | Aerozine50 + NTO | Adv. Fuel Systems | 298/324 | 367 | 1.05 | 25 | 1.1 | 0.6% → 0.02% | 1.20 | 9.6 | 370 | standard |
+| K | Kerolox | LiquidFuel + Oxidizer | first liquid engines | 310/340 | 385 | 1 | 24.5 | 1 | 2% → 0.1% | 1.00 | 8 | 184 | storable |
+| E | Ethalox | Ethanol75 + Oxidizer | first liquid engines | 288/317 | 358 | 0.9 | 21 | 0.7 | 1.5% → 0.08% | 0.92 | 7.4 | 158 | storable |
+| N | Nitric acid | UDMH + IRFNA-III | General Rocketry | 281/306 | 346 | 1.05 | 23 | 0.85 | 0.8% → 0.03% | 1.30 | 10.4 | 220 | storable |
+| P | Peroxide | LiquidFuel + HTP | Fuel Systems | 285/313 | 354 | 1 | 25 | 0.9 | 1.2% → 0.06% | 1.36 | 10.9 | 260 | storable |
+| A | Aerozine | Aerozine50 + NTO | Adv. Fuel Systems | 298/324 | 367 | 1.05 | 25 | 1.1 | 0.6% → 0.02% | 1.20 | 9.6 | 370 | storable |
 | H | Hydrolox | LqdHydrogen + Oxidizer | Adv. Fuel Systems | 380/425 | 475 | 0.9 | 22 | 1.3 | 2% → 0.1% | 0.30 | 7.2 | 97 | cryogenic |
-| S | Syntin | Syntin + Oxidizer | Large Volume Containment | 315/345 | 391 | 1.05 | 25.5 | 1.4 | 2% → 0.1% | 0.95 | 7.6 | 321 | standard |
+| S | Syntin | Syntin + Oxidizer | Large Volume Containment | 315/345 | 391 | 1.05 | 25.5 | 1.4 | 2% → 0.1% | 0.95 | 7.6 | 321 | storable |
 | M | Methalox | LqdMethane + Oxidizer | High-Performance Fuel Systems | 340/362 | 395 | 1.15 | 28 | 1.2 | 1.5% → 0.05% | 0.78 | 7.5 | 383 | cryogenic |
 | F | FLOX | LiquidFuel + FLOX70 | Specialized Fuel Storage | 356/383 | 434 | 1.1 | 24 | 1.6 | 1.2% → 0.06% | 1.29 | 10.3 | 550 | cryogenic |
-| C | ClF5 | Hydrazine + ClF5 | Exotic Fuel Storage | 324/347 | 393 | 1.15 | 24 | 1.8 | 0.8% → 0.03% | 1.53 | 12.2 | 650 | standard |
+| C | ClF5 | Hydrazine + ClF5 | Exotic Fuel Storage | 324/347 | 393 | 1.15 | 24 | 1.8 | 0.8% → 0.03% | 1.53 | 12.2 | 650 | storable |
 | L | Fluorine | LqdHydrogen + LqdFluorine | Extreme Fuel Storage | 425/455 | 515 | 0.95 | 20 | 2.2 | 1.2% → 0.06% | 0.46 | 11.1 | 740 | cryogenic |
 
 Kerolox, hydrolox and methalox keep the numbers PIP had before the table; the
@@ -64,9 +64,20 @@ kerosene and `Oxidizer` is liquid oxygen, so the fuels that burn those use them.
 
 ### Boil-off
 
-Fuels in **cryogenic** tanks boil off unless the tank's cooling is on and the
-vessel has electric charge to run it. Insulation points cut both the loss and the
-power.
+Every fuel fits in every **standard** tank, from the first one you research. A
+standard tank has no insulation or cooling, so the cryogenic fuels in it boil off
+at 4 times the base rates below, all the time. **Cryogenic** tanks come later
+(Large Volume Containment, 300 science): they boil off at 2 times the base rate
+with no Insulation points and a fifth of it at 100, and they stop boil-off
+entirely while their cooling is on and the vessel has electric charge.
+
+| Hydrogen lost on... | Standard tank | Cryogenic, 0 points, cooling off | Cryogenic, 100 points, cooling off |
+|---|---|---|---|
+| a Mun trip (~12 h) | 2.4% | 1.2% | 0.1% |
+| a Minmus trip (~30 h) | 6% | 3% | 0.3% |
+| a coast to Duna (~1,800 h) | 97% | 83% | 16% |
+
+Methane, fluorine and FLOX lose a tenth as much.
 
 | Resource | Lost per hour | EC/s per 1,000 units to cool |
 |---|---|---|
@@ -78,8 +89,10 @@ power.
 Hydrogen and methane are CryoTanks' rates. Fluorine and FLOX take methane's: per
 liter, they need about as much heat to boil (fluorine about 259 MJ/m³, liquid
 oxygen 243, methane 217, hydrogen 32), which is why hydrogen is the hard one.
-`Oxidizer` doesn't boil off, as in stock KSP and CryoTanks. The rates are before
-Insulation: at 0 points a tank loses twice them, at 100 points a fifth.
+`Oxidizer` doesn't boil off, as in stock KSP and CryoTanks (real liquid oxygen
+would, at about methane's rate). The rates above are the base: standard tanks
+lose 4 times them, cryogenic tanks 2 times at 0 Insulation points down to a fifth
+at 100.
 
 ### Plumes
 
@@ -152,7 +165,8 @@ PIP_FUEL
     failLo = 0.001           // ... and at 100
     TANK
     {
-        kind = S             // S standard, or C cryogenic (boils off)
+        kind = C             // S storable (standard tanks), or C cryogenic (standard tanks, where it
+                             // boils off fast, and cryogenic tanks)
         name = Example       // saved in craft files: never change it once used
         title = Ex/Ox
         tankType = MY-EXAMPLE-MIX   // a B9_TANK_TYPE you define

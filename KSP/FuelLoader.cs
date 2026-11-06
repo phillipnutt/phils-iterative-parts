@@ -192,9 +192,11 @@ namespace PIP
             return f;
         }
 
-        // A fuel's TANK nodes put its recipe on PIP's tank of that kind ("S" standard,
-        // "C" cryogenic, which boils off), as one more pick on the part's propellant
-        // switch. The recipe is a B9_TANK_TYPE written in the config itself.
+        // A fuel's TANK nodes put its recipe on PIP's tanks as one more pick on the
+        // part's propellant switch: kind "S" (storable) on standard tanks, kind "C"
+        // (cryogenic) on standard tanks, where it boils off fast, and on cryogenic
+        // tanks, which insulate and cool it (DESIGN.md 19.7). The recipe is a
+        // B9_TANK_TYPE written in the config itself.
         static void AddTanks(IEnumerable<string> codes)
         {
             var wanted = new HashSet<string>(codes);
@@ -210,14 +212,17 @@ namespace PIP
                     string kind = t.GetValue("kind") ?? "S", name = t.GetValue("name"), type = t.GetValue("tankType");
                     if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(type)) continue;
                     if (!tankTypes.Contains(type)) { Debug.LogWarning($"[PIP] Fuels.cfg: no B9_TANK_TYPE {type} for tank {name}"); continue; }
-                    if (!tanks.TryGetValue("PIP-TNK-" + kind, out ConfigNode part)) continue;
-                    ConfigNode sw = part.GetNodes("MODULE").FirstOrDefault(m => m.GetValue("name") == "ModuleB9PartSwitch" && m.GetValue("moduleID") == "fuelSwitch");
-                    if (sw == null || sw.GetNodes("SUBTYPE").Any(s => s.GetValue("name") == name)) continue;
-                    ConfigNode s2 = sw.AddNode("SUBTYPE");
-                    s2.AddValue("name", name);
-                    s2.AddValue("title", t.GetValue("title") ?? name);
-                    s2.AddValue("tankType", type);
-                    added.Add($"{name} ({kind})");
+                    foreach (string on in kind == "C" ? new[] { "S", "C" } : new[] { "S" })
+                    {
+                        if (!tanks.TryGetValue("PIP-TNK-" + on, out ConfigNode part)) continue;
+                        ConfigNode sw = part.GetNodes("MODULE").FirstOrDefault(m => m.GetValue("name") == "ModuleB9PartSwitch" && m.GetValue("moduleID") == "fuelSwitch");
+                        if (sw == null || sw.GetNodes("SUBTYPE").Any(s => s.GetValue("name") == name)) continue;
+                        ConfigNode s2 = sw.AddNode("SUBTYPE");
+                        s2.AddValue("name", name);
+                        s2.AddValue("title", t.GetValue("title") ?? name);
+                        s2.AddValue("tankType", type);
+                        added.Add($"{name} ({on})");
+                    }
                 }
             }
             if (added.Count > 0) Debug.Log("[PIP] Tank recipes added: " + string.Join(", ", added));

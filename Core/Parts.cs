@@ -443,7 +443,9 @@ namespace PIP
     }
 
     // Fuel tanks: kind, size and length per program; propellant on the part. Weight is a
-    // factor on today's tanks; insulation only for cryogenic tanks (PIP's boil-off).
+    // factor on today's tanks. Standard tanks hold any fuel's mix but have no
+    // insulation or cooling, so cryogenic fuels boil off fast in them; cryogenic tanks
+    // (later in the tree) have Insulation and cooling (DESIGN.md 19.7).
     public sealed class FuelTanks : PartKind
     {
         public override string Id => "tank";
@@ -453,7 +455,7 @@ namespace PIP
 
         static readonly Choice[] choices =
         {
-            new Choice("Kind", new Option("S", "Standard"), new Option("C", "Cryogenic", "advFuelSystems"),
+            new Choice("Kind", new Option("S", "Standard"), new Option("C", "Cryogenic", "largeVolumeContainment"),
                 new Option("M", "Monopropellant", "flightControl"), new Option("E", "Electric propellant", "ionPropulsion")),
         };
         public static readonly string[] SizeCodes = { "0625", "125", "1875", "25", "375", "5" };
@@ -547,6 +549,9 @@ namespace PIP
         public const string UnitsKey = "units";
         // Liquid hydrogen boil-off, % of the fuel per hour, before Insulation (Fuels.cfg; CryoTanks' rate).
         public const double HydrogenBoiloff = 0.05;
+        // A standard tank's boil-off against the base rate: no insulation, no cooling
+        // (a cryogenic tank with no Insulation points is 2).
+        public const double Uninsulated = 4;
 
         public override Stats Compute(string[] m, int[] pts, int mk, FailureLevel level, string variant = null)
         {
@@ -554,7 +559,7 @@ namespace PIP
             s[WeightFactor] = Lerp(1.6, 0.8, E(pts, 0, mk));
             s[Crash] = Lerp(4, 20, E(pts, 1, mk));
             s[MaxTemp] = Lerp(1400, 2600, E(pts, 1, mk));
-            s[Boiloff] = Cryogenic(m) ? Lerp(2, 0.2, E(pts, 2, mk)) : 1;
+            s[Boiloff] = Cryogenic(m) ? Lerp(2, 0.2, E(pts, 2, mk)) : Uninsulated;
             s[BoiloffRate] = HydrogenBoiloff * s[Boiloff];
             s[VolumeKey] = Volume(variant ?? "125-L");
             s[UnitsKey] = s[VolumeKey] * UnitsPerVolume(m);
@@ -569,7 +574,8 @@ namespace PIP
             new Row("Empty weight", K.Mass, 0, Fmt.Tons),
             new Row("Survives impacts to", Crash, 1, v => $"{v:0} m/s"),
             new Row("  and heat to", MaxTemp, -1, v => $"{v:N0} K"),
-            new Row("Hydrogen boil-off", BoiloffRate, 2, v => $"{v:0.###}% an hour"),
+            Cryogenic(m) ? new Row("Hydrogen boil-off", BoiloffRate, 2, v => $"{v:0.###}% an hour")
+                : new Row("Hydrogen boil-off, uninsulated", BoiloffRate, m != null && m.Length > 0 && m[0] == "S" ? -1 : 2, v => $"{v:0.###}% an hour"),
             new Row($"  holds ({Contents(m)})", UnitsKey, -1, v => $"{v:N0} units"),
         };
 
@@ -578,7 +584,7 @@ namespace PIP
         {
             switch (m[0])
             {
-                case "S": return "Kerolox, liquid fuel, oxidizer or another storable fuel's mix, picked on the part.";
+                case "S": return "Any fuel's mix, picked on the part. No insulation: hydrogen and other cryogenic fuels boil off fast.";
                 case "C": return "Hydrolox, methalox or another cryogenic mix, picked on the part. Boils off unless cooled.";
                 case "M": return "Monopropellant.";
                 default: return "Xenon, argon or lithium, picked on the part.";

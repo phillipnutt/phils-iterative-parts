@@ -57,9 +57,11 @@ charges for a program it can't make a part for.
 Liquid engine programs pick a fuel from a table of eleven, from ethalox (the
 V-2's) to fluorine and hydrogen (the highest Isp of any chemical rocket), each
 unlocked at its own tech node. Their Isp comes from real performance data; the
-table, sources and rules are in [FUELS.md](FUELS.md). Cryogenic fuels boil off
-in PIP's cryogenic tanks unless cooling is on and the vessel has electric charge
-(PIP's own boil-off; CryoTanks isn't needed).
+table, sources and rules are in [FUELS.md](FUELS.md). Every fuel fits in every
+standard tank, but standard tanks have no insulation, so hydrogen, methane and
+fluorine boil off in them. Cryogenic tanks come later in the tree: insulated, and
+cooled while the vessel has electric charge (PIP's own boil-off; CryoTanks isn't
+needed).
 
 The table is a config, `GameData/PIP/Fuels.cfg`, so another mod's fuel can be
 added without code: a `PIP_FUEL` node names its propellants, Isp and the rest,

@@ -134,8 +134,9 @@ namespace PIP
         static string ModuleIdOf(PartModule m) =>
             m.Fields["moduleID"]?.GetValue(m) as string ?? m.GetType().GetField("moduleID")?.GetValue(m) as string;
 
-        // A cryogenic tank's boil-off and cooling factor from Insulation (ModulePipBoiloff).
-        public double BoiloffFactor => Assigned && FuelTanks.Cryogenic(Model) ? Stats[FuelTanks.Boiloff] : 1;
+        // A tank's boil-off and cooling factor (ModulePipBoiloff): from Insulation on a
+        // cryogenic tank, FuelTanks.Uninsulated on a standard one.
+        public double BoiloffFactor => Assigned && typeId == "tank" ? Stats[FuelTanks.Boiloff] : 1;
 
         Stats Stats
         {

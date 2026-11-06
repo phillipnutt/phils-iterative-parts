@@ -224,10 +224,14 @@ L '}'
 # mod's fuel switch or boil-off) is taken off. Other fuels' tanks (Fuels.cfg, PIP_FUEL
 # TANK nodes) are added to these switches by FuelLoader when the game loads.
 $kinds = @(
-    @('S', 'standard', @(@('LF/O', 'LF/Ox', 'PIP-LFOX'), @('LiquidFuel', 'LF', 'PIP-LF'), @('Oxidizer', 'Ox', 'PIP-OX')), $false),
-    @('C', 'cryogenic', @(@('LH2/O', 'LH2/Ox', 'PIP-LH2O'), @('LH2', 'LH2', 'PIP-LH2'), @('Methalox', 'LCH4/Ox', 'PIP-LMOX'), @('Methane', 'LCH4', 'PIP-LM')), $true),
-    @('M', 'monopropellant', @(, @('Monopropellant', 'Monoprop', 'PIP-MONO')), $false),
-    @('E', 'electric propellant', @(@('Xenon', 'Xenon', 'PIPXenon'), @('Argon', 'Argon', 'PIPArgon'), @('Lithium', 'Lithium', 'PIPLithium')), $false)
+    # kind, title, propellant subtypes (name, title, tank type), boil-off module: 'cool',
+    # 'leak' (no insulation or cooling) or none. Standard tanks hold every mix and leak
+    # cryogenic fuels; cryogenic tanks insulate and cool (DESIGN.md 19.7).
+    @('S', 'standard', @(@('LF/O', 'LF/Ox', 'PIP-LFOX'), @('LiquidFuel', 'LF', 'PIP-LF'), @('Oxidizer', 'Ox', 'PIP-OX'),
+        @('LH2/O', 'LH2/Ox', 'PIP-LH2O'), @('LH2', 'LH2', 'PIP-LH2'), @('Methalox', 'LCH4/Ox', 'PIP-LMOX'), @('Methane', 'LCH4', 'PIP-LM')), 'leak'),
+    @('C', 'cryogenic', @(@('LH2/O', 'LH2/Ox', 'PIP-LH2O'), @('LH2', 'LH2', 'PIP-LH2'), @('Methalox', 'LCH4/Ox', 'PIP-LMOX'), @('Methane', 'LCH4', 'PIP-LM')), 'cool'),
+    @('M', 'monopropellant', @(, @('Monopropellant', 'Monoprop', 'PIP-MONO')), ''),
+    @('E', 'electric propellant', @(@('Xenon', 'Xenon', 'PIPXenon'), @('Argon', 'Argon', 'PIPArgon'), @('Lithium', 'Lithium', 'PIPLithium')), '')
 )
 
 # PIP's tank types, under PIP's own names so they never clash with anyone's. The
@@ -289,6 +293,7 @@ foreach ($k in $kinds) {
         L '    MODULE'
         L '    {'
         L '        name = ModulePipBoiloff'
+        if ($k[3] -eq 'leak') { L '        canCool = False' }
         L '    }'
     }
     $subs = foreach ($c in '0625', '125', '1875', '25', '375', '5') {

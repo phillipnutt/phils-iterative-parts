@@ -168,6 +168,15 @@ Check 'tank: a short 0.625 m holds 12.5' ([PIP.FuelTanks]::Units((M 'S'), '0625-
 Check 'tank: hydrogen boil-off at 0 insulation' (PStat 'Tank' 'C' @(0, 0, 0) 10 'boiloffRate' '125-L') 0.1 1e-9
 Check 'plain percentages' "$([PIP.PartKind]::Percent(1.2, 'more', 'less'))|$([PIP.PartKind]::Percent(0.6, 'more', 'less'))|$([PIP.PartKind]::Percent(1, 'more', 'less'))" '20% more|40% less|as stock'
 Check 'tank: insulation only for cryogenic' "$((TypeOf 'Tank').CategoryUsed((M 'S'), 2)),$((TypeOf 'Tank').CategoryUsed((M 'C'), 2))" 'False,True'
+# Section 19.7: standard tanks hold every mix and leak cryogenic fuels at 4x;
+# cryogenic tanks come later, with Insulation and cooling.
+Check 'tank: standard tanks leak at 4x the base rate' "$(PStat 'Tank' 'S' @(0, 0, 0) 10 'boiloff' '125-L'),$(PStat 'Tank' 'S' @(0, 0, 0) 10 'boiloffRate' '125-L')" '4,0.2'
+Check 'tank: cryogenic tanks unlock at Large Volume Containment' ((TypeOf 'Tank').Choices[0].Find('C').Tech) 'largeVolumeContainment'
+$partsCfg = Get-Content (Join-Path $PSScriptRoot '..\GameData\PIP\Chassis\Parts.cfg') -Raw
+function TankBlock($k) { [regex]::Match($partsCfg, "(?s)@name = PIP-TNK-$k\b.*?(?=\+PART\[|\z)").Value }
+$std = TankBlock 'S'; $cry = TankBlock 'C'
+Check 'tank: standard holds every mix' (([regex]::Matches($std, 'tankType = (\S+)') | ForEach-Object { $_.Groups[1].Value }) -join ',') 'PIP-LFOX,PIP-LF,PIP-OX,PIP-LH2O,PIP-LH2,PIP-LMOX,PIP-LM'
+Check 'tank: standard boils off but can''t cool, cryogenic cools' "$($std -match 'name = ModulePipBoiloff\s+canCool = False'),$($cry -match 'name = ModulePipBoiloff\s+\}')" 'True,True'
 Check 'tank: 24 size-and-length variants' ((TypeOf 'Tank').Variants((M 'S')).Length) 24
 Check 'rtg: large output at 100' (PStat 'Rtg' '' @(100, 0) 10 'ecRate' 'L') 4.5 1e-9
 Check 'intake: hypersonic top speed at 100' (PStat 'Intake' 'H' @(0, 100, 0) 10 'topMach' '125') 9.6 1e-9

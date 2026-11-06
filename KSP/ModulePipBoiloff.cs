@@ -4,14 +4,17 @@ using UnityEngine;
 
 namespace PIP
 {
-    // PIP's own boil-off for cryogenic tanks (DESIGN.md section 19). A cryogenic
-    // fuel boils away unless the tank's cooling is on and the vessel has electric
-    // charge to run it. Rates per resource come from Fuels.cfg (PIP_BOILOFF, the same
-    // numbers as CryoTanks); the program's Insulation scales both the loss and the
-    // cooling cost. A vessel that comes back after being away catches up: if it was
-    // cooled and powered when last seen, it lost nothing; otherwise it boiled off.
+    // PIP's own boil-off (DESIGN.md sections 19 and 19.7). A cryogenic fuel boils
+    // away unless the tank can be cooled, its cooling is on and the vessel has
+    // electric charge to run it. Rates per resource come from Fuels.cfg
+    // (PIP_BOILOFF, CryoTanks' numbers for hydrogen and methane). A cryogenic tank's
+    // Insulation scales the loss and the cooling cost; a standard tank has no
+    // insulation and no cooling (canCool = false), so it boils at the uninsulated
+    // rate. A vessel that comes back after being away catches up: if it was cooled
+    // and powered when last seen it lost nothing; otherwise it boiled off.
     public class ModulePipBoiloff : PartModule
     {
+        [KSPField] public bool canCool = true;
         [KSPField(isPersistant = true)] public bool coolingOn = true;
         [KSPField(isPersistant = true)] public bool cooledLast = true;
         [KSPField(isPersistant = true)] public double lastUT = -1;
@@ -27,6 +30,7 @@ namespace PIP
         };
 
         double nextEditorUpdate;
+        bool Cooling => canCool && coolingOn;
 
         double Factor
         {
@@ -47,7 +51,17 @@ namespace PIP
         void UpdateEvent()
         {
             BaseEvent e = Events[nameof(ToggleCooling)];
-            if (e != null) e.guiName = coolingOn ? "Turn cooling off" : "Turn cooling on";
+            if (e == null) return;
+            e.guiName = coolingOn ? "Turn cooling off" : "Turn cooling on";
+            // Only on a tank that can be cooled, and only while it holds something that boils.
+            Needs(true, out double ec, out _);
+            e.guiActive = e.guiActiveEditor = canCool && ec > 0;
+        }
+
+        void ShowStatus(bool show)
+        {
+            BaseField f = Fields[nameof(status)];
+            if (f != null) f.guiActive = f.guiActiveEditor = show;
         }
 
         public override void OnStart(StartState state)
@@ -55,7 +69,7 @@ namespace PIP
             UpdateEvent();
             if (!HighLogic.LoadedSceneIsFlight) return;
             double now = Planetarium.GetUniversalTime();
-            if (lastUT > 0 && now > lastUT && !(coolingOn && cooledLast)) Boil(now - lastUT);
+            if (lastUT > 0 && now > lastUT && !(Cooling && cooledLast)) Boil(now - lastUT);
             lastUT = now;
         }
 
@@ -80,7 +94,11 @@ namespace PIP
             if (!HighLogic.LoadedSceneIsEditor || Time.time < nextEditorUpdate) return;
             nextEditorUpdate = Time.time + 1;
             Needs(true, out double ec, out double loss);
-            status = ec <= 0 ? "nothing to keep cold" : $"{loss:0.###}%/h, or {ec:0.###} EC/s to cool";
+            ShowStatus(loss > 0);
+            UpdateEvent();
+            if (loss <= 0) status = "";
+            else if (!canCool) status = $"{loss:0.###}%/h: no insulation or cooling";
+            else status = $"{loss:0.###}%/h, or {ec:0.###} EC/s to cool";
         }
 
         void FixedUpdate()
@@ -91,8 +109,9 @@ namespace PIP
             lastUT = now;
             if (dt <= 0) return;
             Needs(false, out double ec, out double loss);
-            if (ec <= 0) { status = "nothing to keep cold"; cooledLast = true; return; }
-            if (coolingOn)
+            ShowStatus(loss > 0);
+            if (loss <= 0) { status = ""; cooledLast = true; return; }
+            if (Cooling)
             {
                 double want = ec * dt;
                 double got = part.RequestResource(PartResourceLibrary.ElectricityHashcode, want);
@@ -110,7 +129,7 @@ namespace PIP
             }
             Boil(dt);
             cooledLast = false;
-            status = $"{loss:0.###}%/h, cooling off";
+            status = canCool ? $"{loss:0.###}%/h, cooling off" : $"{loss:0.###}%/h, no insulation";
         }
 
         // A share of each cryogenic fuel, compounding by the hour.
@@ -126,6 +145,8 @@ namespace PIP
             }
         }
 
-        public override string GetInfo() => "Cryogenic fuels boil off unless the tank is cooled, which takes electric charge.";
+        public override string GetInfo() => canCool
+            ? "Cryogenic fuels boil off unless the tank is cooled, which takes electric charge."
+            : "No insulation or cooling: cryogenic fuels in it boil off.";
     }
 }

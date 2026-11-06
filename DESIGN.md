@@ -1871,6 +1871,33 @@ Rejected: cutting the price only in PIP's tanks (B9 tank-cost offsets). An empty
 tank would then cost less than nothing, and the fuel would refund at the full
 price when recovered from anywhere else.
 
+### 19.7 Every fuel in standard tanks; cryogenic tanks later (2026-11-05)
+
+Phil: "allow all fuels in all tanks, whether cryogenic or standard, but non-cryo
+tanks will just lose some fuel in the earlier missions". Before this, hydrolox
+engines and cryogenic tanks both unlocked at Advanced Fuel Systems (160), so a
+cryogenic fuel never existed without its tank. Built as proposed ("Yes, build
+it"):
+
+- **Standard tanks hold every mix:** LF/Ox, LF, Ox, LH2/Ox, LH2, LCH4/Ox, LCH4,
+  and every fuel-table recipe (kind S and C). They carry `ModulePipBoiloff` with
+  `canCool = False`: no Insulation slider, no cooling button, and cryogenic fuels
+  boil at `FuelTanks.Uninsulated` = 4 times the base rate, always. The status line
+  and button only show while the tank holds something that boils.
+- **Cryogenic tanks move to Large Volume Containment (300),** the next node on the
+  fuel-tank line. They keep only the cryogenic mixes, the Insulation slider
+  (2× the base rate at 0 points to 0.2× at 100) and cooling. Keeping storables out
+  of them keeps standard tanks the right pick for storable fuels.
+- So hydrolox (160) flies its first missions in leaky standard tanks: a Mun trip
+  loses about 2.4% of its hydrogen, a Minmus trip about 6%, a coast to Duna nearly
+  all of it. Cryogenic tanks become an upgrade for long missions instead of a
+  prerequisite.
+- Saved craft load unchanged (subtype names kept; new ones added after them).
+  Cryogenic tank programs already started stay.
+
+Not done (discussed, for later): boil-off that follows sunlight and distance from
+Kerbol, and liquid oxygen boiling at about methane's rate.
+
 ## Looks and side-mount build (2026-11-04)
 
 Built from sections 15 and 16 after Phil's "Yes, build it". This is Looks
