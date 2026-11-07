@@ -19,6 +19,10 @@ heat shields, and so on. The die now deals them at random (each comes up once
 before any repeats) instead of going down a list of 30, and a suggested name
 changes with the type you pick.
 
+**Change all** (DESIGN.md 23): a new top row in PIP's difficulty settings sets
+every part type, in both columns, to Off, Alongside or Replace at once. It shows
+Mixed while the rows differ.
+
 **Fixed:** a battery's part tooltip listed its chassis's 100 electric charge, not
 what the program holds; heat shields (ablator) and probe cores (built-in battery)
 had the same mistake. The part itself always held the right amount.

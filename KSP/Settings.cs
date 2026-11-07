@@ -1,4 +1,7 @@
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 
 namespace PIP
 {
@@ -14,6 +17,14 @@ namespace PIP
         public override bool HasPresets => false;
 
         const string RowTip = "Off: not in this game. Alongside: next to the stock and mod parts. Replace: those are hidden.";
+
+        // Change all (DESIGN.md 23): the top row sets every row in both columns,
+        // and shows Mixed while they differ.
+        [GameParameters.CustomParameterUI("Change all",
+            toolTip = "Sets every row in both columns to Off, Alongside or Replace. Mixed: the rows aren't all the same.")]
+        public AllInclusion changeAll = AllInclusion.Replace;
+        AllInclusion? changeAllShown;
+        int changeAllThumb = 2;   // the stop the thumb is on: 0 Off, 1 Alongside, 2 Replace
 
         [GameParameters.CustomParameterUI("Liquid engines", toolTip = RowTip)]
         public Inclusion liquidEngines = Inclusion.Replace;
@@ -40,6 +51,44 @@ namespace PIP
         [GameParameters.CustomParameterUI("PIP prices",
             toolTip = "Scales what every program costs to start: a quarter, half, normal or double.")]
         public PriceLevel prices = PriceLevel.Normal;
+
+        // KSP asks this of every row, every frame the settings are open, and its
+        // sliders show whatever the fields hold, so Change all works from here.
+        // It uses the parameters being edited, which in a new game's setup aren't
+        // the current game's.
+        public override bool Interactible(MemberInfo member, GameParameters parameters)
+        {
+            if (member.Name == nameof(changeAll)) SyncChangeAll(parameters?.CustomParams<PipPartSettings>());
+            return true;
+        }
+
+        void SyncChangeAll(PipPartSettings parts)
+        {
+            bool opening = !changeAllShown.HasValue;
+            // Moved since last frame: set every row (Mixed sets nothing).
+            if (!opening && changeAll != changeAllShown.Value && changeAll != AllInclusion.Mixed)
+                PipGuard.SetAll(this, parts, PipGuard.ToInclusion(changeAll));
+            changeAll = PipGuard.Common(this, parts);
+            changeAllShown = changeAll;
+            // Mixed isn't a stop: the thumb stays put, or opens where most rows are.
+            if (changeAll != AllInclusion.Mixed) changeAllThumb = (int)PipGuard.ToInclusion(changeAll);
+            else if (opening) changeAllThumb = (int)PipGuard.Majority(this, parts);
+        }
+
+        // Change all's slider has the same three stops as every other row. KSP
+        // places a slider's thumb by finding the value in this list. Mixed isn't in
+        // it, so it answers with the stop the thumb is already on; otherwise KSP
+        // would snap the thumb to Off and set every row Off.
+        public override IList ValidValues(MemberInfo member) =>
+            member.Name == nameof(changeAll) ? new ChangeAllStops(this) : base.ValidValues(member);
+
+        sealed class ChangeAllStops : ArrayList
+        {
+            readonly PipSettings settings;
+            public ChangeAllStops(PipSettings settings) : base(new[] { AllInclusion.Off, AllInclusion.Alongside, AllInclusion.Replace }) => this.settings = settings;
+            public override int IndexOf(object value) =>
+                value is AllInclusion a && a == AllInclusion.Mixed ? settings.changeAllThumb : base.IndexOf(value);
+        }
 
         public static PipSettings Current => HighLogic.CurrentGame?.Parameters?.CustomParams<PipSettings>();
         public static FailureLevel Failures => Current?.failures ?? FailureLevel.Normal;
@@ -139,19 +188,51 @@ namespace PIP
         public static PipPartSettings Current => HighLogic.CurrentGame?.Parameters?.CustomParams<PipPartSettings>();
     }
 
+    // The Change all row's values. Mixed shows while the rows differ; it isn't one
+    // of the slider's stops (PipSettings.ValidValues).
+    public enum AllInclusion { Mixed, Off, Alongside, Replace }
+
     public static class PipGuard
     {
         // Every PIP type off in this game, on both settings pages. The choice is
         // saved with the game, so it can be switched back on in its difficulty settings.
-        public static void AllOff()
+        public static void AllOff() => SetAll(PipSettings.Current, PipPartSettings.Current, Inclusion.Off);
+
+        // Every row in both columns.
+        public static void SetAll(PipSettings s, PipPartSettings p, Inclusion v)
         {
-            PipSettings s = PipSettings.Current;
             if (s != null)
-                s.liquidEngines = s.solidMotors = s.monopropEngines = s.nuclearEngines = s.electricEngines = s.jetEngines = Inclusion.Off;
-            PipPartSettings p = PipPartSettings.Current;
+                s.liquidEngines = s.solidMotors = s.monopropEngines = s.nuclearEngines = s.electricEngines = s.jetEngines = v;
             if (p != null)
-                p.rcs = p.batteries = p.wheels = p.shields = p.solar = p.antennas = p.probes = p.tanks = p.rtgs = p.intakes = p.planes = p.decouplers = Inclusion.Off;
+                p.rcs = p.batteries = p.wheels = p.shields = p.solar = p.antennas = p.probes = p.tanks = p.rtgs = p.intakes = p.planes = p.decouplers = v;
         }
+
+        static IEnumerable<Inclusion> Rows(PipSettings s, PipPartSettings p)
+        {
+            if (s != null)
+                foreach (Inclusion v in new[] { s.liquidEngines, s.solidMotors, s.monopropEngines, s.nuclearEngines, s.electricEngines, s.jetEngines })
+                    yield return v;
+            if (p != null)
+                foreach (Inclusion v in new[] { p.rcs, p.batteries, p.wheels, p.shields, p.solar, p.antennas, p.probes, p.tanks, p.rtgs, p.intakes, p.planes, p.decouplers })
+                    yield return v;
+        }
+
+        // What Change all shows: the rows' one setting, or Mixed.
+        public static AllInclusion Common(PipSettings s, PipPartSettings p)
+        {
+            Inclusion[] rows = Rows(s, p).Distinct().ToArray();
+            return rows.Length == 1 ? ToAll(rows[0]) : AllInclusion.Mixed;
+        }
+
+        // The setting most rows have.
+        public static Inclusion Majority(PipSettings s, PipPartSettings p) =>
+            Rows(s, p).GroupBy(v => v).OrderByDescending(g => g.Count()).Select(g => g.Key).DefaultIfEmpty(Inclusion.Replace).First();
+
+        public static Inclusion ToInclusion(AllInclusion a) =>
+            a == AllInclusion.Off ? Inclusion.Off : a == AllInclusion.Alongside ? Inclusion.Alongside : Inclusion.Replace;
+
+        static AllInclusion ToAll(Inclusion v) =>
+            v == Inclusion.Off ? AllInclusion.Off : v == Inclusion.Alongside ? AllInclusion.Alongside : AllInclusion.Replace;
 
         // The part types of PIP 0.3.0 and before, which games didn't record.
         public static readonly string[] FirstTypes =

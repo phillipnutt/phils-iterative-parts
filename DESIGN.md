@@ -2212,6 +2212,36 @@ what the part is".
 - A type whose names are all taken borrows from every group; a type with no
   group yet (docking ports, later) uses every name.
 
+## 23. Change all, in the settings (2026-11-07)
+
+Phil asked for a quick way to set every part type to Off, Alongside or Replace at
+once.
+
+- **One slider row, "Change all",** at the top of the engines column. Moving it to
+  Off, Alongside or Replace sets all 18 rows, in both columns.
+- **It shows Mixed while the rows differ,** and the one setting when they all
+  match, so it always tells the truth about the rows below it.
+- **Its slider has the same three stops as every other row.** Mixed isn't a stop:
+  while the rows differ, the label says Mixed and the thumb stays where it was
+  (or, when the page opens, sits where most rows are). The first build gave Mixed
+  a stop of its own at the far left, which the slider snapped back from, and
+  every other stop sat one notch right of the rows below; Phil caught it
+  (2026-11-07). KSP places a thumb by finding the value in the row's list of
+  stops (`ValidValues`), so Change all's list answers Mixed with the thumb's
+  current stop. Without that, KSP would snap the thumb to Off, which would set
+  every row Off.
+- **A slider, not a button:** KSP's difficulty settings page can only show
+  sliders, checkboxes and text boxes for a mod's settings. Phil picked the slider
+  over three self-unticking checkboxes ("All off", "All alongside", "All
+  replace").
+- **How it works:** KSP asks a settings page about every row, every frame the page
+  is open (`Interactible`), and redraws each slider from its field. So the Change
+  all row is checked there: if it moved since the last frame, every row takes its
+  value; then it shows what the rows hold. It reads the settings being edited,
+  which during a new game's setup aren't the current game's.
+- The row is saved with the game like the others, but it's only used while the
+  page is open, so its saved value never changes the rows.
+
 ## Looks and side-mount build (2026-11-04)
 
 Built from sections 15 and 16 after Phil's "Yes, build it". This is Looks
