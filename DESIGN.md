@@ -2242,6 +2242,54 @@ once.
 - The row is saved with the game like the others, but it's only used while the
   page is open, so its saved value never changes the rows.
 
+## 24. One rule for each question (simplification, 2026-11-08)
+
+Phil asked for a pass over the code for places where several pieces of code
+decide the same question, usually because rules were added there one fix at a
+time. Each now has one rule, and nothing in play changes.
+
+- **What an installed part is.** Replace (which stock and mod parts to hide) and
+  looks (which parts a program can wear) each had their own copy of the sorting
+  rules: by modules, resources, category and what the engines burn, then by
+  shape. The copies said they were the same, but every new part type (radial
+  and adapter tanks, decouplers, plane parts) had to be added to both. Now one
+  set, `InstalledParts` (Core), says what a part is; Replace reads the facts off
+  the compiled part and looks off the config, and both ask it. Each keeps only
+  the shapes that are really its own: Replace hides only PIP's sizes (up to 5 m)
+  and the adapter pairs PIP makes; looks also come from 6.25 and 7.5 m parts,
+  from adapters of any size with a taper PIP makes, and need a shape they can
+  be measured from. Being in Core, the rules are now checked by Test-Core.
+- **Which settings row a part type has.** The type-to-row list was written out
+  four times (the game's setting, Change all's set and read, and the guard that
+  turns new types off in a game under way). Now it's one table, `SettingRow`. The
+  guard turns off any type a game hasn't seen, not only decouplers and plane
+  fuselages, so a future type needs one line in the table and nothing else.
+- **R&D's "can this part be used" questions** (four methods) had four copies of
+  the same patch; now one patch serves all four.
+- **Which program a built part belongs to.** Engines and other parts each found
+  it their own way; now both ask `PipScenario.ProgramOf`.
+- **Is it a tank?** Asked three ways (by type id, by comparing with the two tank
+  types, by the tank base class); now always the base class (`TankKind`).
+- **A look chassis's labels** (name, title, hidden from the parts list and R&D)
+  were set in two places; now one.
+
+How it was checked:
+- Test-Core, with new checks for the sorting rules and the settings table
+  (354 checks).
+- Looks: the old build and the new one were run side by side, offline, on all
+  606 parts of a ModuleManager config cache from the test copy (with B9
+  Aerospace and the other test mods). They agree on every part: 172 looks, by
+  type, size and shape. Offline the fuel-switch test can't run (it needs the
+  game's database), so tanks marked only by a fuel switch weren't in that
+  comparison; that test is unchanged.
+- Replace: reads the compiled part, so only the game can run it. One run of the
+  new build on the test copy (2026-11-08), against the old build's log from the
+  same morning and mods: the same parts hidden in R&D, by type, the same 87
+  tanks hidden and 23 left, by name, and the same looks made.
+- One small difference: whether a stack node counts as on the part's axis is now
+  one test (less than 1 mm off it); two of the old copies also counted exactly
+  1 mm as on the axis.
+
 ## Looks and side-mount build (2026-11-04)
 
 Built from sections 15 and 16 after Phil's "Yes, build it". This is Looks

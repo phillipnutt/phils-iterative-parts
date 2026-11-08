@@ -559,5 +559,78 @@ $dealt = 1..10 | ForEach-Object { $d.Next($none) }
 Check 'dealt at random, not down the list' (($dealt -join ',') -ne (($group | Select-Object -First 10) -join ',')) True
 $d2 = Deck 2 $group
 Check 'another session, another order' (($dealt -join ',') -ne ((1..10 | ForEach-Object { $d2.Next($none) }) -join ',')) True
+
+Write-Host 'Sorting installed parts: one set of rules for Replace and looks (section 24)'
+$Sorter = T 'InstalledParts'; $FactsT = T 'PartFacts'; $NodeT = T 'NodeAt'
+# A part as the sorter sees it. $engine: one list of propellants per engine module.
+function Facts([string]$cat, [string[]]$modules = @(), [string[]]$res = @(), [string]$prof = '', $nodes = @(), [bool]$srf = $false,
+               [string]$name = 'part', $engine = $null, $rcs = $null, [int]$crew = 0, [bool]$fuelSwitch = $false) {
+    $f = [Activator]::CreateInstance($FactsT)
+    $f.Name = $name; $f.Title = $name; $f.Category = $cat; $f.Crew = $crew; $f.FuelSwitch = $fuelSwitch; $f.SurfaceAttach = $srf
+    $f.Profiles = $FactsT::ProfilesOf($prof)
+    foreach ($m in $modules) { [void]$f.Modules.Add($m) }
+    foreach ($r in $res) { [void]$f.Resources.Add($r) }
+    foreach ($mode in $engine) { $h = New-Object 'System.Collections.Generic.HashSet[string]'; foreach ($p in $mode) { [void]$h.Add($p) }; $f.EngineModes.Add($h) }
+    if ($null -ne $rcs) { $h = New-Object 'System.Collections.Generic.HashSet[string]'; foreach ($p in $rcs) { [void]$h.Add($p) }; $f.RcsPropellants = $h }
+    foreach ($n in $nodes) { $f.StackNodes.Add([Activator]::CreateInstance($NodeT, [object[]]@([float]$n[0], [float]$n[1], [float]$n[2]))) }
+    $f
+}
+function Is($f) { $t = $Sorter::TypeOf($f); if ($t) { $t.Id } else { '-' } }
+function Hid($f) { $t = $Sorter::ReplacedBy($f); if ($t) { $t.Id } else { '-' } }
+$ax = @(@(0, 0.9, 0), @(0, -0.9, 0)); $one = @(, @(0, 0.5, 0)); $lfox = 'LiquidFuel', 'Oxidizer'
+$t400 = Facts 'FuelTank' -res $lfox -prof 'size1, srf' -nodes $ax
+$big = Facts 'FuelTank' -res $lfox -prof 'size6' -nodes $ax
+$radial = Facts 'FuelTank' -res $lfox -prof 'srf' -srf $true
+$cryo = Facts 'FuelTank' -prof 'size2' -nodes $ax -fuelSwitch $true
+$emptySw = Facts 'FuelTank' -prof 'size2' -nodes $ax
+$nose = Facts 'FuelTank' -res $lfox -prof 'size1' -nodes $ax -name 'noseConeTank'
+$ore = Facts 'FuelTank' -res 'Ore' -prof 'size2' -nodes $ax
+Check 'tanks: what they are' "$(Is $t400),$(Is $big),$(Is $radial),$(Is $cryo),$(Is $emptySw),$(Is $nose),$(Is $ore)" 'tank,tank,tank,tank,-,tank,-'
+Check 'tanks: what Replace hides (not 7.5 m, nosecones)' "$(Hid $t400),$(Hid $big),$(Hid $radial),$(Hid $cryo),$(Hid $nose)" 'tank,-,tank,tank,-'
+$fla10 = Facts 'Structural' -modules 'ModulePartVariants' -prof 'size0, size1' -nodes $ax
+$dock = Facts 'Structural' -modules 'ModuleDockingNode' -prof 'size0, size1' -nodes $ax
+$fuelAd = Facts 'FuelTank' -res $lfox -prof 'size2, size1' -nodes $ax
+$oddPair = Facts 'FuelTank' -res $lfox -prof 'size3, size1' -nodes $ax
+$slant = Facts 'FuelTank' -res $lfox -prof 'size2, size1' -nodes @(@(0, 0.9, 0), @(0.3, -0.9, 0))
+Check 'adapters: plain, docking, fuel, a pair PIP doesn''t make, slanted' "$(Hid $fla10),$(Is $dock),$(Hid $fuelAd),$(Hid $oddPair),$(Hid $slant)" 'tank,-,tank,-,-'
+$mk2 = Facts 'FuelTank' -res $lfox -prof 'mk2, srf' -nodes $ax
+$bicoupler = Facts 'FuelTank' -res $lfox -prof 'mk2, size1' -nodes @(@(0, 0.9, 0), @(0.6, -0.9, 0), @(-0.6, -0.9, 0))
+Check 'plane parts: a Mk2 fuselage is a tank, replaced by a plane fuselage; the bicoupler by an adapter' "$(Is $mk2),$(Hid $mk2),$(Hid $bicoupler)" 'tank,plane,tank'
+$rt10 = Facts 'Engine' -engine @(, @('SolidFuel')) -nodes $one
+$sep = Facts 'Engine' -engine @(, @('SolidFuel'))
+$lvt45 = Facts 'Engine' -engine @(, $lfox) -nodes $one
+$nerv = Facts 'Engine' -engine @(, @('LiquidFuel')) -nodes $one
+$jet = Facts 'Engine' -engine @(@('LiquidFuel', 'IntakeAir'), @('LiquidFuel', 'IntakeAir')) -nodes $one
+$dawn = Facts 'Engine' -engine @(, @('XenonGas', 'ElectricCharge')) -nodes $one
+$puff = Facts 'Engine' -engine @(, @('MonoPropellant')) -nodes $one
+$nfLiquid = Facts 'Propulsion' -engine @(, @('LqdHydrogen', 'Oxidizer')) -nodes $one
+$les = Facts 'Pods' -engine @(, @('SolidFuel')) -nodes $one
+Check 'engines, by what they burn (sepratrons and escape towers stay)' "$(Hid $rt10),$(Hid $sep),$(Hid $lvt45),$(Hid $nerv),$(Hid $jet),$(Hid $dawn),$(Hid $puff),$(Hid $nfLiquid),$(Hid $les)" 'solid,-,liquid,nuclear,jet,electric,monoprop,liquid,-'
+$z100 = Facts 'Electrical' -res 'ElectricCharge'
+$fuelCell = Facts 'Electrical' -modules 'ModuleResourceConverter' -res 'ElectricCharge'
+$probe = Facts 'Pods' -modules 'ModuleCommand' -res 'ElectricCharge'
+$pod = Facts 'Pods' -modules 'ModuleCommand' -crew 1
+$rcs = Facts 'Control' -modules 'ModuleRCSFX' -rcs @('MonoPropellant')
+$xenonRcs = Facts 'Control' -modules 'ModuleRCSFX' -rcs @('XenonGas')
+Check 'batteries, probe cores, RCS' "$(Hid $z100),$(Hid $fuelCell),$(Hid $probe),$(Hid $pod),$(Hid $rcs),$(Hid $xenonRcs)" 'battery,-,probe,-,rcs,-'
+$td12 = Facts 'Coupling' -modules 'ModuleDecouple' -prof 'size1' -nodes $ax
+$plate = Facts 'Coupling' -modules 'ModuleDecouple', 'ModuleDynamicNodes' -prof 'size1' -nodes $ax
+$huge = Facts 'Coupling' -modules 'ModuleDecouple' -prof 'size6' -nodes $ax
+$tt38 = Facts 'Coupling' -modules 'ModuleAnchoredDecoupler' -prof 'srf' -srf $true
+Check 'decouplers: stack, engine plate, 7.5 m (a decoupler, not hidden), radial' "$(Hid $td12),$(Is $plate),$(Is $huge),$(Hid $huge),$(Hid $tt38)" 'decoupler,-,decoupler,-,decoupler'
+$solar = Facts 'Electrical' -modules 'ModuleDeployableSolarPanel'
+$rtg = Facts 'Electrical' -modules 'ModuleRadioisotopeGenerator'
+$bay = Facts 'Utility' -modules 'ModuleRadioisotopeGenerator'
+$shield = Facts 'Thermal' -modules 'ModuleAblator' -res 'Ablator'
+$wheel = Facts 'Control' -modules 'ModuleReactionWheel' -res 'ElectricCharge'
+$dish = Facts 'Communication' -modules 'ModuleDataTransmitter'
+$sciAnt = Facts 'Science' -modules 'ModuleDataTransmitter'
+$intake = Facts 'Aero' -modules 'ModuleResourceIntake' -res 'IntakeAir'
+$rotor = Facts 'Aero' -modules 'ModuleResourceIntake', 'ModuleRoboticServoRotor' -res 'IntakeAir'
+Check 'solar, RTG (not in a service bay), shield, wheel, antenna, intake (not a turboshaft)' "$(Hid $solar),$(Hid $rtg),$(Hid $bay),$(Hid $shield),$(Hid $wheel),$(Hid $dish),$(Hid $sciAnt),$(Hid $intake),$(Hid $rotor)" 'solar,rtg,-,shield,wheel,antenna,-,intake,-'
+
+Write-Host 'Settings rows (section 24)'
+$rowIds = (T 'SettingRow').GetField('All').GetValue($null) | ForEach-Object { $_.Id }
+Check 'every part type has one settings row, and no row is for a type that doesn''t exist' (($allTypes | ForEach-Object { $_.Id } | Sort-Object) -join ',') (($rowIds | Sort-Object) -join ',')
 Write-Host ''
 if ($script:failed -eq 0) { Write-Host "All $script:passed checks passed." -ForegroundColor Green } else { Write-Host "$script:failed failed, $script:passed passed." -ForegroundColor Red; exit 1 }

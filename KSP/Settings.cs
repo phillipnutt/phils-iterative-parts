@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -97,30 +98,8 @@ namespace PIP
         public static Inclusion For(PartType t)
         {
             if (!Requirements.Ok) return Inclusion.Off;   // a required mod is missing: PIP stays off
-            PipSettings s = Current;
-            PipPartSettings p = PipPartSettings.Current;
-            switch (t.Id)
-            {
-                case "liquid": return s?.liquidEngines ?? Inclusion.Replace;
-                case "solid": return s?.solidMotors ?? Inclusion.Replace;
-                case "monoprop": return s?.monopropEngines ?? Inclusion.Replace;
-                case "nuclear": return s?.nuclearEngines ?? Inclusion.Replace;
-                case "electric": return s?.electricEngines ?? Inclusion.Replace;
-                case "jet": return s?.jetEngines ?? Inclusion.Replace;
-                case "rcs": return p?.rcs ?? Inclusion.Replace;
-                case "battery": return p?.batteries ?? Inclusion.Replace;
-                case "wheel": return p?.wheels ?? Inclusion.Replace;
-                case "shield": return p?.shields ?? Inclusion.Replace;
-                case "solar": return p?.solar ?? Inclusion.Replace;
-                case "antenna": return p?.antennas ?? Inclusion.Replace;
-                case "probe": return p?.probes ?? Inclusion.Replace;
-                case "tank": return p?.tanks ?? Inclusion.Replace;
-                case "rtg": return p?.rtgs ?? Inclusion.Replace;
-                case "intake": return p?.intakes ?? Inclusion.Replace;
-                case "plane": return p?.planes ?? Inclusion.Replace;
-                case "decoupler": return p?.decouplers ?? Inclusion.Replace;
-                default: return Inclusion.Off;
-            }
+            SettingRow row = SettingRow.Of(t.Id);
+            return row == null ? Inclusion.Off : row.Get(Current, PipPartSettings.Current) ?? Inclusion.Replace;
         }
 
         public const string RowTipShared = RowTip;
@@ -192,6 +171,52 @@ namespace PIP
     // of the slider's stops (PipSettings.ValidValues).
     public enum AllInclusion { Mixed, Off, Alongside, Replace }
 
+    // Each part type's row in the settings: the one list that the game's setting
+    // (PipSettings.For), Change all and the game-start guard all read. A new part
+    // type needs one line here.
+    public sealed class SettingRow
+    {
+        public readonly string Id;
+        readonly Func<PipSettings, PipPartSettings, Inclusion?> get;
+        readonly Action<PipSettings, PipPartSettings, Inclusion> set;
+        SettingRow(string id, Func<PipSettings, PipPartSettings, Inclusion?> get, Action<PipSettings, PipPartSettings, Inclusion> set)
+        { Id = id; this.get = get; this.set = set; }
+
+        // Null when the row's page isn't there.
+        public Inclusion? Get(PipSettings s, PipPartSettings p) => get(s, p);
+        public void Set(PipSettings s, PipPartSettings p, Inclusion v) => set(s, p, v);
+
+        // Engines are on the first page, other parts on the second.
+        static SettingRow E(string id, Func<PipSettings, Inclusion> get, Action<PipSettings, Inclusion> set) =>
+            new SettingRow(id, (s, p) => s == null ? (Inclusion?)null : get(s), (s, p, v) => { if (s != null) set(s, v); });
+        static SettingRow P(string id, Func<PipPartSettings, Inclusion> get, Action<PipPartSettings, Inclusion> set) =>
+            new SettingRow(id, (s, p) => p == null ? (Inclusion?)null : get(p), (s, p, v) => { if (p != null) set(p, v); });
+
+        public static readonly SettingRow[] All =
+        {
+            E("liquid", s => s.liquidEngines, (s, v) => s.liquidEngines = v),
+            E("solid", s => s.solidMotors, (s, v) => s.solidMotors = v),
+            E("monoprop", s => s.monopropEngines, (s, v) => s.monopropEngines = v),
+            E("nuclear", s => s.nuclearEngines, (s, v) => s.nuclearEngines = v),
+            E("electric", s => s.electricEngines, (s, v) => s.electricEngines = v),
+            E("jet", s => s.jetEngines, (s, v) => s.jetEngines = v),
+            P("rcs", p => p.rcs, (p, v) => p.rcs = v),
+            P("battery", p => p.batteries, (p, v) => p.batteries = v),
+            P("wheel", p => p.wheels, (p, v) => p.wheels = v),
+            P("shield", p => p.shields, (p, v) => p.shields = v),
+            P("solar", p => p.solar, (p, v) => p.solar = v),
+            P("antenna", p => p.antennas, (p, v) => p.antennas = v),
+            P("probe", p => p.probes, (p, v) => p.probes = v),
+            P("tank", p => p.tanks, (p, v) => p.tanks = v),
+            P("rtg", p => p.rtgs, (p, v) => p.rtgs = v),
+            P("intake", p => p.intakes, (p, v) => p.intakes = v),
+            P("plane", p => p.planes, (p, v) => p.planes = v),
+            P("decoupler", p => p.decouplers, (p, v) => p.decouplers = v),
+        };
+
+        public static SettingRow Of(string id) => All.FirstOrDefault(r => r.Id == id);
+    }
+
     public static class PipGuard
     {
         // Every PIP type off in this game, on both settings pages. The choice is
@@ -201,21 +226,11 @@ namespace PIP
         // Every row in both columns.
         public static void SetAll(PipSettings s, PipPartSettings p, Inclusion v)
         {
-            if (s != null)
-                s.liquidEngines = s.solidMotors = s.monopropEngines = s.nuclearEngines = s.electricEngines = s.jetEngines = v;
-            if (p != null)
-                p.rcs = p.batteries = p.wheels = p.shields = p.solar = p.antennas = p.probes = p.tanks = p.rtgs = p.intakes = p.planes = p.decouplers = v;
+            foreach (SettingRow r in SettingRow.All) r.Set(s, p, v);
         }
 
-        static IEnumerable<Inclusion> Rows(PipSettings s, PipPartSettings p)
-        {
-            if (s != null)
-                foreach (Inclusion v in new[] { s.liquidEngines, s.solidMotors, s.monopropEngines, s.nuclearEngines, s.electricEngines, s.jetEngines })
-                    yield return v;
-            if (p != null)
-                foreach (Inclusion v in new[] { p.rcs, p.batteries, p.wheels, p.shields, p.solar, p.antennas, p.probes, p.tanks, p.rtgs, p.intakes, p.planes, p.decouplers })
-                    yield return v;
-        }
+        static IEnumerable<Inclusion> Rows(PipSettings s, PipPartSettings p) =>
+            SettingRow.All.Select(r => r.Get(s, p)).Where(v => v.HasValue).Select(v => v.Value);
 
         // What Change all shows: the rows' one setting, or Mixed.
         public static AllInclusion Common(PipSettings s, PipPartSettings p)
@@ -245,16 +260,11 @@ namespace PIP
         public static List<PartType> NewTypesOff(ICollection<string> known)
         {
             var off = new List<PartType>();
-            PipPartSettings p = PipPartSettings.Current;
             foreach (PartType t in PartTypes.All)
             {
-                if (known.Contains(t.Id)) continue;
-                switch (t.Id)
-                {
-                    case "plane": if (p != null) p.planes = Inclusion.Off; break;
-                    case "decoupler": if (p != null) p.decouplers = Inclusion.Off; break;
-                    default: continue;
-                }
+                SettingRow row = SettingRow.Of(t.Id);
+                if (known.Contains(t.Id) || row == null) continue;
+                row.Set(PipSettings.Current, PipPartSettings.Current, Inclusion.Off);
                 off.Add(t);
             }
             return off;

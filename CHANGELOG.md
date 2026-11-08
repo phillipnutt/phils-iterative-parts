@@ -23,6 +23,10 @@ changes with the type you pick.
 every part type, in both columns, to Off, Alongside or Replace at once. It shows
 Mixed while the rows differ.
 
+**Simpler code** (DESIGN.md 24): places where several pieces of code decided the
+same thing now have one rule each, chiefly the rules for what an installed part
+is, which Replace and looks each had a copy of. Nothing changes in play.
+
 **Fixed:** a battery's part tooltip listed its chassis's 100 electric charge, not
 what the program holds; heat shields (ablator) and probe cores (built-in battery)
 had the same mistake. The part itself always held the right amount.

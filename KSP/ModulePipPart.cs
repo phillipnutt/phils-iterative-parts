@@ -62,23 +62,18 @@ namespace PIP
             // (new builds use its current Mk anyway) and apply straight away.
             if (started && !IsPrefab && HighLogic.LoadedSceneIsEditor)
             {
-                Assign(FindProgram());
+                Assign(PipScenario.ProgramOf(programId, part.partInfo?.name, true));
                 Apply();
             }
         }
-
-        Program FindProgram() =>
-            PipScenario.Instance?.Latest(PipScenario.Instance.Find(programId) ?? PipScenario.Instance.Find(PartFactory.ProgramIdOf(part.partInfo?.name)));
 
         public override void OnStart(StartState state)
         {
             base.OnStart(state);
             if (IsPrefab) return;
             pointValues = Program.PointsFromText(points, Type.Categories.Length);
-            Program program = PipScenario.Instance?.Find(programId)
-                ?? PipScenario.Instance?.Find(PartFactory.ProgramIdOf(part.partInfo?.name));
             // New builds use the family's newest version.
-            if (HighLogic.LoadedSceneIsEditor) program = PipScenario.Instance?.Latest(program);
+            Program program = PipScenario.ProgramOf(programId, part.partInfo?.name, HighLogic.LoadedSceneIsEditor);
             if (HighLogic.LoadedSceneIsEditor || (program != null && !Assigned)) Assign(program);
             // A renamed program: the part keeps its version and Mk, and shows the new name.
             else if (program != null && program.Id == programId) programName = program.Title;
@@ -138,7 +133,7 @@ namespace PIP
 
         // A tank's boil-off and cooling factor (ModulePipBoiloff): from Insulation on a
         // cryogenic tank, FuelTanks.Uninsulated on a standard one.
-        public double BoiloffFactor => Assigned && (typeId == "tank" || typeId == "plane") ? Stats[FuelTanks.Boiloff] : 1;
+        public double BoiloffFactor => Assigned && Type is TankKind ? Stats[FuelTanks.Boiloff] : 1;
 
         Stats Stats
         {
@@ -387,17 +382,11 @@ namespace PIP
         // (B9PartSwitch tank mass) is counted first, so the total comes out right.
         double DesiredMass(float defaultMass, double others)
         {
-            switch (typeId)
-            {
-                case "tank":
-                case "plane":
-                    // Today's tank of this volume and propellant (the tank type's own
-                    // mass, from B9PartSwitch), times the Weight factor.
-                    double today = others > 0 ? others : defaultMass * stats[FuelTanks.VolumeKey] / 400.0;
-                    return defaultMass + today * stats[FuelTanks.WeightFactor];
-                default:
-                    return stats.Mass;
-            }
+            if (!(Type is TankKind)) return stats.Mass;
+            // Today's tank of this volume and propellant (the tank type's own
+            // mass, from B9PartSwitch), times the Weight factor.
+            double today = others > 0 ? others : defaultMass * stats[FuelTanks.VolumeKey] / 400.0;
+            return defaultMass + today * stats[FuelTanks.WeightFactor];
         }
 
         public float GetModuleMass(float defaultMass, ModifierStagingSituation situation)

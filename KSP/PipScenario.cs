@@ -46,6 +46,16 @@ namespace PIP
 
         public Program Find(string id) => string.IsNullOrEmpty(id) ? null : Programs.Find(p => p.Id == id);
 
+        // The program a part belongs to (both part modules ask this): by the id it
+        // was built with, else by its part name (a part fresh from the parts list).
+        // newest: the family's newest version, which new builds in the VAB use.
+        public static Program ProgramOf(string programId, string partName, bool newest)
+        {
+            PipScenario s = Instance;
+            Program p = s?.Find(programId) ?? s?.Find(PartFactory.ProgramIdOf(partName));
+            return newest ? s?.Latest(p) : p;
+        }
+
         public IEnumerable<Program> Active => Programs.Where(p => !p.Retired && PipSettings.On(p.Type));
 
         #region Starting and retiring programs

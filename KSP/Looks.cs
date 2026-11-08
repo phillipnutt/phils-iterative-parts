@@ -28,6 +28,7 @@ namespace PIP
 
         #region Making the look chassis (at load)
 
+        // Looks also come from 6.25 and 7.5 m parts, scaled down to PIP's sizes.
         static readonly Dictionary<string, double> RoundSizes = new Dictionary<string, double>
         {
             { "size0", 0.625 }, { "size1", 1.25 }, { "size1p5", 1.875 }, { "size2", 2.5 },
@@ -35,12 +36,6 @@ namespace PIP
         };
         static readonly Dictionary<string, int> NodeSizes = new Dictionary<string, int>
             { { "0625", 0 }, { "125", 1 }, { "1875", 1 }, { "25", 2 }, { "375", 3 }, { "5", 4 } };
-        static readonly HashSet<string> Generators = new HashSet<string>
-            { "ModuleGenerator", "ModuleResourceConverter", "ModuleDeployableSolarPanel", "ModuleCurvedSolarPanel" };
-        static readonly HashSet<string> TankResources = new HashSet<string>
-            { "LiquidFuel", "Oxidizer", "LqdHydrogen", "LqdMethane", "MonoPropellant", "XenonGas", "ArgonGas", "Lithium" };
-        static readonly HashSet<string> ElectricPropellants = new HashSet<string> { "XenonGas", "ArgonGas", "Lithium" };
-        static readonly HashSet<string> RcsPropellants = new HashSet<string> { "MonoPropellant", "LiquidFuel", "Oxidizer" };
         // Modules a look never keeps: other scalers, failure models, contracts' test module.
         static readonly HashSet<string> Stripped = new HashSet<string>
             { "TweakScale", "TweakScalerWaterfallFX", "ModuleTestSubject", "Reliability", "EngineFailures", nameof(ModulePipPart), nameof(ModulePipEngine) };
@@ -67,15 +62,6 @@ namespace PIP
             public string Mount => Side ? "R" : Adapter ? "A" : "";
         }
 
-        // Plain structural adapters (FL-A10, Rockomax Brand Adapter) can dress an
-        // adapter tank too. Only these modules may be on one: anything else (a
-        // habitat, a docking port, a switch) makes it more than a plain adapter.
-        internal static readonly HashSet<string> PlainStructuralModules = new HashSet<string>
-        {
-            "ModulePartVariants", "ModuleCargoPart", "TweakScale", "ModuleFreeIva", "SCANRPMStorage",
-            "FundsKeeper", "StealBackMyFunds", "AttachedOnEditor", "ModuleToggleCrossfeed",
-        };
-
         static string Localized(string text)
         {
             if (string.IsNullOrEmpty(text) || text[0] != '#') return text ?? "";
@@ -83,58 +69,52 @@ namespace PIP
             catch { return text; }
         }
 
-        internal static bool IsPlaneSection(string profile) => profile == "mk2" || profile == "mk3";
-
-        // Whether a part's lowest end splits in two (two stack nodes at the bottom): the bicoupler.
-        internal static bool TwinEnd(List<Vector3> stack)
-        {
-            if (stack.Count < 3) return false;
-            float bottom = stack.Min(v => v.y);
-            return stack.Count(v => Math.Abs(v.y - bottom) < 0.01f) >= 2;
-        }
+        static float Height(List<NodeAt> stack) => stack.Max(v => v.Y) - stack.Min(v => v.Y);
 
         // A plane fuselage (DESIGN.md 21.2): a fuel tank of one plane section (Mk2 or
         // Mk3), straight along the axis. Its kind is the section, "2" or "3". Parts
         // joining two shapes are plane adapters, not fuselages.
-        static Source ClassifyPlane(ConfigNode n, Source src, List<string> profiles, List<Vector3> stack)
+        static Source ClassifyPlane(PartFacts f, Source src)
         {
-            if (FuelTanks.KeptTank(n.GetValue("name"), Localized(n.GetValue("title")))) return null;
+            List<NodeAt> stack = f.StackNodes;
+            if (FuelTanks.KeptTank(f.Name, f.Title)) return null;
             if (stack.Count < 2) return null;
-            string[] sections = profiles.Where(IsPlaneSection).Distinct().ToArray();
+            string[] sections = f.Profiles.Where(InstalledParts.IsPlaneSection).Distinct().ToArray();
             // Two ends: a plane adapter (a tank adapter of its pair, shaped as it is:
             // Mk3 to Mk2 has its narrow end raised, the bicoupler two of them).
-            string planeAdapter = FuelTanks.PlaneAdapterKindOf(profiles, TwinEnd(stack));
+            string planeAdapter = FuelTanks.PlaneAdapterKindOf(f.Profiles, InstalledParts.TwinEnd(stack));
             if (planeAdapter != null)
             {
                 src.Adapter = true;
                 src.Kind = planeAdapter;
-                src.Height = stack.Max(v => v.y) - stack.Min(v => v.y);
+                src.Height = Height(stack);
                 return src.Height > 0 ? src : null;
             }
-            if (src.Kind == "" || sections.Length != 1 || profiles.Any(p => p != sections[0] && p != "srf")) return null;
-            if (stack.Any(v => Math.Abs(v.x) > 1e-3f || Math.Abs(v.z) > 1e-3f)) return null;
+            if (src.Kind == "" || sections.Length != 1 || f.Profiles.Any(p => p != sections[0] && p != "srf")) return null;
+            if (!InstalledParts.OnAxis(stack)) return null;
             src.Type = PartTypes.Plane;
             src.Kind = sections[0] == "mk3" ? "3" : "2";
-            src.Height = stack.Max(v => v.y) - stack.Min(v => v.y);
+            src.Height = Height(stack);
             return src.Height > 0 ? src : null;
         }
 
         // An adapter (DESIGN.md 20.2): two round sizes of a ratio PIP makes, every
         // stack node on the axis (not slanted, not a multi-adapter), not a part kept
         // on purpose, and not so flat that stretching it would wreck it (a cap).
-        static Source ClassifyAdapter(ConfigNode n, Source src, List<string> profiles, List<Vector3> stack)
+        static Source ClassifyAdapter(PartFacts f, Source src)
         {
-            if (profiles.Any(p => !RoundSizes.ContainsKey(p) && p != "srf")) return null;
-            if (stack.Count < 2 || stack.Any(v => Math.Abs(v.x) > 1e-3f || Math.Abs(v.z) > 1e-3f)) return null;
-            if (FuelTanks.KeptTank(n.GetValue("name"), Localized(n.GetValue("title")))) return null;
-            List<double> ends = profiles.Where(RoundSizes.ContainsKey).Select(p => RoundSizes[p]).Distinct().ToList();
+            List<NodeAt> stack = f.StackNodes;
+            if (f.Profiles.Any(p => !RoundSizes.ContainsKey(p) && p != "srf")) return null;
+            if (stack.Count < 2 || !InstalledParts.OnAxis(stack)) return null;
+            if (FuelTanks.KeptTank(f.Name, f.Title)) return null;
+            List<double> ends = f.Profiles.Where(RoundSizes.ContainsKey).Select(p => RoundSizes[p]).Distinct().ToList();
             double big = ends.Max(), small = ends.Min();
             string kind = FuelTanks.AdapterKindOf(big, small);
             if (kind == null) return null;
             src.Adapter = true;
             src.Kind = kind;
             src.Diameter = big;
-            src.Height = stack.Max(v => v.y) - stack.Min(v => v.y);
+            src.Height = Height(stack);
             return src.Height >= 0.25 * FuelTanks.AdapterHeight(kind, big) ? src : null;
         }
 
@@ -176,12 +156,8 @@ namespace PIP
             if (propellantTankTypes.TryGetValue(name, out bool ok)) return ok;
             ConfigNode type = GameDatabase.Instance.GetConfigNodes("B9_TANK_TYPE").FirstOrDefault(n => n.GetValue("name") == name);
             string[] held = type?.GetNodes("RESOURCE").Select(r => r.GetValue("name") ?? "").ToArray() ?? new string[0];
-            return propellantTankTypes[name] = held.Length > 0 && held.All(IsTankResource);
+            return propellantTankTypes[name] = held.Length > 0 && held.All(InstalledParts.IsTankResource);
         }
-
-        static readonly HashSet<string> NuclearFuels = new HashSet<string> { "LqdHydrogen", "LiquidFuel", "EnrichedUranium" };
-        static bool IsRocketMix(HashSet<string> p) => FuelTable.IsLiquidMix(p);
-        static bool IsTankResource(string r) => TankResources.Contains(r) || FuelTable.AllResources.Contains(r);
 
         // The program's fuel as engine propellants, from the fuel table.
         static string[][] FuelPropellants(string code)
@@ -194,32 +170,19 @@ namespace PIP
         static HashSet<string> PropellantsOf(ConfigNode engine) =>
             new HashSet<string>(engine.GetNodes("PROPELLANT").Select(p => p.GetValue("name") ?? ""));
 
-        // Engines, by what they burn (the same rules as Replace). Engines are never
-        // scaled: a look is an engine at its own size, and its kind says which.
-        static Source ClassifyEngine(ConfigNode n, List<ConfigNode> engines, string category)
+        // An engine look (its type is InstalledParts.TypeOf, as for Replace). Engines
+        // are never scaled: a look is an engine at its own size, and its kind says which.
+        static Source ClassifyEngine(ConfigNode n, PartFacts f, PartType t)
         {
-            if (category != "Engine" && category != "Propulsion") return null;
-            List<HashSet<string>> props = engines.Select(PropellantsOf).ToList();
-            PartType t;
-            if (props.Any(p => p.Contains("IntakeAir"))) t = PartTypes.Jet;
-            else if (props.All(p => IsRocketMix(p)))
-                t = PartTypes.Liquid;
-            else if (props.All(p => p.Count == 1 && p.Contains("SolidFuel"))) t = PartTypes.Solid;
-            else if (props.All(p => p.Count == 1 && p.Contains("MonoPropellant"))) t = PartTypes.Monoprop;
-            else if (props.Any(p => p.Contains("ElectricCharge") && p.Overlaps(ElectricPropellants))) t = PartTypes.Electric;
-            else if (props.Any(p => p.Count > 0 && p.All(NuclearFuels.Contains) && !p.Contains("Oxidizer"))) t = PartTypes.Nuclear;
-            else return null;
-            if (!t.HasLooks) return null;
+            List<HashSet<string>> props = f.EngineModes;
             // Several modes only where the type has them (jets), or where one can be kept (nuclear).
-            if (engines.Count > 1 && t != PartTypes.Jet && t != PartTypes.Nuclear) return null;
+            if (props.Count > 1 && t != PartTypes.Jet && t != PartTypes.Nuclear) return null;
 
             double diameter = 0;
-            foreach (string p in (n.GetValue("bulkheadProfiles") ?? "").Split(','))
-                if (RoundSizes.TryGetValue(p.Trim(), out double d)) { diameter = d; break; }
+            foreach (string p in f.Profiles)
+                if (RoundSizes.TryGetValue(p, out double d)) { diameter = d; break; }
             int si = Array.FindIndex(Sizes.Diameters, d => Math.Abs(d - diameter) < 1e-3);
-            bool stack = false;
-            foreach (ConfigNode.Value v in n.values) if (v.name.StartsWith("node_stack_", StringComparison.Ordinal)) { stack = true; break; }
-            if (si < 0 || !stack) return null;
+            if (si < 0 || f.StackNodes.Count == 0) return null;
             string size = Sizes.Codes[si];
 
             var src = new Source { Type = t, Engine = true, Diameter = diameter };
@@ -239,7 +202,7 @@ namespace PIP
             }
             else if (t == PartTypes.Electric)
             {
-                string gas = props[0].FirstOrDefault(ElectricPropellants.Contains);
+                string gas = props[0].FirstOrDefault(InstalledParts.ElectricGases.Contains);
                 string type = gas == null ? null : ElectricEngines.TypeForGas(gas);
                 if (type == null) return null;
                 src.Kind = type + "-" + size;
@@ -357,110 +320,100 @@ namespace PIP
                       + (skipped > 0 ? $" ({skipped} skipped)" : ""));
         }
 
-        // The same rules as Replace (EditorHider), read from the config instead of the
-        // compiled part. Side: attaches to a surface rather than in a stack.
+        // The part as the sorting rules need it, from its config (EditorHider reads
+        // the same facts off the compiled part).
+        static PartFacts FactsOf(ConfigNode n)
+        {
+            ConfigNode[] modules = n.GetNodes("MODULE");
+            int.TryParse(n.GetValue("CrewCapacity") ?? "0", NumberStyles.Integer, Inv, out int crew);
+            string[] rules = (n.GetValue("attachRules") ?? "").Split(',');
+            var f = new PartFacts
+            {
+                Name = n.GetValue("name") ?? "", Title = Localized(n.GetValue("title")), Category = n.GetValue("category") ?? "",
+                Crew = crew, FuelSwitch = FuelSwitchOf(n) != null, Profiles = PartFacts.ProfilesOf(n.GetValue("bulkheadProfiles")),
+                SurfaceAttach = rules.Length > 1 && rules[1].Trim() == "1",
+            };
+            foreach (ConfigNode m in modules) f.Modules.Add(m.GetValue("name") ?? "");
+            foreach (ConfigNode r in n.GetNodes("RESOURCE")) f.Resources.Add(r.GetValue("name") ?? "");
+            foreach (ConfigNode e in modules.Where(IsEngineModule)) f.EngineModes.Add(PropellantsOf(e));
+            ConfigNode rcs = modules.FirstOrDefault(m => (m.GetValue("name") ?? "").StartsWith("ModuleRCS", StringComparison.Ordinal));
+            if (rcs != null)
+            {
+                f.RcsPropellants = new HashSet<string>(rcs.GetNodes("PROPELLANT").Select(p => p.GetValue("name") ?? ""));
+                if (f.RcsPropellants.Count == 0 && !string.IsNullOrEmpty(rcs.GetValue("resourceName"))) f.RcsPropellants.Add(rcs.GetValue("resourceName"));
+            }
+            foreach (ConfigNode.Value v in n.values)
+                if (v.name.StartsWith("node_stack_", StringComparison.Ordinal))
+                {
+                    Vector3 at = Vec(v.value);
+                    f.StackNodes.Add(new NodeAt(at.x, at.y, at.z));
+                }
+            return f;
+        }
+
+        // What a part is comes from InstalledParts.TypeOf, the same rules as Replace;
+        // then the shapes a look can come from, and what it is as a look (its kind).
+        // Side: attaches to a surface rather than in a stack.
         static Source Classify(ConfigNode n)
         {
             if (string.Equals(n.GetValue("TechHidden"), "True", StringComparison.OrdinalIgnoreCase)) return null;
-            string category = n.GetValue("category");
-            if (category == "none") return null;
+            if (n.GetValue("category") == "none") return null;
+            PartFacts f = FactsOf(n);
+            PartType t = InstalledParts.TypeOf(f);
+            if (t == null || !t.HasLooks) return null;
+            if (f.EngineModes.Count > 0) return ClassifyEngine(n, f, t);
             ConfigNode[] moduleNodes = n.GetNodes("MODULE");
-            var modules = new HashSet<string>(moduleNodes.Select(m => m.GetValue("name") ?? ""));
-            var resources = new HashSet<string>(n.GetNodes("RESOURCE").Select(r => r.GetValue("name") ?? ""));
-            List<ConfigNode> engineNodes = moduleNodes.Where(IsEngineModule).ToList();
-            if (engineNodes.Count > 0) return ClassifyEngine(n, engineNodes, category);
             ConfigNode Module(string name) => moduleNodes.FirstOrDefault(m => m.GetValue("name") == name);
             double Num(ConfigNode node, string key) =>
                 node != null && double.TryParse(node.GetValue(key) ?? "", NumberStyles.Float, Inv, out double v) ? v : 0;
 
-            var src = new Source();
+            var src = new Source { Type = t };
             double.TryParse(n.GetValue("mass") ?? "0", NumberStyles.Float, Inv, out src.Mass);
-            ConfigNode rcs = moduleNodes.FirstOrDefault(m => (m.GetValue("name") ?? "").StartsWith("ModuleRCS", StringComparison.Ordinal));
-
-            if (modules.Contains("ModuleCommand"))
+            // Radial decouplers are kind "R".
+            if (t == PartTypes.Decoupler) src.Kind = f.Modules.Contains("ModuleAnchoredDecoupler") ? "R" : "";
+            else if (t == PartTypes.Solar)
             {
-                int.TryParse(n.GetValue("CrewCapacity") ?? "0", NumberStyles.Integer, Inv, out int crew);
-                if (crew == 0 && category == "Pods") src.Type = PartTypes.Probe;
-            }
-            else if (rcs != null)
-            {
-                var props = new HashSet<string>(rcs.GetNodes("PROPELLANT").Select(p => p.GetValue("name") ?? ""));
-                if (props.Count == 0 && !string.IsNullOrEmpty(rcs.GetValue("resourceName"))) props.Add(rcs.GetValue("resourceName"));
-                if (props.Count > 0 && props.All(RcsPropellants.Contains)) src.Type = PartTypes.Rcs;
-            }
-            // Decouplers (DESIGN.md 21.1): plain stack decouplers and separators, and
-            // radial decouplers (kind "R"). Engine plates, docking ports and the like stay.
-            else if (category == "Coupling" && (modules.Contains("ModuleDecouple") || modules.Contains("ModuleAnchoredDecoupler")))
-            {
-                if (!modules.Overlaps(DecouplerExtras))
+                if (Module("ModuleDeployableSolarPanel") is ConfigNode panel)
                 {
-                    src.Type = PartTypes.Decoupler;
-                    src.Kind = modules.Contains("ModuleAnchoredDecoupler") ? "R" : "";
+                    src.Kind = string.IsNullOrEmpty(panel.GetValue("animationName")) ? "F" : "D";
+                    src.Output = Num(panel, "chargeRate");
+                }
+                else
+                {
+                    ConfigNode curved = Module("ModuleCurvedSolarPanel");
+                    src.Kind = string.IsNullOrEmpty(curved.GetValue("DeployAnimation")) ? "F" : "D";
+                    src.Output = Num(curved, "TotalEnergyRate");
                 }
             }
-            else if (Module("ModuleDeployableSolarPanel") is ConfigNode panel)
+            else if (t == PartTypes.Antenna)
             {
-                src.Type = PartTypes.Solar;
-                src.Kind = string.IsNullOrEmpty(panel.GetValue("animationName")) ? "F" : "D";
-                src.Output = Num(panel, "chargeRate");
-            }
-            else if (Module("ModuleCurvedSolarPanel") is ConfigNode curved)
-            {
-                src.Type = PartTypes.Solar;
-                src.Kind = string.IsNullOrEmpty(curved.GetValue("DeployAnimation")) ? "F" : "D";
-                src.Output = Num(curved, "TotalEnergyRate");
-            }
-            else if (modules.Contains("ModuleRadioisotopeGenerator")) src.Type = category == "Electrical" ? PartTypes.Rtg : null;
-            else if (modules.Contains("ModuleAblator")) src.Type = PartTypes.Shield;
-            else if (modules.Contains("ModuleReactionWheel")) src.Type = PartTypes.Wheel;
-            else if ((modules.Contains("ModuleRTAntenna") || modules.Contains("ModuleDataTransmitter")) && category == "Communication")
-            {
-                src.Type = PartTypes.Antenna;
                 ConfigNode rt = Module("ModuleRTAntenna"), dt = Module("ModuleDataTransmitter");
                 if (rt != null) src.Kind = Num(rt, "Mode1DishRange") > 0 ? "D" : "O";
                 else src.Kind = dt?.GetValue("antennaType") == "RELAY" || Num(dt, "antennaPower") > 1e9 ? "D" : "O";
             }
-            else if (modules.Contains("ModuleResourceIntake") && resources.All(r => r == "IntakeAir") && !modules.Contains("ModuleRoboticServoRotor"))
-                src.Type = PartTypes.Intake;
-            else if (category == "Electrical" && resources.Count == 1 && resources.Contains("ElectricCharge") && !modules.Overlaps(Generators))
-                src.Type = PartTypes.Battery;
-            else if ((category == "FuelTank" || category == "Propulsion") && (resources.Count > 0 ? resources.All(IsTankResource)
-                         : FuelSwitchOf(n) != null))
-            {
-                src.Type = PartTypes.Tank;
-                src.Kind = resources.Count > 0 && resources.All(ElectricPropellants.Contains) ? "E"
-                    : resources.Count == 1 && resources.Contains("MonoPropellant") ? "M" : "F";
-            }
-            // A plain structural adapter: only ever an adapter tank's look.
-            else if (category == "Structural" && resources.Count == 0 && modules.All(PlainStructuralModules.Contains))
-            {
-                src.Type = PartTypes.Tank;
-                src.Kind = "";
-            }
-            PartType t = src.Type;
-            if (t == null || !t.HasLooks) return null;
+            // A plain structural adapter (kind "") is only ever an adapter tank's look.
+            else if (t == PartTypes.Tank)
+                src.Kind = !InstalledParts.IsFuelTank(f) ? ""
+                    : f.Resources.Count > 0 && f.Resources.All(InstalledParts.ElectricGases.Contains) ? "E"
+                    : f.Resources.Count == 1 && f.Resources.Contains("MonoPropellant") ? "M" : "F";
 
             // Size and shape.
-            var profiles = (n.GetValue("bulkheadProfiles") ?? "").Split(',').Select(p => p.Trim()).Where(p => p.Length > 0).ToList();
+            List<string> profiles = f.Profiles.ToList();
             foreach (string p in profiles)
                 if (RoundSizes.TryGetValue(p, out double d)) { src.Diameter = d; break; }
-            var stackPos = new List<Vector3>();
-            foreach (ConfigNode.Value v in n.values)
-                if (v.name.StartsWith("node_stack_", StringComparison.Ordinal)) stackPos.Add(Vec(v.value));
-            List<float> stackY = stackPos.Select(p => p.y).ToList();
-            string[] rules = (n.GetValue("attachRules") ?? "").Split(',');
-            bool surface = rules.Length > 1 && rules[1].Trim() == "1";
+            List<float> stackY = f.StackNodes.Select(p => p.Y).ToList();
+            bool surface = f.SurfaceAttach;
             bool inline = src.Diameter > 0 && stackY.Count > 0;
 
             if (t == PartTypes.Tank)
             {
                 // Mk2 and Mk3: a plane fuselage (DESIGN.md 21.2).
-                if (profiles.Any(IsPlaneSection)) return ClassifyPlane(n, src, profiles, stackPos);
+                if (profiles.Any(InstalledParts.IsPlaneSection)) return ClassifyPlane(f, src);
                 // Two round sizes: an adapter (DESIGN.md 20.2), or nothing.
-                if (profiles.Where(RoundSizes.ContainsKey).Distinct().Count() == 2) return ClassifyAdapter(n, src, profiles, stackPos);
+                if (profiles.Where(RoundSizes.ContainsKey).Distinct().Count() == 2) return ClassifyAdapter(f, src);
                 if (src.Kind == "") return null;   // a structural part that isn't an adapter
                 // Cluster tanks, nosecones and the like: not a look, as Replace leaves them.
-                if (FuelTanks.KeptTank(n.GetValue("name"), Localized(n.GetValue("title")))) return null;
+                if (FuelTanks.KeptTank(f.Name, f.Title)) return null;
                 // A radial tank (DESIGN.md 20.1): no stack nodes, sticks to a surface,
                 // scaled by its volume.
                 if (stackY.Count == 0)
@@ -477,7 +430,7 @@ namespace PIP
             }
             // A Mk2-shaped probe core (the Mk2 Drone Core, DESIGN.md 21.2): only ever its
             // own shape, unscaled, by the adapter mount ("Mk2" in the window).
-            if (t == PartTypes.Probe && profiles.Any(IsPlaneSection))
+            if (t == PartTypes.Probe && profiles.Any(InstalledParts.IsPlaneSection))
             {
                 if (stackY.Count < 2 || profiles.Any(p => p != "mk2" && p != "srf")) return null;
                 src.Adapter = true;
@@ -500,24 +453,32 @@ namespace PIP
             }
         }
 
-        static ConfigNode Build(UrlDir.UrlConfig u, Source src, string key, Dictionary<string, ConfigNode> templates)
+        // A look chassis starts as a copy of its part, renamed and hidden from the
+        // parts list and R&D (engines and other parts alike).
+        static ConfigNode CopyAsLook(ConfigNode orig, string lookName)
         {
-            PartType t = src.Type;
-            ConfigNode orig = u.config;
             string name = orig.GetValue("name");
             ConfigNode c = orig.CreateCopy();
-            c.SetValue("name", ChassisName(t, src.Mount, name, key), true);
+            c.SetValue("name", lookName, true);
             c.SetValue("title", "PIP look: " + (orig.GetValue("title") ?? name), true);
             c.SetValue("manufacturer", "Phil's Iterative Parts", true);
             c.SetValue("category", "none", true);
             c.SetValue("TechHidden", "True", true);
             c.SetValue("TechRequired", "start", true);
             c.SetValue("entryCost", "0", true);
+            return c;
+        }
+
+        static ConfigNode Build(UrlDir.UrlConfig u, Source src, string key, Dictionary<string, ConfigNode> templates)
+        {
+            PartType t = src.Type;
+            ConfigNode orig = u.config;
+            ConfigNode c = CopyAsLook(orig, ChassisName(t, src.Mount, orig.GetValue("name"), key));
 
             foreach (ConfigNode m in c.GetNodes("MODULE"))
             {
                 string mn = m.GetValue("name") ?? "";
-                if (Stripped.Contains(mn) || (mn == "ModuleB9PartSwitch" && !Cosmetic(m)) || ((t == PartTypes.Tank || t == PartTypes.Plane) && TankModules.Contains(mn)))
+                if (Stripped.Contains(mn) || (mn == "ModuleB9PartSwitch" && !Cosmetic(m)) || (t is TankKind && TankModules.Contains(mn)))
                     c.RemoveNode(m);
                 else if (mn == "ModulePartVariants")
                     foreach (ConfigNode variant in m.GetNodes("VARIANT"))
@@ -550,7 +511,7 @@ namespace PIP
             if (t == PartTypes.Rcs) SetRcsPropellant(c, key);
             if (t == PartTypes.Decoupler) SetDecouplerKind(c, key);
             string parentId = null;
-            if (t == PartTypes.Tank || t == PartTypes.Plane)
+            if (t is TankKind)
             {
                 // Propellants from PIP's own tank of this kind; empty mass from the program.
                 if (!templates.TryGetValue("PIP-TNK-" + key, out ConfigNode tank)) return null;
@@ -615,15 +576,7 @@ namespace PIP
         {
             PartType t = src.Type;
             ConfigNode orig = u.config;
-            string name = orig.GetValue("name");
-            ConfigNode c = orig.CreateCopy();
-            c.SetValue("name", ChassisName(t, false, name, key), true);
-            c.SetValue("title", "PIP look: " + (orig.GetValue("title") ?? name), true);
-            c.SetValue("manufacturer", "Phil's Iterative Parts", true);
-            c.SetValue("category", "none", true);
-            c.SetValue("TechHidden", "True", true);
-            c.SetValue("TechRequired", "start", true);
-            c.SetValue("entryCost", "0", true);
+            ConfigNode c = CopyAsLook(orig, ChassisName(t, false, orig.GetValue("name"), key));
 
             List<ConfigNode> engines = c.GetNodes("MODULE").Where(IsEngineModule).ToList();
             if (t == PartTypes.Nuclear)
@@ -922,12 +875,6 @@ namespace PIP
                 r.AddValue("maxAmount", "50");
             }
         }
-
-        // Parts that decouple but are more than a decoupler: engine plates (their
-        // shroud and node mounts), docking ports, cargo bays and structural tubes, the
-        // Klaw. They're never decoupler looks and Replace leaves them (DESIGN.md 21.1).
-        internal static readonly HashSet<string> DecouplerExtras = new HashSet<string>
-            { "ModuleDynamicNodes", "ModuleJettison", "ModuleDockingNode", "ModuleGrappleNode", "ModuleCargoBay", "ModuleCommand", "ModuleAblator" };
 
         // A stack decoupler's look fires as the program's kind: a separator lets go
         // of both sides (isOmniDecoupler), a decoupler of one.

@@ -73,10 +73,8 @@ namespace PIP
             engines = part.FindModulesImplementing<ModuleEngines>();
             pointValues = Program.PointsFromText(points, Type.Categories.Length);
 
-            Program program = PipScenario.Instance?.Find(programId)
-                ?? PipScenario.Instance?.Find(PartFactory.ProgramIdOf(part.partInfo?.name));
             // New builds use the family's newest version.
-            if (HighLogic.LoadedSceneIsEditor) program = PipScenario.Instance?.Latest(program);
+            Program program = PipScenario.ProgramOf(programId, part.partInfo?.name, HighLogic.LoadedSceneIsEditor);
             if (HighLogic.LoadedSceneIsEditor || (program != null && !Assigned)) Assign(program);
             // A renamed program: the part keeps its version and Mk, and shows the new name.
             else if (program != null && program.Id == programId) programName = program.Title;

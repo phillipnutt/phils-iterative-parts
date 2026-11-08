@@ -102,43 +102,19 @@ namespace PIP
         }
     }
 
-    [HarmonyPatch(typeof(ResearchAndDevelopment), nameof(ResearchAndDevelopment.PartModelPurchased))]
-    static class PurchasedPatch
+    // R&D's four "can this part be used" questions: purchased and tech available,
+    // each as a public static and a private instance version (the VAB parts list
+    // filters through the instance ones). All four get Availability's answer.
+    [HarmonyPatch]
+    static class AvailabilityPatch
     {
-        static bool Prefix(AvailablePart ap, ref bool __result)
+        static System.Collections.Generic.IEnumerable<System.Reflection.MethodBase> TargetMethods()
         {
-            if (!Availability.Decide(ap, out bool v)) return true;
-            __result = v;
-            return false;
+            foreach (string name in new[] { nameof(ResearchAndDevelopment.PartModelPurchased), nameof(ResearchAndDevelopment.PartTechAvailable),
+                                            "partModelPurchased", "partTechAvailable" })
+                yield return AccessTools.Method(typeof(ResearchAndDevelopment), name, new[] { typeof(AvailablePart) });
         }
-    }
 
-    [HarmonyPatch(typeof(ResearchAndDevelopment), nameof(ResearchAndDevelopment.PartTechAvailable))]
-    static class TechAvailablePatch
-    {
-        static bool Prefix(AvailablePart ap, ref bool __result)
-        {
-            if (!Availability.Decide(ap, out bool v)) return true;
-            __result = v;
-            return false;
-        }
-    }
-
-    // The VAB parts list filters through these private instance versions.
-    [HarmonyPatch(typeof(ResearchAndDevelopment), "partModelPurchased")]
-    static class PurchasedInstancePatch
-    {
-        static bool Prefix(AvailablePart ap, ref bool __result)
-        {
-            if (!Availability.Decide(ap, out bool v)) return true;
-            __result = v;
-            return false;
-        }
-    }
-
-    [HarmonyPatch(typeof(ResearchAndDevelopment), "partTechAvailable")]
-    static class TechAvailableInstancePatch
-    {
         static bool Prefix(AvailablePart ap, ref bool __result)
         {
             if (!Availability.Decide(ap, out bool v)) return true;
