@@ -30,6 +30,22 @@ namespace PIP
             return mk;
         }
 
+        // What a program gained, said to the player (DESIGN.md 25): a new Mk. is the
+        // news, otherwise how far it is to the next one.
+        public static string GainLine(string title, int gain, int mkBefore, int mk, int xp, bool nextReady)
+        {
+            if (mk > mkBefore) return $"{title} reached {MkName(mk)}. " + (nextReady ? "Its next version is ready to start." : "New builds use it.");
+            return mk < MaxMk ? $"{title} +{gain} experience: {xp} of {XpForMk(mk + 1)} for {MkName(mk + 1)}."
+                              : $"{title} +{gain} experience. Fully developed.";
+        }
+
+        // The same for KSP.log: "Hertz I +3 (12 of 14 for Mk. 4)".
+        public static string GainLog(string title, int gain, int mkBefore, int mk, int xp)
+        {
+            string at = mk < MaxMk ? $"{xp} of {XpForMk(mk + 1)} for {MkName(mk + 1)}" : $"{MkName(mk)}, fully developed";
+            return $"{title} +{gain} ({at}{(mk > mkBefore ? "; reached " + MkName(mk) : "")})";
+        }
+
         static double S(int n)
         {
             double s = 0;

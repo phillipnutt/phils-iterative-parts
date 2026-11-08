@@ -263,13 +263,15 @@ namespace PIP
 
         #region Experience
 
+        static bool NextReady(Program p) => p.Mk >= Progress.MaxMk && NextBlocked(p) == null;
+
+        // In flight: a pop-up for each flight logged, a bigger one for a new Mk.
         public static void Announce(Program p, int mkBefore, string what)
         {
             if (p.Mk > mkBefore)
             {
                 PartFactory.Refresh(p);
-                string next = p.Mk >= Progress.MaxMk && NextBlocked(p) == null ? " Its next version is ready to start." : " New builds use it.";
-                ScreenMessages.PostScreenMessage($"{p.Title} reached {Progress.MkName(p.Mk)}.{next}", 8f, ScreenMessageStyle.UPPER_CENTER);
+                ScreenMessages.PostScreenMessage(Progress.GainLine(p.Title, 0, mkBefore, p.Mk, p.Xp, NextReady(p)), 8f, ScreenMessageStyle.UPPER_CENTER);
             }
             else
             {
@@ -284,7 +286,9 @@ namespace PIP
         // per program per flight (DESIGN.md section 18.2). Keyed by the parts'
         // launch, not the vessel: KSP gives a relaunched craft the same vessel ID.
         // A retired version's parts count toward the family's newest version.
-        // StageRecovery recoveries arrive through the same event.
+        // StageRecovery's and Phil's Reusability Suite's recoveries arrive through
+        // the same event. What each program gained goes in KSP's message inbox
+        // (DESIGN.md 25): the recovery screen covered the pop-ups this used to post.
         void OnVesselRecovered(ProtoVessel vessel, bool quick)
         {
             if (vessel?.protoPartSnapshots == null) return;
@@ -300,8 +304,32 @@ namespace PIP
                     int before = p.Mk;
                     if (p.RecordRecovery(Program.FlightKey(part.launchID)) && !gained.ContainsKey(p)) gained[p] = before;
                 }
+            if (gained.Count == 0) return;
+            var lines = new List<string>();
+            var log = new List<string>();
+            bool newMk = false;
             foreach (KeyValuePair<Program, int> g in gained)
-                Announce(g.Key, g.Value, $"recovery logged (+{Progress.RecoveryXp})");
+            {
+                Program p = g.Key;
+                if (p.Mk > g.Value) { PartFactory.Refresh(p); newMk = true; }
+                lines.Add(Progress.GainLine($"<b>{p.Title}</b>", Progress.RecoveryXp, g.Value, p.Mk, p.Xp, NextReady(p)));
+                log.Add(Progress.GainLog(p.Title, Progress.RecoveryXp, g.Value, p.Mk, p.Xp));
+            }
+            Debug.Log($"[PIP] Recovered {vessel.vesselName}: {string.Join(", ", log)}");
+            if (newMk) lines.Add("\nParts already built, like this craft's, keep the Mk they were built at.");
+            string body = string.Join("\n", lines);
+            try
+            {
+                MessageSystem.Instance.AddMessage(new MessageSystem.Message($"PIP: {vessel.vesselName} recovered", body,
+                    newMk ? MessageSystemButton.MessageButtonColor.GREEN : MessageSystemButton.MessageButtonColor.BLUE,
+                    newMk ? MessageSystemButton.ButtonIcons.ACHIEVE : MessageSystemButton.ButtonIcons.MESSAGE), true);
+            }
+            catch (Exception e)
+            {
+                // No inbox in this scene, or not ready yet: a pop-up instead.
+                Debug.LogWarning($"[PIP] Message inbox unavailable ({e.GetType().Name}); showing a pop-up instead");
+                ScreenMessages.PostScreenMessage(body, 10f, ScreenMessageStyle.UPPER_CENTER);
+            }
         }
 
         #endregion

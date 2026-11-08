@@ -2290,6 +2290,38 @@ How it was checked:
   one test (less than 1 mm off it); two of the old copies also counted exactly
   1 mm as on the axis.
 
+## 25. Recovery experience you can see (2026-11-08)
+
+**Why:** in the play-test of 2026-11-08, Phil thought recoveries through Phil's
+Reusability Suite ("To the hangar") gave no experience. They did: the Suite
+recovers through KSP's own recovery, and the probe, battery and antenna
+programs each logged all three real flights' recoveries (+3 each, Mk. 3). But
+the "+3" pop-up came up just as the recovery screen opened, which covered it,
+and nothing went in the log.
+
+**Agreed with Phil (mockup, "Build as shown"):**
+- After a recovery that gives experience, one message goes in **KSP's message
+  inbox** (the envelope on the toolbar), titled "PIP: *vessel* recovered". It
+  stays until read. One line per program:
+  - a new Mk: "Augur I reached Mk. 3. New builds use it." (or "Its next version
+    is ready to start." at Mk. 5);
+  - otherwise: "Hertz I +3 experience: 12 of 14 for Mk. 4.";
+  - when a program reached a new Mk, a last line: parts already built, like
+    this craft's, keep the Mk they were built at.
+- It replaces the recovery pop-ups. If the inbox can't take it (no inbox in that
+  scene), the same text shows as a pop-up instead.
+- **KSP.log** gets one line per recovery and per flight logged:
+  `[PIP] Recovered Gallant I #1: Hertz I +3 (12 of 14 for Mk. 4), ...` and
+  `[PIP] Flight logged: Augur I +1 (3 of 7 for Mk. 3; reached Mk. 2)`.
+- The "flight logged" pop-ups in flight stay as they were.
+
+**Not changed:** how much a flight or recovery is worth, or what counts. A
+recovery at the pad of a craft that never left it still counts nothing, and
+parts reused from the hangar keep the Mk they were built at.
+
+**Code:** the wording is `Progress.GainLine` and `GainLog` (Core, checked by
+Test-Core); the in-flight new-Mk pop-up uses the same line.
+
 ## Looks and side-mount build (2026-11-04)
 
 Built from sections 15 and 16 after Phil's "Yes, build it". This is Looks

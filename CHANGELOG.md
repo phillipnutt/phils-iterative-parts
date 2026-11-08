@@ -27,6 +27,12 @@ Mixed while the rows differ.
 same thing now have one rule each, chiefly the rules for what an installed part
 is, which Replace and looks each had a copy of. Nothing changes in play.
 
+**Recovery experience you can see** (DESIGN.md 25): after a recovery, KSP's
+message inbox (the envelope on the toolbar) says what each program gained: a
+new Mk, or how far it is to the next one. The pop-ups this replaces were hidden
+behind the recovery screen. KSP.log now has a line for each flight and recovery
+logged. Recoveries through Phil's Reusability Suite always counted.
+
 **Fixed:** a battery's part tooltip listed its chassis's 100 electric charge, not
 what the program holds; heat shields (ablator) and probe cores (built-in battery)
 had the same mistake. The part itself always held the right amount.

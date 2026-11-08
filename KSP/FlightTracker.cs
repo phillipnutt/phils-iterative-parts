@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace PIP
@@ -38,8 +39,10 @@ namespace PIP
                 m.flew = true;
                 Count(scenario.Find(m.programId), m.part);
             }
+            if (counted.Count == 0) return;
             foreach (KeyValuePair<Program, int> c in counted)
                 PipScenario.Announce(c.Key, c.Value, $"flight logged (+{Progress.LaunchXp})");
+            Debug.Log("[PIP] Flight logged: " + string.Join(", ", counted.Select(c => Progress.GainLog(c.Key.Title, Progress.LaunchXp, c.Value, c.Key.Mk, c.Key.Xp))));
         }
 
         // Programs that gained experience this frame, with their Mk before.

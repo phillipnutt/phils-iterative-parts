@@ -632,5 +632,13 @@ Check 'solar, RTG (not in a service bay), shield, wheel, antenna, intake (not a 
 Write-Host 'Settings rows (section 24)'
 $rowIds = (T 'SettingRow').GetField('All').GetValue($null) | ForEach-Object { $_.Id }
 Check 'every part type has one settings row, and no row is for a type that doesn''t exist' (($allTypes | ForEach-Object { $_.Id } | Sort-Object) -join ',') (($rowIds | Sort-Object) -join ',')
+Write-Host 'What a program gained (section 25)'
+function Gain($t, [int]$g, [int]$b, [int]$mk, [int]$xp, [bool]$ready) { Call $Progress GainLine @($t, $g, $b, $mk, $xp, $ready) }
+function GLog($t, [int]$g, [int]$b, [int]$mk, [int]$xp) { Call $Progress GainLog @($t, $g, $b, $mk, $xp) }
+Check 'a new Mk is the news' (Gain 'Augur I' 3 2 3 8 $false) 'Augur I reached Mk. 3. New builds use it.'
+Check 'at Mk. 5, the next version' (Gain 'Kestrel I' 3 4 5 25 $true) 'Kestrel I reached Mk. 5. Its next version is ready to start.'
+Check 'otherwise, how far to the next Mk' (Gain 'Hertz I' 3 3 3 12 $false) 'Hertz I +3 experience: 12 of 14 for Mk. 4.'
+Check 'fully developed' (Gain 'Hertz I' 3 5 5 40 $false) 'Hertz I +3 experience. Fully developed.'
+Check 'log lines' "$(GLog 'Hertz I' 3 3 3 12)|$(GLog 'Augur I' 3 2 3 8)|$(GLog 'Watt I' 1 5 5 30)" 'Hertz I +3 (12 of 14 for Mk. 4)|Augur I +3 (8 of 14 for Mk. 4; reached Mk. 3)|Watt I +1 (Mk. 5, fully developed)'
 Write-Host ''
 if ($script:failed -eq 0) { Write-Host "All $script:passed checks passed." -ForegroundColor Green } else { Write-Host "$script:failed failed, $script:passed passed." -ForegroundColor Red; exit 1 }
