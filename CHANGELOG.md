@@ -54,6 +54,14 @@ autopilot points, prograde and retrograde from 50, normal, radial and target
 from 75, the maneuver node from 100. Each probe research entry says which
 modes it brings.
 
+**Entry purchase** (DESIGN.md 27.4): with KSP's "Entry Purchase Required on
+Research" on, PIP's research entries are bought in R&D like stock parts, a
+part type's first programs' too, at 30 funds per science point of the node
+(times the PIP prices option). With it off, research alone opens them, as
+before. In a game already under way, the entries for nodes it had researched
+count as bought. The program window says what's left: research a node, or buy
+an entry. The size tooling entries now say they open every type's sizes.
+
 **Fixed** (DESIGN.md 27):
 - A probe core offered every SAS mode its chassis part (the OKTO2) had,
   whatever its program's autopilot points.

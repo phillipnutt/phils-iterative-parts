@@ -371,7 +371,7 @@ namespace PIP
             // Gimbal, a free pick for some engines (DESIGN.md 18.4).
             string gimbal = valid ? GimbalOf(type, model) : "";
             bool unlocked = valid && TechUnlocks.Available(type, model, variant) &&
-                            (!type.HasGimbalPick || TechUnlocks.Available(type, PartType.GimbalOptions.First(o => o.Code == gimbal)));
+                            (!type.HasGimbalPick || GimbalOpen(type, PartType.GimbalOptions.First(o => o.Code == gimbal)));
 
             bool Used(int i) => valid && type.CategoryUsed(model, i);
             int cap = TechUnlocks.Cap(type);
@@ -429,10 +429,12 @@ namespace PIP
             if (!type.HasGimbalPick) return "";
             if (!CanGimbalNow(type, model)) return "0";
             if (!gimbals.TryGetValue(type.Id, out string g) || PartType.GimbalOptions.All(o => o.Code != g)) gimbals[type.Id] = g = "5";
-            if (!TechUnlocks.Available(type, PartType.GimbalOptions.First(o => o.Code == g)))
-                g = PartType.GimbalOptions.Where(o => TechUnlocks.Available(type, o)).Select(o => o.Code).LastOrDefault() ?? "0";
+            if (!GimbalOpen(type, PartType.GimbalOptions.First(o => o.Code == g)))
+                g = PartType.GimbalOptions.Where(o => GimbalOpen(type, o)).Select(o => o.Code).LastOrDefault() ?? "0";
             return g;
         }
+
+        static bool GimbalOpen(PartType type, Option g) => TechUnlocks.Available(type, g, Entries.Gimbal(g));
 
         static bool CanGimbalNow(PartType type, string[] model) =>
             type.CanGimbal(model) && (!type.HasLooks || Looks.Gimbals(type, LookOf(type, model), model));
@@ -478,7 +480,7 @@ namespace PIP
             if (o == null) return null;
             if (PartType.IsAdapter(o.Code) && Looks.DefaultAdapter(type, model, o.Code) == null)
                 return "Needs " + (type.AdapterNeeds(type.AdapterKind(o.Code)) ?? "an adapter of this taper");
-            return TechUnlocks.Available(type, o) ? null : "Research " + TechUnlocks.Title(TechUnlocks.NextFor(type, o));
+            return TechUnlocks.Available(type, o, Entries.Size) ? null : TechUnlocks.Todo(type, o, Entries.Size);
         }
 
         // The size rows of the design: mount (in-line, side-mount or adapter), then
@@ -602,9 +604,9 @@ namespace PIP
                     var r = new Rect(x + (i % cols) * (tw + gap), y + (i / cols) * (th + gap), tw, th);
                     PartType t = group[i];
                     bool on = t == newType;
-                    // Not researched yet: dimmed with a padlock, still there to look at.
+                    // Not researched (or bought) yet: dimmed with a padlock, still there to look at.
                     bool locked = !TechUnlocks.Opened(t);
-                    string tip = locked ? $"{t.Title}: research {TechUnlocks.Title(t.CapTechs[0])} first" : t.Title;
+                    string tip = locked ? $"{t.Title}: {TechUnlocks.Lower(TechUnlocks.OpenTodo(t))} first" : t.Title;
                     if (GUI.Button(r, new GUIContent("", tip), on ? PipSkin.TileOn : locked ? PipSkin.TileLocked : PipSkin.Tile) && !on)
                     {
                         newType = t;
@@ -651,8 +653,8 @@ namespace PIP
                     float rowY = y;
                     int picked = Segments(x + 64, ref y, w - 64, go.Select(o => o.Label).ToArray(), Array.FindIndex(go, o => o.Code == current),
                         i => i > 0 && !can ? (type.CanGimbal(model) ? "This look has a fixed nozzle" : "Can't gimbal")
-                            : TechUnlocks.Available(type, go[i]) ? null
-                            : "Research " + TechUnlocks.Title(TechUnlocks.Opened(type) ? go[i].Tech : type.CapTechs[0]), out _);
+                            : GimbalOpen(type, go[i]) ? null
+                            : TechUnlocks.Todo(type, go[i], Entries.Gimbal(go[i])), out _);
                     GUI.Label(new Rect(x, rowY, 62, 34), "Gimbal", PipSkin.SegLabel);
                     if (picked >= 0) { gimbals[type.Id] = go[picked].Code; message = null; }
                 }
@@ -706,12 +708,14 @@ namespace PIP
 
         static string Count(int n, string noun) => n + " " + noun + (n == 1 ? "" : "s");
 
-        // Why an option can't be picked: research still to do, or (with the rest of
-        // the design as it is) a model whose part needs a mod that isn't installed.
+        // Why an option can't be picked: research (or an R&D entry) still to buy, or
+        // (with the rest of the design as it is) a model whose part needs a mod that
+        // isn't installed.
         static string LockedWhy(PartType type, string[] model, int choice, Option o)
         {
-            if (!TechUnlocks.Available(type, o))
-                return "Research " + TechUnlocks.Title(TechUnlocks.NextFor(type, o));
+            string what = Entries.What(type.Choices[choice], o);
+            if (!TechUnlocks.Available(type, o, what))
+                return TechUnlocks.Todo(type, o, what);
             var m = (string[])model.Clone();
             m[choice] = o.Code;
             return type.Valid(m) && !PartFactory.Made(type, m) ? "Needs " + PartFactory.Needs(type, m) : null;
@@ -825,7 +829,9 @@ namespace PIP
                 y += rowH;
             }
             y += 4;
-            var note = new GUIContent($"Points are capped at {cap} for now; research raises the cap.  − and + change 5, or 1 with Shift.");
+            string nextCap = TechUnlocks.NextCap(type);
+            string capLine = nextCap == null ? $"Points go up to {cap}." : $"Points are capped at {cap} for now ({TechUnlocks.Lower(nextCap)} to raise it).";
+            var note = new GUIContent(capLine + "  − and + change 5, or 1 with Shift.");
             float nh = PipSkin.Small.CalcHeight(note, w);
             GUI.Label(new Rect(0, y, w, nh), note, PipSkin.Small);
             y += nh + 6;
@@ -876,7 +882,7 @@ namespace PIP
                 ? SizeLocked(type, model, type.VariantOption(model, variant)) : null;
             if (!string.IsNullOrEmpty(message)) { line = message; style = PipSkin.CompareBad; }
             else if (!valid) { line = "That combination isn't made. Pick another."; style = PipSkin.CompareWarn; }
-            else if (!unlocked) { line = $"Locked. Research {TechUnlocks.Missing(type, model, variant)}."; style = PipSkin.CompareWarn; }
+            else if (!unlocked) { line = $"Locked. {TechUnlocks.Missing(type, model, variant)}."; style = PipSkin.CompareWarn; }
             else if (noTaper != null) { line = noTaper + "."; style = PipSkin.CompareWarn; }
             else if (!PartFactory.Made(type, model)) { line = $"This model needs {PartFactory.Needs(type, model)}, which isn't installed."; style = PipSkin.CompareWarn; }
             else

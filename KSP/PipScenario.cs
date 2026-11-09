@@ -23,6 +23,7 @@ namespace PIP
             base.OnAwake();
             Instance = this;
             GameEvents.onVesselRecovered.Add(OnVesselRecovered);
+            GameEvents.OnGameSettingsApplied.Add(TechUnlocks.ApplyPrices);
         }
 
         // Runs once every scenario (R&D included) has loaded.
@@ -30,6 +31,19 @@ namespace PIP
         {
             PartFactory.EnsurePurchased(Programs);
             EditorHider.ApplyToResearch();
+            // R&D entries: this game's prices, and (once) the entries a game already
+            // under way had researched count as bought (DESIGN.md 27.4).
+            try
+            {
+                TechUnlocks.ApplyPrices();
+                if (!entriesSettled)
+                {
+                    int n = TechUnlocks.SettleOldGame();
+                    entriesSettled = n >= 0;
+                    if (n > 0) Debug.Log($"[PIP] {n} R&D entries this game had already researched count as bought");
+                }
+            }
+            catch (Exception e) { Debug.LogError("[PIP] Setting up R&D entries failed: " + e); }
             if (switchedOffNow)
             {
                 switchedOffNow = false;
@@ -41,6 +55,7 @@ namespace PIP
         void OnDestroy()
         {
             GameEvents.onVesselRecovered.Remove(OnVesselRecovered);
+            GameEvents.OnGameSettingsApplied.Remove(TechUnlocks.ApplyPrices);
             if (Instance == this) Instance = null;
         }
 
@@ -139,7 +154,7 @@ namespace PIP
             {
                 Option g = PartType.GimbalOptions.FirstOrDefault(o => o.Code == gimbal) ?? PartType.GimbalOptions[0];
                 gimbal = type.CanGimbal(model) ? g.Code : "0";
-                if (!TechUnlocks.Available(type, g)) { error = $"Research {TechUnlocks.Title(g.Tech)} for a {g.Label} gimbal."; return null; }
+                if (!TechUnlocks.Available(type, g, Entries.Gimbal(g))) { error = $"{TechUnlocks.Todo(type, g, Entries.Gimbal(g))} for a {g.Label} gimbal."; return null; }
                 if (gimbal != "0" && type.HasLooks && !Looks.Gimbals(type, look, model)) { error = "This look has a fixed nozzle: pick 0°."; return null; }
             }
             else gimbal = "";
@@ -149,7 +164,7 @@ namespace PIP
             if (sized)
             {
                 if (type.VariantOption(model, variant) == null) { error = "Pick a size."; return null; }
-                if (!TechUnlocks.Available(type, model, variant)) { error = $"Research {TechUnlocks.Missing(type, model, variant)} for that size."; return null; }
+                if (!TechUnlocks.Available(type, model, variant)) { error = $"{TechUnlocks.Missing(type, model, variant)} for that size."; return null; }
                 if (side && (string.IsNullOrEmpty(sideLook) || !Looks.Exists(type, true, sideLook, model))) { error = "No side-mount look is installed for this."; return null; }
                 // An adapter wears an installed adapter of its ratio (DESIGN.md 20.2), passed as sideLook.
                 if (adapter && (string.IsNullOrEmpty(sideLook) || !Looks.Exists(type, "A", sideLook, model, variant)))
@@ -208,7 +223,11 @@ namespace PIP
             if (p.IsMax) return $"{p.Title} is the last version.";
             if (p.Mk < Progress.MaxMk) return $"Reach {Progress.MkName(Progress.MaxMk)} first.";
             int cap = TechUnlocks.Cap(p.Type);
-            if (!p.CanImprove(cap)) return $"Every slider is at the research cap ({cap}). Research raises it.";
+            if (!p.CanImprove(cap))
+            {
+                string next = TechUnlocks.NextCap(p.Type);
+                return $"Every slider is at the research cap ({cap})." + (next == null ? "" : $" {next} to raise it.");
+            }
             return null;
         }
 
@@ -342,6 +361,9 @@ namespace PIP
         // its difficulty settings can switch them back on.
         bool startedWithPip = true;
         bool switchedOffNow;
+        // Whether this game's researched R&D entries have been counted as bought, once
+        // (TechUnlocks.SettleOldGame): saves from before entries could be bought haven't.
+        bool entriesSettled;
 
         public override void OnLoad(ConfigNode node)
         {
@@ -354,6 +376,7 @@ namespace PIP
                 PartFactory.Ensure(p);
             }
 
+            entriesSettled = node.GetValue("entriesSettled") == "True";
             FlightState state = HighLogic.CurrentGame?.flightState;
             bool underWay = !PipGuard.StartedWithPip(false, state?.universalTime ?? 0, state?.protoVessels?.Count ?? 0);
             if (node.HasValue("startedWithPip"))
@@ -384,6 +407,7 @@ namespace PIP
         {
             node.AddValue("startedWithPip", startedWithPip ? "True" : "False");
             node.AddValue("knownTypes", string.Join(",", PartTypes.All.Select(t => t.Id)));
+            node.AddValue("entriesSettled", entriesSettled ? "True" : "False");
             foreach (Program p in Programs)
             {
                 ConfigNode n = node.AddNode("PROGRAM");

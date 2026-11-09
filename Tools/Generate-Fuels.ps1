@@ -265,7 +265,8 @@ foreach ($f in $fuels) {
 }
 L ''
 
-L '// R&D shows each fuel at its tech node.'
+L '// R&D shows each fuel at its tech node. With entry purchase on, it''s bought there:'
+L '// pipUnlocks names the fuel (Core\Entries.cs), and PIP sets entryCost at load.'
 foreach ($f in $fuels) {
     if (-not $f.rd) { continue }
     L 'PARTUPGRADE'
@@ -279,6 +280,7 @@ foreach ($f in $fuels) {
     L "    basicInfo = $($f.rd[1])"
     L "    manufacturer = Phil's Iterative Parts"
     L "    description = $($f.rd[2])"
+    L "    pipUnlocks = liquid:Fuel=$($f.code)"
     L '}'
 }
 

@@ -78,6 +78,13 @@ namespace PIP
         public static double Multiplier(PriceLevel level) =>
             level == PriceLevel.Quarter ? 0.25 : level == PriceLevel.Half ? 0.5 : level == PriceLevel.Double ? 2 : 1;
 
+        // An R&D entry's price with entry purchase on (DESIGN.md 27.4): 30 funds per
+        // science point of its node, about what stock parts there cost, times the
+        // PIP prices option. The start node's are free.
+        public const double EntryFundsPerScience = 30;
+        public static double EntryCost(double nodeScience, PriceLevel level = PriceLevel.Normal) =>
+            Math.Round(Math.Max(0, nodeScience) * EntryFundsPerScience * Multiplier(level));
+
         public static int Clamp(int points) => Math.Max(0, Math.Min(MaxPoints, points));
 
         // Build price per part: x0.75 for a bare design up to x1.5 for a maxed one,

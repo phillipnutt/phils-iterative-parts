@@ -1,6 +1,8 @@
 # Writes GameData\PIP\Upgrades.cfg: the PARTUPGRADE entries that show PIP's
 # unlocks inside their R&D nodes. The plugin reads research state itself
 # (KSP\TechUnlocks.cs and each type's CapTechs in Core); keep the two in step.
+# With KSP's entry purchase on, each entry is bought like a stock part (DESIGN.md
+# 27.4): $sells says what it opens; PIP sets its price at load.
 # Run: powershell -ExecutionPolicy Bypass -File Tools\Generate-Upgrades.ps1
 
 # node, name, icon chassis, short info, description
@@ -10,16 +12,16 @@ $u = @(
     @('generalRocketry', 'Altitude Nozzles', 'PIP-K-125-V', 'Vacuum nozzle', 'Liquid engine programs can use a vacuum nozzle: great in space, nearly useless at sea level.'),
     @('advRocketry', 'Turbopumps', 'PIP-K-125-S', 'Liquid engine caps 50', 'New liquid engine programs can put up to 50 points into every category.'),
     @('propulsionSystems', 'Miniaturized Combustion Chambers', 'PIP-K-0625-S', '0.625 m liquid engines', 'Liquid engine programs can be 0.625 m.'),
-    @('heavyRocketry', '1.875 m Tooling', 'PIP-K-1875-S', '1.875 m', 'Rocket programs of every family can be 1.875 m.'),
-    @('heavierRocketry', '2.5 m Tooling', 'PIP-K-25-S', '2.5 m', 'Rocket programs of every family can be 2.5 m.'),
+    @('heavyRocketry', '1.875 m Tooling', 'PIP-K-1875-S', '1.875 m', 'Programs of every type that comes in 1.875 m can be 1.875 m.'),
+    @('heavierRocketry', '2.5 m Tooling', 'PIP-K-25-S', '2.5 m', 'Programs of every type that comes in 2.5 m can be 2.5 m.'),
     @('heavierRocketry', 'Staged Combustion', 'PIP-K-25-S', 'Liquid engine caps 75', 'New liquid engine programs can put up to 75 points into every category.'),
     @('precisionPropulsion', 'Sustainer Nozzles', 'PIP-K-125-B', 'Balanced nozzle', 'Liquid engine programs can use a balanced nozzle: decent low and high.'),
     @('advFuelSystems', 'Cryogenic Hydrogen', 'PIP-H-125-S', 'Hydrolox', 'Liquid engine programs can burn hydrolox: the best Isp, and bulky tanks. Standard tanks lose hydrogen fast; cryogenic tanks come with Large Volume Containment.'),
-    @('veryHeavyRocketry', '3.75 m Tooling', 'PIP-K-375-S', '3.75 m', 'Rocket programs of every family can be 3.75 m.'),
+    @('veryHeavyRocketry', '3.75 m Tooling', 'PIP-K-375-S', '3.75 m', 'Programs of every type that comes in 3.75 m can be 3.75 m.'),
     @('highPerformanceFuelSystems', 'Methalox Combustion', 'PIP-M-125-S', 'Methalox', 'Liquid engine programs can burn methalox: the best thrust, weight and reliability.'),
     @('experimentalRocketry', 'Linear Aerospike', 'PIP-K-125-A', 'Aerospike nozzle', 'Liquid engine programs can use an aerospike: good at every altitude, best at none, no gimbal.'),
     @('experimentalRocketry', 'Full-Flow Staged Combustion', 'PIP-K-375-S', 'Liquid engine caps 100', 'New liquid engine programs can put up to 100 points into every category.'),
-    @('giganticRocketry', '5 m Tooling', 'PIP-K-5-S', '5 m', 'Liquid engine programs can be 5 m.'),
+    @('giganticRocketry', '5 m Tooling', 'PIP-K-5-S', '5 m', 'Liquid engine, fuel tank, heat shield and decoupler programs can be 5 m.'),
     # Solid boosters
     @('start', 'Solid Rocket Motors', 'PIP-SOL-125-M', 'First solid booster programs', 'Start solid booster programs: 0.625 and 1.25 m, short and medium. Caps 25.'),
     @('generalRocketry', 'Segmented Casings', 'PIP-SOL-125-L', 'Long boosters; solid caps 50', 'Solid booster programs can be long, and new ones can put up to 50 points into every category.'),
@@ -96,10 +98,10 @@ $u = @(
     @('ionPropulsion', 'Pressurized Gas Tanks', 'PIP-TNK-E', 'Electric propellant tanks', 'Fuel tank programs can hold xenon, argon or lithium.'),
     @('specializedFuelStorage', 'Composite Tanks', 'PIP-TNK-S', 'Tank caps 100', 'New fuel tank programs can put up to 100 points into every category.'),
     # Plane fuselages (DESIGN.md 21.2)
-    @('supersonicFlight', 'Mk2 Fuselages', 'PIP-PLN-S-2', 'First plane fuselage programs', 'Start Mk2 fuselage programs: short; long at High Altitude Flight. Any fuel, as tanks. Caps 25.'),
-    @('highAltitudeFlight', 'Long Mk2 Fuselages', 'PIP-PLN-S-2', 'Long Mk2 fuselages; caps 50', 'Mk2 fuselages can be long, and new fuselage programs can put up to 50 points into every category.'),
-    @('heavyAerodynamics', 'Mk3 Fuselages', 'PIP-PLN-S-3', 'Mk3 fuselages; caps 75', 'Fuselage programs can be Mk3, short or medium, and new ones can put up to 75 points into every category.'),
-    @('experimentalAerodynamics', 'Long Mk3 Fuselages', 'PIP-PLN-S-3', 'Long Mk3 fuselages; caps 100', 'Mk3 fuselages can be long, and new fuselage programs can put up to 100 points into every category.'),
+    @('supersonicFlight', 'Mk2 Fuselages', 'PIP-PLN-S-2', 'First plane fuselage programs', 'Start Mk2 fuselage programs: short; long at High Altitude Flight. Any fuel, as tanks. Caps 25. Short adapter tanks to Mk2 need it too.'),
+    @('highAltitudeFlight', 'Long Mk2 Fuselages', 'PIP-PLN-S-2', 'Long Mk2 fuselages; caps 50', 'Mk2 fuselages can be long, and new fuselage programs can put up to 50 points into every category. Long adapter tanks to Mk2 need it too.'),
+    @('heavyAerodynamics', 'Mk3 Fuselages', 'PIP-PLN-S-3', 'Mk3 fuselages; caps 75', 'Fuselage programs can be Mk3, short or medium, and new ones can put up to 75 points into every category. Adapter tanks from Mk3 need it too.'),
+    @('experimentalAerodynamics', 'Long Mk3 Fuselages', 'PIP-PLN-S-3', 'Long Mk3 fuselages; caps 100', 'Mk3 fuselages can be long, and new fuselage programs can put up to 100 points into every category. The Mk3 to 3.75 m adapter tank needs it too.'),
     # Decouplers (DESIGN.md 21.1)
     @('engineering101', 'Pyrotechnic Bolts', 'PIP-DEC-D', 'First decoupler programs', 'Start stack decoupler programs: 0.625 and 1.25 m, larger sizes with their tooling. Caps 25.'),
     @('stability', 'Radial Decouplers', 'PIP-DEC-D', 'Radial decouplers', 'Decoupler programs can be side-mount: small or medium radial decouplers; large at Specialized Construction.'),
@@ -118,14 +120,56 @@ $u = @(
     @('hypersonicFlight', 'Shock Cones', 'PIP-INT-H', 'Hypersonic intakes; caps 100', 'Intake programs can be hypersonic, and new ones can put up to 100 points into every category.')
 )
 
+# What each entry sells (DESIGN.md 27.4): "type:what" items, read by Core\Entries.cs.
+# what: cap (first programs, or a caps step), size, or Choice=Code. * = every type.
+$sells = @{
+    'Liquid-Fuel Engines' = 'liquid:cap'; 'Altitude Nozzles' = 'liquid:Nozzle=V'; 'Turbopumps' = 'liquid:cap'
+    'Miniaturized Combustion Chambers' = 'liquid:size'
+    '1.875 m Tooling' = '*:size'; '2.5 m Tooling' = '*:size'; '3.75 m Tooling' = '*:size'; '5 m Tooling' = '*:size'
+    'Staged Combustion' = 'liquid:cap'; 'Sustainer Nozzles' = 'liquid:Nozzle=B'; 'Cryogenic Hydrogen' = 'liquid:Fuel=H'
+    'Methalox Combustion' = 'liquid:Fuel=M'; 'Linear Aerospike' = 'liquid:Nozzle=A'; 'Full-Flow Staged Combustion' = 'liquid:cap'
+    'Solid Rocket Motors' = 'solid:cap'; 'Segmented Casings' = 'solid:Length=L, solid:cap'; 'Composite Propellant' = 'solid:cap'; 'HTPB Propellant' = 'solid:cap'
+    'Monopropellant Thrusters' = 'monoprop:cap'; 'Throttleable Catalysts' = 'monoprop:cap'; 'Catalyst Beds' = 'monoprop:cap'
+    'Green Monopropellants' = 'monoprop:cap, rcs:cap'
+    'Solid-Core Reactors' = 'nuclear:cap'; 'Compact Cores' = 'nuclear:size, nuclear:cap'; 'Hot-Running Fuel Elements' = 'nuclear:cap'
+    'Gas-Core Reactors' = 'nuclear:Core=G, nuclear:cap'
+    'Electrostatic Thrusters' = 'electric:cap'; 'Larger Grids' = 'electric:size, electric:cap'; 'Magnetoplasmadynamics' = 'electric:Type=M'
+    'Carbon Grids' = 'electric:cap'; 'High-Power Thrusters' = 'electric:size, electric:cap'
+    'Jet Engines' = 'jet:cap'; 'Afterburners' = 'jet:Type=J, jet:cap'; 'High-Bypass Fans' = 'jet:size, jet:cap'; 'Ramjets' = 'jet:Type=R'
+    'Combined Cycle' = 'jet:Type=C, jet:cap'
+    'Attitude Thrusters' = 'rcs:cap'; 'Pulse-Mode Valves' = 'rcs:cap'; 'Bipropellant Thrusters' = 'rcs:Propellant=B, rcs:cap'
+    'Rechargeable Cells' = 'battery:cap'; 'Nickel-Cadmium' = 'battery:cap'; 'Lithium-Ion' = 'battery:cap'; 'Solid-State Cells' = 'battery:cap'
+    'Momentum Wheels' = 'wheel:cap'; 'Brushless Motors' = 'wheel:cap'; 'Magnetic Bearings' = 'wheel:cap'; 'Control Moment Gyroscopes' = 'wheel:cap'
+    'Ablative Shields' = 'shield:cap'; 'Phenolic Resins' = 'shield:cap'; 'PICA' = 'shield:cap'; 'Carbon-Carbon' = 'shield:cap'
+    'Photovoltaics' = 'solar:cap'; 'Deployable Arrays' = 'solar:Kind=D, solar:size, solar:cap'; 'Large Arrays' = 'solar:size'
+    'Gallium Arsenide' = 'solar:cap'; 'Multi-Junction Cells' = 'solar:size, solar:cap'
+    'Radio' = 'antenna:cap'; 'Directional Antennas' = 'antenna:Kind=D'; 'Parabolic Dishes' = 'antenna:size, antenna:cap'
+    'Deep Space Network' = 'antenna:size, antenna:cap'; 'Phased Arrays' = 'antenna:cap'
+    'Guidance Units' = 'probe:cap'; 'Larger Avionics Bays' = 'probe:size'; 'Digital Autopilots' = 'probe:cap'; '1.875 m Avionics' = 'probe:size'
+    'Star Trackers' = 'probe:cap'; 'Heavy Avionics' = 'probe:size, probe:cap'
+    'Welded Tanks' = 'tank:cap'; 'Monopropellant Tanks' = 'tank:Kind=M, plane:Kind=M'; 'Radial Tanks' = 'tank:size'; 'Adapter Tanks' = 'tank:size'
+    'Stir-Welded Aluminum' = 'tank:cap'; 'Cryogenic Tanks' = 'tank:Kind=C, plane:Kind=C'; 'Aluminum-Lithium Tanks' = 'tank:cap'
+    'Pressurized Gas Tanks' = 'tank:Kind=E, plane:Kind=E'; 'Composite Tanks' = 'tank:cap'
+    'Mk2 Fuselages' = 'plane:cap, tank:size'; 'Long Mk2 Fuselages' = 'plane:size, plane:cap, tank:size'
+    'Mk3 Fuselages' = 'plane:Section=3, plane:cap, tank:size'; 'Long Mk3 Fuselages' = 'plane:size, plane:cap, tank:size'
+    'Pyrotechnic Bolts' = 'decoupler:cap'; 'Radial Decouplers' = 'decoupler:size'; 'Stack Separators' = 'decoupler:Kind=S, decoupler:cap'
+    'Frangible Joints' = 'decoupler:cap'; 'Hydraulic Separation' = 'decoupler:size, decoupler:cap'
+    'Radioisotope Power' = 'rtg:cap'; 'Thermocouple Upgrades' = 'rtg:cap'; 'Stirling Converters' = 'rtg:size, rtg:cap'; 'Advanced Isotopes' = 'rtg:cap'
+    'Air Intakes' = 'intake:cap'; 'Variable Inlets' = 'intake:cap'; 'Ramp Intakes' = 'intake:Speed type=P, intake:size, intake:cap'
+    'Shock Cones' = 'intake:Speed type=H, intake:cap'
+}
+
 $sb = New-Object System.Text.StringBuilder
 [void]$sb.AppendLine('// Generated by Tools\Generate-Upgrades.ps1. Do not edit by hand.')
 [void]$sb.AppendLine('// Phil''s Iterative Parts: tech-tree unlocks. These entries show each unlock in its')
 [void]$sb.AppendLine('// R&D node; the plugin reads the node''s research state (KSP\TechUnlocks.cs).')
+[void]$sb.AppendLine('// With entry purchase on, each is bought in R&D: pipUnlocks says what it opens')
+[void]$sb.AppendLine('// (Core\Entries.cs), and PIP sets entryCost at load (30 funds per science point).')
 [void]$sb.AppendLine()
 foreach ($e in $u) {
     $node, $title, $icon, $info, $desc = $e
     $id = 'PIP-' + ($title -replace '[^A-Za-z0-9]', '')
+    if (-not $sells.ContainsKey($title)) { throw "No `$sells line for $title" }
     [void]$sb.AppendLine('PARTUPGRADE')
     [void]$sb.AppendLine('{')
     [void]$sb.AppendLine("`tname = $id")
@@ -137,6 +181,7 @@ foreach ($e in $u) {
     [void]$sb.AppendLine("`tbasicInfo = $info")
     [void]$sb.AppendLine("`tmanufacturer = Phil's Iterative Parts")
     [void]$sb.AppendLine("`tdescription = $desc")
+    [void]$sb.AppendLine("`tpipUnlocks = $($sells[$title])")
     [void]$sb.AppendLine('}')
 }
 $out = Join-Path $PSScriptRoot '..\GameData\PIP\Upgrades.cfg'

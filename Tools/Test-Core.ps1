@@ -639,6 +639,70 @@ Check 'solar, RTG (not in a service bay), shield, wheel, antenna, intake (not a 
 Write-Host 'Settings rows (section 24)'
 $rowIds = (T 'SettingRow').GetField('All').GetValue($null) | ForEach-Object { $_.Id }
 Check 'every part type has one settings row, and no row is for a type that doesn''t exist' (($allTypes | ForEach-Object { $_.Id } | Sort-Object) -join ',') (($rowIds | Sort-Object) -join ',')
+Write-Host 'R&D entries with entry purchase on (section 27.4)'
+$Entries = T 'Entries'
+$Entries::Clear()
+$gd = Join-Path $PSScriptRoot '..\GameData\PIP'
+$entryList = @()
+foreach ($file in 'Upgrades.cfg', 'Fuels.cfg') {
+    $cur = $null
+    foreach ($line in [IO.File]::ReadAllLines((Join-Path $gd $file))) {
+        $s = $line.Trim()
+        if ($s -eq 'PARTUPGRADE') { $cur = @{}; $entryList += $cur; continue }
+        if ($cur -and $s -match '^(name|techRequired|pipUnlocks) = (.*)$') { $cur[$Matches[1]] = $Matches[2] }
+        if ($s -eq '}') { $cur = $null }
+    }
+}
+$badItems = @(); foreach ($e in $entryList) { $badItems += @($Entries::Add($e.name, $e.techRequired, $e.pipUnlocks)) }
+Check 'every PIP entry says what it sells, and it all parses' "$(@($entryList | Where-Object { -not $_.pipUnlocks }).Count),$($badItems.Count)" '0,0'
+# Every unlock a program can ask for, at every node but the free start node.
+$asked = @{}; $sold = @{}; $none = @(); $twice = @()
+foreach ($t in $allTypes) {
+    $qs = New-Object System.Collections.Generic.List[string]
+    foreach ($x in $t.CapTechs) { $qs.Add("$x|cap") }
+    $lists = @($t.Choices | ForEach-Object { , @($_.Options | ForEach-Object { $_.Code }) })
+    $models = @(, @())
+    foreach ($l in $lists) { $n = @(); foreach ($m in $models) { foreach ($c in $l) { $n += , (@($m) + $c) } }; $models = $n }
+    foreach ($m in $models) {
+        $ma = [string[]]$m
+        if (-not $t.Valid($ma)) { continue }
+        $vs = @($t.Variants($ma)) + @($t.SideVariants($ma)) + @($t.AdapterVariants($ma)) | Where-Object { $_ }
+        if ($vs.Count -eq 0) { $vs = @($null) }
+        foreach ($v in $vs) { foreach ($u in $t.Unlocks($ma, $(if ($v) { $v.Code } else { $null }))) { $qs.Add("$($u.Key)|$($u.Value)") } }
+    }
+    foreach ($q in ($qs | Sort-Object -Unique)) {
+        $tech, $what = $q -split '\|', 2
+        if ($tech -eq 'start' -or -not $tech) { continue }
+        $asked["$($t.Id) $q"] = 1
+        $hits = $Entries::Matches($t.Id, $tech, $what)
+        if ($hits -eq 0) { $none += "$($t.Id):$what@$tech" } elseif ($hits -gt 1) { $twice += "$($t.Id):$what@$tech" }
+        else { $sold[$Entries::Find($t.Id, $tech, $what)] = 1 }
+    }
+}
+Check 'every unlock is sold by one entry (the Mk2 probe core has none in R&D yet)' (($none + $twice) -join ' ') 'probe:size@automation'
+$fuelNodes = @(); $cur = $null
+foreach ($line in [IO.File]::ReadAllLines((Join-Path $gd 'Fuels.cfg'))) {
+    $s = $line.Trim()
+    if ($s -eq 'PIP_FUEL') { $cur = @{}; $fuelNodes += $cur; continue }
+    if ($cur -and $s -match '^(code|tech) = ?(.*)$' -and -not $cur.ContainsKey($Matches[1])) { $cur[$Matches[1]] = $Matches[2] }
+    if ($s -eq '}' -and $line -match '^\}') { $cur = $null }
+}
+$fuelMissing = @($fuelNodes | Where-Object { $_.tech } | Where-Object { -not $Entries::Find('liquid', $_.tech, "Fuel=$($_.code)") } | ForEach-Object { $_.code })
+foreach ($f in $fuelNodes | Where-Object { $_.tech }) { $sold[$Entries::Find('liquid', $f.tech, "Fuel=$($f.code)")] = 1 }
+Check 'every researched fuel in Fuels.cfg is sold by its entry' "$($fuelNodes.Count),$($fuelMissing -join ',')" '11,'
+Check 'every entry past the start node (free) sells something a program asks for' (@($entryList | Where-Object { $_.techRequired -ne 'start' } | ForEach-Object { $_.name } | Where-Object { -not $sold.ContainsKey($_) }) -join ',') ''
+Check 'one node, two entries for one type: the caps step and the 2.5 m tooling' "$($Entries::Find('liquid', 'heavierRocketry', 'cap')),$($Entries::Find('liquid', 'heavierRocketry', 'size')),$($Entries::Find('tank', 'heavierRocketry', 'size'))" 'PIP-StagedCombustion,PIP-25mTooling,PIP-25mTooling'
+Check 'two fuels at one node each have their own entry' "$($Entries::Find('liquid', 'advFuelSystems', 'Fuel=H')),$($Entries::Find('liquid', 'advFuelSystems', 'Fuel=A'))" 'PIP-CryogenicHydrogen,PIP-Aerozine'
+Check 'a nozzle and a fuel at one node' "$($Entries::Find('liquid', 'generalRocketry', 'Nozzle=V')),$($Entries::Find('liquid', 'generalRocketry', 'Fuel=N'))" 'PIP-AltitudeNozzles,PIP-NitricAcid'
+Check 'the first program''s entry is bought too; a gimbal has none (research alone)' "$($Entries::Find('liquid', 'basicRocketry', 'cap')),$($Entries::Find('liquid', 'generalRocketry', 'Gimbal=10'))" 'PIP-LiquidFuelEngines,'
+Check 'an entry for a type wins over the tooling' "$($Entries::Find('probe', 'largeUnmanned', 'size')),$($Entries::Find('jet', 'highAltitudeFlight', 'size'))" 'PIP-HeavyAvionics,PIP-HighBypassFans'
+Check 'engines'' Size choice counts as a size' "$(Call $Entries What @($liq.Choices[1], $liq.Choices[1].Options[3])),$(Call $Entries What @($liq.Choices[0], $liq.Choices[0].Options[1]))" 'size,Fuel=H'
+Check 'Techs still lists the same nodes' (($liq.Techs((M 'H-25-V'), $null)) -join ',') 'basicRocketry,advFuelSystems,heavierRocketry,generalRocketry'
+function EntryCost([double]$sci, $lvl = 'Normal') { Call $Pricing EntryCost @($sci, [Enum]::Parse($PriceT, $lvl)) }
+Check 'entry prices: 30 funds a science point (Basic Science, Precision Engineering, Advanced Unmanned, start)' "$(EntryCost 45),$(EntryCost 160),$(EntryCost 550),$(EntryCost 0)" '1350,4800,16500,0'
+Check 'entry prices follow the PIP prices option' "$(EntryCost 45 'Quarter'),$(EntryCost 45 'Half'),$(EntryCost 45 'Double')" '338,675,2700'
+$Entries::Clear()
+
 Write-Host 'What a program gained (section 25)'
 function Gain($t, [int]$g, [int]$b, [int]$mk, [int]$xp, [bool]$ready) { Call $Progress GainLine @($t, $g, $b, $mk, $xp, $ready) }
 function GLog($t, [int]$g, [int]$b, [int]$mk, [int]$xp) { Call $Progress GainLog @($t, $g, $b, $mk, $xp) }

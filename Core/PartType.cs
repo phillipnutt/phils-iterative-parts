@@ -256,15 +256,21 @@ namespace PIP
 
         // Every node that must be researched to start a program of this model
         // (and size, for types that have sizes).
-        public IEnumerable<string> Techs(string[] model, string variant = null)
+        public IEnumerable<string> Techs(string[] model, string variant = null) => Unlocks(model, variant).Select(u => u.Key);
+
+        // The same, each node with what it opens there, in Entries' terms (DESIGN.md
+        // 27.4): the type's first programs, each picked option, the size.
+        public IEnumerable<KeyValuePair<string, string>> Unlocks(string[] model, string variant = null)
         {
-            yield return CapTechs[0];
+            yield return new KeyValuePair<string, string>(CapTechs[0], Entries.Cap);
             for (int i = 0; i < Choices.Length && i < model.Length; i++)
             {
-                string tech = Choices[i].Find(model[i])?.Tech;
-                if (!string.IsNullOrEmpty(tech)) yield return tech;
+                Option o = Choices[i].Find(model[i]);
+                if (o == null) continue;
+                foreach (string tech in o.Techs) yield return new KeyValuePair<string, string>(tech, Entries.What(Choices[i], o));
             }
-            foreach (string sizeTech in VariantOption(model, variant)?.Techs ?? new string[0]) yield return sizeTech;
+            foreach (string sizeTech in VariantOption(model, variant)?.Techs ?? new string[0])
+                yield return new KeyValuePair<string, string>(sizeTech, Entries.Size);
         }
 
         protected static int P(int[] points, int i) => points != null && i < points.Length ? Pricing.Clamp(points[i]) : 0;

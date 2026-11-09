@@ -2494,16 +2494,46 @@ unlocks at Unmanned Tech and its HECS2 (maneuver node) at Advanced Unmanned,
 each one node earlier. Phil had found probes too strong, and the caps also
 pace a probe's power draw, weight and torque.
 
-### 27.4 Entry purchase (open)
+### 27.4 Entry purchase
 
-Phil: "Follow the setting". With KSP's entry purchase on, PIP's R&D entries
-are bought like stock parts; with it off, they're free once researched. KSP's
-own check of an entry (`PartUpgradeHandler.IsUnlocked`) already follows the
-setting; PIP's own research checks don't yet. What's bought and for how much
-is with Phil (proposed: every entry but a type's first program, at 30 funds per
-science point of its node, about what stock parts there cost).
+Phil: "Follow the setting", then "Charge first ones too". With KSP's entry
+purchase on (a career's "Entry Purchase Required on Research"), every PIP
+research entry is bought in R&D like a stock part, a type's first programs'
+too: a type's first program costs its entry plus the program's price. With
+it off, or in a science game (no funds), research alone opens them, as
+before.
 
-**Built 2026-11-09:** 27.1 to 27.3. 364 offline checks pass.
+- **Price:** 30 funds per science point of the entry's node, about what
+  stock parts there cost, times the PIP prices option (Basic Science 1,350,
+  Precision Engineering 4,800, Advanced Unmanned 16,500). Start-node entries
+  are free and never need buying. PIP sets the price on KSP's copy of each
+  entry when a game loads and when its settings change.
+- **What each entry sells:** each entry says so in a `pipUnlocks` line,
+  written by the generators: `type:what` items, where what is `cap` (first
+  programs, or a caps step), `size`, or `Choice=Code` (`Nozzle=V`, `Fuel=N`),
+  and `*` stands for every type (the size tooling). `Core\Entries.cs` finds
+  the entry for each unlock; a type's own entry wins over the tooling. Two
+  entries for one type at one node are told apart this way: liquid engines
+  at Heavier Rocketry get caps 75 from Staged Combustion and 2.5 m from the
+  tooling; nitric acid and the vacuum nozzle share General Rocketry.
+- **Unlocks no entry sells** need research alone, since R&D has nothing to
+  buy for them: the 10° and 20° gimbals, the Mk2 probe core (Automation),
+  and a fuel another mod adds without an entry. The offline checks list
+  every unlock a program can ask for and fail when one has no entry or two,
+  the Mk2 probe core aside.
+- **Entries now say all they sell:** the size tooling sells every type's
+  sizes (batteries, wheels, heat shields, decouplers, tanks, not just
+  rockets), and 5 m Tooling names its types; the Mk2 and Mk3 fuselage
+  entries also sell the adapter tanks to Mk2 and from Mk3. Their R&D text
+  says so.
+- **Games already under way:** the first time this version loads a game,
+  every entry whose node it had researched counts as bought (they were free
+  then), so nothing the game already used locks. Saved as `entriesSettled`.
+- **Window text:** a lock says what's left, "Research Fuel Systems" or
+  "Buy PIP: Adapter Tanks in R&D", and the points note names the next caps
+  step.
+
+**Built 2026-11-09:** 27.1 to 27.4. 377 offline checks pass.
 
 ## Looks and side-mount build (2026-11-04)
 
