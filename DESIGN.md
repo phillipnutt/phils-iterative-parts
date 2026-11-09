@@ -2386,7 +2386,9 @@ causing a lot of issues."
   those current there would be a free update. So the Suite tells PIP which
   parts are hardware (`PipApi.IsHardware`, asked per part as the VAB loads a
   craft), and those keep their own version and Mk. A program rename still
-  shows on them.
+  shows on them. A mod can also load a hardware part's stored PIP data onto a
+  part already in the VAB (`PartModule.Load`); the part keeps it and shows that
+  Mk at once.
 - Calls for other mods, in `PIP.PipApi` (by reflection; a craft root, a save's
   VESSEL node, or one PART node, in craft or save format):
   - `int ToCurrent(node)`: the step above, on purpose, so hardware too;

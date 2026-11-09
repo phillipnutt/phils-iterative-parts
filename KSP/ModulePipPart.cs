@@ -58,8 +58,10 @@ namespace PIP
             pointValues = Program.PointsFromText(points, Type.Categories.Length);
             statsReady = false;
             // B9PartSwitch sends a new size this way, and can reload the chassis config
-            // with it, which doesn't carry the program. In the VAB, re-link the program if
-            // that lost it (a part keeps the version and Mk it has) and apply straight away.
+            // with it, which doesn't carry the program; the Reusability Suite's "Use it" puts
+            // a hangar copy's hardware data on a part this way. In the VAB, re-link the
+            // program only if that lost it (a part keeps the version and Mk it was given,
+            // DESIGN.md 26.4) and apply straight away.
             if (started && !IsPrefab && HighLogic.LoadedSceneIsEditor)
             {
                 if (!Assigned) Assign(PipScenario.ProgramOf(programId, part.partInfo?.name, true));

@@ -64,6 +64,14 @@ namespace PIP
             base.OnLoad(node);
             pointValues = Program.PointsFromText(points, Type.Categories.Length);
             statsReady = false;
+            // Another mod reloading a part in the VAB (the Reusability Suite's "Use it" puts
+            // a hangar copy's hardware data on it): the part keeps what it was given, at
+            // its own Mk (DESIGN.md 26.4), and shows it straight away.
+            if (started && !IsPrefab && HighLogic.LoadedSceneIsEditor)
+            {
+                Apply();
+                GameEvents.onEditorShipModified.Fire(EditorLogic.fetch?.ship);
+            }
         }
 
         public override void OnStart(StartState state)
@@ -80,6 +88,7 @@ namespace PIP
             if (program != null && !Assigned) Assign(program);
             // A renamed program: the part keeps its version and Mk, and shows the new name.
             else if (program != null && program.Id == programId) programName = program.Title;
+            started = true;
             Apply();
             if (HighLogic.LoadedSceneIsFlight) FlightTracker.Register(this);
             Debug.Log($"[PIP] {part.partInfo?.name} started in {HighLogic.LoadedScene}: program {(Assigned ? programName : "none")} " +
@@ -102,6 +111,7 @@ namespace PIP
 
         // Mass and cost can be asked for before OnStart, so stats are computed on demand.
         bool statsReady;
+        bool started;
         Stats Stats
         {
             get
