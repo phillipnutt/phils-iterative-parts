@@ -2533,7 +2533,13 @@ before.
   "Buy PIP: Adapter Tanks in R&D", and the points note names the next caps
   step.
 
-**Built 2026-11-09:** 27.1 to 27.4. 377 offline checks pass.
+**Built 2026-11-09:** 27.1 to 27.4. 377 offline checks pass. Seen in game the
+same day: probe cores get SAS levels 0, 1 and 3 at 25, 50 and 100 points; a
+shrunk look keeps its nodes through a paint change; and in a throwaway career
+(33 checks) prices, research then buy, the caps steps, tooling, settling, the
+settings event, and entry purchase off and on again all work. That run found
+that KSP's events can't hold a static method: the settings hook threw every
+time a game scene loaded. It's now a method of the scenario.
 
 ## Looks and side-mount build (2026-11-04)
 

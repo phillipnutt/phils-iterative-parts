@@ -23,8 +23,12 @@ namespace PIP
             base.OnAwake();
             Instance = this;
             GameEvents.onVesselRecovered.Add(OnVesselRecovered);
-            GameEvents.OnGameSettingsApplied.Add(TechUnlocks.ApplyPrices);
+            GameEvents.OnGameSettingsApplied.Add(OnSettingsApplied);
         }
+
+        // KSP's events can't hold a static method: they read the method's object and
+        // throw on a null one (that broke this OnAwake once). So a method of this one.
+        void OnSettingsApplied() => TechUnlocks.ApplyPrices();
 
         // Runs once every scenario (R&D included) has loaded.
         void Start()
@@ -55,7 +59,7 @@ namespace PIP
         void OnDestroy()
         {
             GameEvents.onVesselRecovered.Remove(OnVesselRecovered);
-            GameEvents.OnGameSettingsApplied.Remove(TechUnlocks.ApplyPrices);
+            GameEvents.OnGameSettingsApplied.Remove(OnSettingsApplied);
             if (Instance == this) Instance = null;
         }
 
