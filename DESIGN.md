@@ -2375,7 +2375,10 @@ causing a lot of issues."
   version's parts to the newest version's, writes the program's current Mk and
   points into each PIP module, clears its flight flags, and resizes what the
   part holds (battery charge, ablator) to the new capacity at the same share
-  full.
+  full. It also updates the part's saved module cost and mass (`modCost`,
+  `modMass`), which KSP prices and weighs a part in a file by, replacing only
+  PIP's share. Links to a renamed part keep working: KSP matches them by the
+  part's ID, not its name.
 - The VAB runs it on every craft it loads (loading, merging, subassemblies and
   undo all come through one place), and the part modules take the same values
   (`PipApi.WriteNewBuild`) for parts placed from the parts list. Phil's

@@ -90,15 +90,21 @@ namespace PIP
                 Built b = Read(part);
                 if (b == null || b.Program == null) continue;
                 if (vab && Hardware(part)) { kept++; continue; }
-                Program now = Latest(b.Program);
-                bool newVersion = now != b.Program, newMk = b.Mk != now.Mk;
+                Program now = Latest(b.Program), was = b.Program;
+                string wasName = b.PartName;
+                bool newVersion = now != was, newMk = b.Mk != now.Mk;
                 if (newVersion && !Rename(part, b, now)) continue;
                 foreach (ConfigNode m in part.GetNodes("MODULE"))
                 {
                     bool engine = m.GetValue("name") == nameof(ModulePipEngine);
                     if (!engine && m.GetValue("name") != nameof(ModulePipPart)) continue;
+                    string variant = engine || string.IsNullOrEmpty(m.GetValue("variant")) ? null : m.GetValue("variant");
+                    Stats before = b.Mk >= Progress.MinMk ? was.Stats(b.Mk, PipSettings.Failures, variant) : null;
+                    Stats after = now.Stats(now.Mk, PipSettings.Failures, variant);
+                    double fullBefore = FullValue(part);
                     WriteNewBuild(m, now, engine);
-                    if (!engine) Refill(part, m, now);
+                    if (!engine) Refill(part, after, now);
+                    Reprice(part, engine, now.Type is TankKind, before, after, wasName, b.PartName, fullBefore);
                 }
                 if (newVersion) versions++;
                 if (newVersion || newMk) changed++;
@@ -136,12 +142,49 @@ namespace PIP
             return true;
         }
 
+        // A craft file's part carries its modules' cost and mass (modCost, modMass), and
+        // KSP prices and weighs a part from a file with them (partInfo's cost and mass
+        // plus these, ShipConstruction.GetPartCostsAndMass). So they follow the new
+        // Mk and version: PIP's share is taken out and the new one put in, leaving
+        // other modules' shares (a B9 tank's) as they were. See GetModuleCost and
+        // GetModuleMass on the part modules for PIP's share.
+        static void Reprice(ConfigNode part, bool engine, bool tank, Stats before, Stats after, string wasName, string newName, double fullBefore)
+        {
+            AvailablePart was = PartLoader.getPartInfoByName(wasName), now = PartLoader.getPartInfoByName(newName);
+            if (was?.partPrefab == null || now?.partPrefab == null) return;
+            if (part.HasValue("modCost"))
+            {
+                // An engine's share is its build price; another part's also counts what it
+                // holds when full, as KSP's listed costs do.
+                double oldShare = before == null ? 0 : before.BuildPrice - was.cost + (engine ? 0 : fullBefore);
+                double newShare = after.BuildPrice - now.cost + (engine ? 0 : FullValue(part));
+                part.SetValue("modCost", ((float)(Num(part.GetValue("modCost")) - oldShare + newShare)).ToString("R", CultureInfo.InvariantCulture));
+            }
+            if (part.HasValue("modMass") && (before != null || !tank))
+            {
+                double mass = Num(part.GetValue("modMass"));
+                // (A part saved without a program had no PIP share.)
+                // A tank weighs its tank type's own mass times Weight, so all the
+                // modules' extra mass scales with Weight; other parts weigh the program's mass.
+                if (tank) mass = before[FuelTanks.WeightFactor] > 0 ? mass * after[FuelTanks.WeightFactor] / before[FuelTanks.WeightFactor] : mass;
+                else mass += (after.Mass - now.partPrefab.mass) - (before == null ? 0 : before.Mass - was.partPrefab.mass);
+                part.SetValue("modMass", ((float)mass).ToString("R", CultureInfo.InvariantCulture));
+            }
+        }
+
+        // What a part's resources are worth when full.
+        static double FullValue(ConfigNode part)
+        {
+            double full = 0;
+            foreach (ConfigNode r in part.GetNodes("RESOURCE"))
+                full += Num(r.GetValue("maxAmount")) * (PartResourceLibrary.Instance?.GetDefinition(r.GetValue("name"))?.unitCost ?? 0);
+            return full;
+        }
+
         // A battery's charge, a probe core's battery, a heat shield's ablator: the new
         // capacity, as full as the part was (a new build's design is full).
-        static void Refill(ConfigNode part, ConfigNode module, Program now)
+        static void Refill(ConfigNode part, Stats s, Program now)
         {
-            string variant = module.GetValue("variant");
-            Stats s = now.Stats(now.Mk, PipSettings.Failures, string.IsNullOrEmpty(variant) ? null : variant);
             if (!ModulePipPart.Held(now.Type.Id, s, out string held, out double amount)) return;
             foreach (ConfigNode r in part.GetNodes("RESOURCE"))
             {
