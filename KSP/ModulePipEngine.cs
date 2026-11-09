@@ -73,9 +73,11 @@ namespace PIP
             engines = part.FindModulesImplementing<ModuleEngines>();
             pointValues = Program.PointsFromText(points, Type.Categories.Length);
 
-            // New builds use the family's newest version.
+            // A part placed from the parts list is new: the family's newest version at its
+            // current Mk. A craft the VAB loads was made current before it was built
+            // (NewestVersionOnLoadPatch), leaving built hardware as it was (DESIGN.md 26.4).
             Program program = PipScenario.ProgramOf(programId, part.partInfo?.name, HighLogic.LoadedSceneIsEditor);
-            if (HighLogic.LoadedSceneIsEditor || (program != null && !Assigned)) Assign(program);
+            if (program != null && !Assigned) Assign(program);
             // A renamed program: the part keeps its version and Mk, and shows the new name.
             else if (program != null && program.Id == programId) programName = program.Title;
             Apply();

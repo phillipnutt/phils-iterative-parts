@@ -9,7 +9,9 @@ namespace PIP
     // PIP's calls for other mods (DESIGN.md 26.3), on a craft's nodes rather than a
     // loaded ship, so they work at the Space Center. Phil's Reusability Suite calls
     // them by reflection: ToCurrent before it prices a build that never opens the
-    // VAB, and on parts-bin and hangar parts for its "Update PIP parts" (26.4).
+    // VAB, and on parts-bin and hangar parts for its "Update PIP parts" (26.4);
+    // Behind to spot and word old-Mk parts; Title for its labels; and it sets
+    // IsHardware so built hardware keeps its Mk in the VAB.
     // A node can be a .craft file's root or a save's VESSEL (each PART in it), or
     // one PART. Both part formats work: a craft's "part = PIP.x_123" and a save's
     // "name = PIP.x". Parts that aren't PIP's are left alone.
@@ -20,20 +22,25 @@ namespace PIP
         // at the program's current Mk, with that version's points, flight flags
         // cleared, and what it holds (battery charge, ablator) resized to the new
         // capacity at the same share full. Returns how many parts changed version or Mk.
-        public static int ToCurrent(ConfigNode node) => ToCurrent(node, out _);
+        // Called on purpose, it changes flown parts too (an update, 26.4).
+        public static int ToCurrent(ConfigNode node) => ToCurrent(node, out _, false);
 
-        // True for a PIP part that isn't what a new build of it would be now: an older
-        // version, or another Mk. The parts ToCurrent would change.
-        public static bool IsBehind(ConfigNode part)
+        // How many Marks a PIP part is behind what a new build of it is now; 0 when it's
+        // current or isn't PIP's. Marks count along the family, II Mk. 1 coming right
+        // after I Mk. 5, so a part of an older version is always at least 1 behind.
+        // now: the part's own title ("Augur I Mk. 1"); current: a new build's
+        // ("Augur I Mk. 3"). Both null for a part that isn't PIP's.
+        public static int Behind(ConfigNode part, out string now, out string current)
         {
+            now = current = null;
             Built b = Read(part);
-            if (b == null || b.Program == null) return false;
-            Program now = Latest(b.Program);
-            return now != b.Program || b.Mk != now.Mk;
+            if (b == null) return 0;
+            now = PartFactory.TitleOf(b.Program, b.PartName, b.ProgramName, b.Mk);
+            if (b.Program == null) return 0;
+            Program latest = Latest(b.Program);
+            current = PartFactory.TitleOf(latest, latest == b.Program ? b.PartName : NameIn(latest, b.PartName), null, latest.Mk);
+            return Math.Max(latest == b.Program ? 0 : 1, Rung(latest, latest.Mk) - Rung(b.Program, b.Mk));
         }
-
-        // The Mk a PIP part was built at (1 to 5), or 0 for a part that isn't PIP's.
-        public static int Mk(ConfigNode part) => Read(part)?.Mk ?? 0;
 
         // A PIP part's title with its own Mk ("Augur I Mk. 1"), or null for a part
         // that isn't PIP's (use the part's own title).
@@ -42,6 +49,12 @@ namespace PIP
             Built b = Read(part);
             return b == null ? null : PartFactory.TitleOf(b.Program, b.PartName, b.ProgramName, b.Mk);
         }
+
+        // Set by a mod that brings built hardware into the VAB (the Reusability Suite's
+        // hangar ships, queued builds, parts-bin parts): true for a PART node that is
+        // hardware, which then keeps its own version and Mk there (DESIGN.md 26.4).
+        // Asked once per part each time the VAB loads a craft, before KSP builds it.
+        public static Func<ConfigNode, bool> IsHardware;
 
         #region The new-build rule
 
@@ -66,15 +79,17 @@ namespace PIP
             else module.SetValue("flew", "False", true);
         }
 
-        internal static int ToCurrent(ConfigNode node, out int versions)
+        // vab: the VAB loading a craft, which leaves hardware alone (IsHardware).
+        internal static int ToCurrent(ConfigNode node, out int versions, bool vab)
         {
             versions = 0;
-            int changed = 0;
+            int changed = 0, kept = 0;
             if (node == null || PipScenario.Instance == null) return 0;
             foreach (ConfigNode part in PartsIn(node))
             {
                 Built b = Read(part);
                 if (b == null || b.Program == null) continue;
+                if (vab && Hardware(part)) { kept++; continue; }
                 Program now = Latest(b.Program);
                 bool newVersion = now != b.Program, newMk = b.Mk != now.Mk;
                 if (newVersion && !Rename(part, b, now)) continue;
@@ -89,14 +104,32 @@ namespace PIP
                 if (newVersion || newMk) changed++;
             }
             if (changed > 0) Debug.Log($"[PIP] Brought {changed} part{(changed == 1 ? "" : "s")} to the current Mk ({versions} to a newer version)");
+            if (kept > 0) Debug.Log($"[PIP] {kept} built part{(kept == 1 ? "" : "s")} kept {(kept == 1 ? "its" : "their")} own Mk in the VAB");
             return changed;
         }
+
+        // A hook that fails leaves the part as it is: nothing changes that shouldn't.
+        static bool Hardware(ConfigNode part)
+        {
+            if (IsHardware == null) return false;
+            try { return IsHardware(part); }
+            catch (Exception e)
+            {
+                Debug.LogError("[PIP] The IsHardware hook failed; leaving the part as built: " + e);
+                return true;
+            }
+        }
+
+        // Where a part stands along its family's Marks: I Mk. 1 is 1, II Mk. 1 is 6.
+        static int Rung(Program p, int mk) => (p.Version - 1) * Progress.MaxMk + mk;
+
+        static string NameIn(Program now, string oldName) => PartFactory.IsSidePart(oldName) ? now.SidePartName : now.PartName;
 
         // An older version's part becomes the newest version's part of the same kind.
         static bool Rename(ConfigNode part, Built b, Program now)
         {
             PartFactory.Ensure(now);
-            string newName = PartFactory.IsSidePart(b.PartName) ? now.SidePartName : now.PartName;
+            string newName = NameIn(now, b.PartName);
             if (PartLoader.getPartInfoByName(newName) == null) return false;
             part.SetValue(b.NameKey, newName + b.NameRest);
             b.PartName = newName;

@@ -2376,14 +2376,25 @@ causing a lot of issues."
   points into each PIP module, clears its flight flags, and resizes what the
   part holds (battery charge, ablator) to the new capacity at the same share
   full.
-- The VAB runs it on every craft it loads, and the part modules take the same
-  values (`PipApi.WriteNewBuild`) for parts added from the parts list. Phil's
+- The VAB runs it on every craft it loads (loading, merging, subassemblies and
+  undo all come through one place), and the part modules take the same values
+  (`PipApi.WriteNewBuild`) for parts placed from the parts list. Phil's
   Reusability Suite runs it on a design before it prices a build that starts
   at the Space Center. So both places build, and charge for, the same parts.
+- **Built hardware in the VAB keeps its Mk.** The Suite brings flown and built
+  parts into the VAB (hangar ships, queued builds, parts-bin parts). Making
+  those current there would be a free update. So the Suite tells PIP which
+  parts are hardware (`PipApi.IsHardware`, asked per part as the VAB loads a
+  craft), and those keep their own version and Mk. A program rename still
+  shows on them.
 - Calls for other mods, in `PIP.PipApi` (by reflection; a craft root, a save's
   VESSEL node, or one PART node, in craft or save format):
-  `ToCurrent(node)`, `IsBehind(part)` (would ToCurrent change it?),
-  `Mk(part)` and `Title(part)`.
+  - `int ToCurrent(node)`: the step above, on purpose, so hardware too;
+  - `int Behind(part, out now, out current)`: how many Marks a part is behind a
+    new build, counted along the family (II Mk. 1 comes right after I Mk. 5),
+    with both titles;
+  - `string Title(part)`: the part's own title;
+  - `Func<ConfigNode, bool> IsHardware`: the hook above.
 
 ### 26.4 Updating flown parts: a paid exception
 

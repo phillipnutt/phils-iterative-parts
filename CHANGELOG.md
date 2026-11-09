@@ -42,8 +42,9 @@ logged. Recoveries through Phil's Reusability Suite always counted.
 - **New parts are the current Mk wherever the build starts.** The VAB's rule
   (newest version, current Mk) is now one step that other mods can call too,
   so a build Phil's Reusability Suite starts at the Space Center gets the same
-  parts as one from the VAB. Flown parts keep their Mk, unless they're updated
-  on purpose through the Suite.
+  parts as one from the VAB. Flown and built parts keep their Mk, in the VAB
+  too when the Suite brings them there, unless they're updated on purpose
+  through the Suite.
 - **Fixed:** a part reused from an earlier flight (a hangar copy, a parts-bin
   part) didn't count its new flight, and a craft recovered straight off the
   pad could still gain recovery experience.

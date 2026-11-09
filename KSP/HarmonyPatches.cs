@@ -129,8 +129,10 @@ namespace PIP
     // A craft loaded in the VAB is built new (DESIGN.md 18.1 and 26.3): PipApi.ToCurrent,
     // the same step a Space Center build takes, makes each PIP part the family's newest
     // version (an older version's part is renamed) at its current Mk before KSP builds
-    // the ship. Parts keep their place and settings. Every LoadShip overload (they may
-    // call each other; doing it twice is harmless).
+    // the ship, except built hardware another mod brought in (PipApi.IsHardware, 26.4).
+    // Loading, merging, subassemblies and undo all come through here. Parts keep their
+    // place and settings. Every LoadShip overload (they may call each other; doing it
+    // twice is harmless).
     [HarmonyLib.HarmonyPatch]
     static class NewestVersionOnLoadPatch
     {
@@ -142,7 +144,7 @@ namespace PIP
             try
             {
                 if (root == null || !HighLogic.LoadedSceneIsEditor) return;
-                PipApi.ToCurrent(root, out int swapped);
+                PipApi.ToCurrent(root, out int swapped, true);
                 if (swapped > 0)
                 {
                     UnityEngine.Debug.Log($"[PIP] Craft loaded with {swapped} parts moved to their program's newest version");
