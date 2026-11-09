@@ -126,11 +126,11 @@ namespace PIP
 
 namespace PIP
 {
-    // A craft saved with an older version's parts (Kestrel I) loads with the
-    // family's newest version instead (DESIGN.md section 18.1): its PART nodes
-    // are renamed before KSP builds the ship. Parts keep their place and settings;
-    // the part module picks up the newest version's numbers in the VAB.
-    // Every LoadShip overload (they may call each other; renaming twice is harmless).
+    // A craft loaded in the VAB is built new (DESIGN.md 18.1 and 26.3): PipApi.ToCurrent,
+    // the same step a Space Center build takes, makes each PIP part the family's newest
+    // version (an older version's part is renamed) at its current Mk before KSP builds
+    // the ship. Parts keep their place and settings. Every LoadShip overload (they may
+    // call each other; doing it twice is harmless).
     [HarmonyLib.HarmonyPatch]
     static class NewestVersionOnLoadPatch
     {
@@ -141,24 +141,8 @@ namespace PIP
         {
             try
             {
-                PipScenario scenario = PipScenario.Instance;
-                if (root == null || scenario == null || !HighLogic.LoadedSceneIsEditor) return;
-                int swapped = 0;
-                foreach (ConfigNode part in root.GetNodes("PART"))
-                {
-                    string value = part.GetValue("part");
-                    if (string.IsNullOrEmpty(value)) continue;
-                    int cut = value.IndexOf('_');
-                    string name = cut < 0 ? value : value.Substring(0, cut), rest = cut < 0 ? "" : value.Substring(cut);
-                    Program old = scenario.Find(PartFactory.ProgramIdOf(name));
-                    Program latest = scenario.Latest(old);
-                    if (old == null || latest == null || latest == old) continue;
-                    PartFactory.Ensure(latest);
-                    string newName = PartFactory.IsSidePart(name) ? latest.SidePartName : latest.PartName;
-                    if (PartLoader.getPartInfoByName(newName) == null) continue;
-                    part.SetValue("part", newName + rest);
-                    swapped++;
-                }
+                if (root == null || !HighLogic.LoadedSceneIsEditor) return;
+                PipApi.ToCurrent(root, out int swapped);
                 if (swapped > 0)
                 {
                     UnityEngine.Debug.Log($"[PIP] Craft loaded with {swapped} parts moved to their program's newest version");

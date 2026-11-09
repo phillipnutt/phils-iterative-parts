@@ -116,8 +116,8 @@ namespace PIP
             return Failure.Chance(f.FailHi, f.FailLo, reliabilityPoints, mk, level);
         }
 
-        public double BuildPriceAt(string[] m, int[] points, int mk) =>
-            BuildPrice(BasePrice[SizeIndex(m)] * Fuel(m).Price * (IsAerospike(m) ? 2 : 1), points, mk);
+        public double BuildPriceAt(string[] m, int[] points) =>
+            BuildPrice(BasePrice[SizeIndex(m)] * Fuel(m).Price * (IsAerospike(m) ? 2 : 1), points);
 
 
         public override Stats Compute(string[] m, int[] points, int mk, FailureLevel level, string variant = null)
@@ -129,7 +129,7 @@ namespace PIP
             s[K.ThrustSL] = s[K.IspVac] > 0 ? s[K.ThrustVac] * s[K.IspSL] / s[K.IspVac] : 0;
             s[K.Mass] = MassAt(m, D(points, Thrust, mk), E(points, Weight, mk));
             s[K.Fail] = FailureAt(m, P(points, Reliability), mk, level);
-            s[K.Price] = BuildPriceAt(m, points, mk);
+            s[K.Price] = BuildPriceAt(m, points);
             return s;
         }
 

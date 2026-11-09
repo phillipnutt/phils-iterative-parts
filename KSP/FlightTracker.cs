@@ -6,7 +6,9 @@ namespace PIP
 {
     // Experience from flights, once per program per flight (DESIGN.md section 18.2):
     // +1 when one of its engines fires after leaving the pad, or another of its
-    // parts leaves it. Parts register themselves.
+    // parts leaves it. Parts register themselves. A part on the pad hasn't flown
+    // this flight, whatever it did before: a reused part (a hangar copy, a parts-bin
+    // part) counts its new flight and isn't recovered off the pad for its last one.
     [KSPAddon(KSPAddon.Startup.Flight, false)]
     public class FlightTracker : MonoBehaviour
     {
@@ -27,6 +29,7 @@ namespace PIP
             {
                 ModulePipEngine m = engines[i];
                 if (m == null || m.part == null) { engines.RemoveAt(i); continue; }
+                if (Waiting(m.vessel)) m.fired = false;
                 if (!m.IsBurning || OnPad(m.vessel)) continue;
                 m.fired = true;
                 Count(scenario.Find(m.programId), m.part);
@@ -35,6 +38,7 @@ namespace PIP
             {
                 ModulePipPart m = parts[i];
                 if (m == null || m.part == null) { parts.RemoveAt(i); continue; }
+                if (Waiting(m.vessel)) m.flew = false;
                 if (m.flew || !m.Assigned || OnPad(m.vessel)) continue;
                 m.flew = true;
                 Count(scenario.Find(m.programId), m.part);
@@ -49,6 +53,7 @@ namespace PIP
         readonly Dictionary<Program, int> counted = new Dictionary<Program, int>();
 
         static bool OnPad(Vessel v) => v == null || v.situation == Vessel.Situations.PRELAUNCH;
+        static bool Waiting(Vessel v) => v != null && v.situation == Vessel.Situations.PRELAUNCH;
 
         // Once per program per flight (DESIGN.md section 18.2); a retired version's
         // parts count toward the family's newest version.

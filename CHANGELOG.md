@@ -33,6 +33,21 @@ new Mk, or how far it is to the next one. The pop-ups this replaces were hidden
 behind the recovery screen. KSP.log now has a line for each flight and recovery
 logged. Recoveries through Phil's Reusability Suite always counted.
 
+**One Mk rule, wherever a part is built** (DESIGN.md 26)
+- **One build price at every Mk:** a program version's parts cost what its
+  Mk. 1 does. Stats still improve with Mk. The program window shows one price.
+- **A part's window shows its own Mk.** The parts list's title no longer has a
+  Mk ("Augur I"), because it's shared by parts built at different Mks. A part's
+  right-click window is titled with the Mk that part was built at.
+- **New parts are the current Mk wherever the build starts.** The VAB's rule
+  (newest version, current Mk) is now one step that other mods can call too,
+  so a build Phil's Reusability Suite starts at the Space Center gets the same
+  parts as one from the VAB. Flown parts keep their Mk, unless they're updated
+  on purpose through the Suite.
+- **Fixed:** a part reused from an earlier flight (a hangar copy, a parts-bin
+  part) didn't count its new flight, and a craft recovered straight off the
+  pad could still gain recovery experience.
+
 **Fixed:** a battery's part tooltip listed its chassis's 100 electric charge, not
 what the program holds; heat shields (ablator) and probe cores (built-in battery)
 had the same mistake. The part itself always held the right amount.

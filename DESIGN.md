@@ -222,7 +222,8 @@ A category with 0 points stays at its floor at every Mk.
 
 - In the VAB, a program's part always builds at the **current** Mk.
 - Once launched, a part stays at the Mk it was built at. "Kestrel Mk. 3" flies
-  as Mk. 3 even if that flight pushes the program to Mk. 4.
+  as Mk. 3 even if that flight pushes the program to Mk. 4. The one exception is
+  updating flown parts on purpose (section 26.4).
 - When a program goes up a Mk.: "Kestrel reached Mk. 5. New builds use it."
 
 ---
@@ -1547,7 +1548,8 @@ A program family improves in versions: **Kestrel I, Kestrel II, Kestrel III ...*
   size's normal price; 100 points at 0.5×.
 - Like every stat it matures with Mk.: Mk. 1 builds as if half its points
   were spent, Mk. 5 as designed. So parts get cheaper as the program matures,
-  and a successor carries its build cost on.
+  and a successor carries its build cost on. (Replaced 2026-11-08 by section
+  26.1: one build price at every Mk.)
 - Price still depends on the part's size. Spending more points on the other
   sliders still makes the part dearer to build ("ambition"); the Build cost
   slider works against that.
@@ -2321,6 +2323,94 @@ parts reused from the hangar keep the Mk they were built at.
 
 **Code:** the wording is `Progress.GainLine` and `GainLog` (Core, checked by
 Test-Core); the in-flight new-Mk pop-up uses the same line.
+
+## 26. One Mk rule, wherever a part is built (2026-11-08)
+
+**Why:** Phil's second play-test of 2026-11-08 found PIP parts with three
+different Mks, depending on where you looked:
+- A craft built from the Reusability Suite's window at the Space Center, which
+  never opens the VAB, flew the Mk its design file was saved with (Mk. 1). The
+  same design built in the VAB flew Mk. 3. Both cost the Mk. 3 price.
+- A probe core's window title said "Augur I Mk. 3" while its own Program line
+  said "Augur I Mk. 1". The title was the program's current Mk; the part was
+  Mk. 1.
+- Parts-bin parts at an older Mk never matched a new build, because PIP's
+  prices changed with Mk and the Suite matches "the same part at the same
+  price".
+
+Phil: "We really need for it to just be totally current with whatever the VAB
+can know and apply … your call", and on prices: "nix the price changing across
+Marks in all of PIP. it's not that interesting anyway and it seems to be
+causing a lot of issues."
+
+### 26.1 One build price at every Mk
+
+- A program version's parts **cost the same at every Mk**: what its Mk. 1
+  costs. Mass, thrust and every other stat still improve with Mk.
+- This replaces 18.3's "parts get cheaper as the program matures". The Build
+  cost slider still lowers the price, but in a first version only half its
+  points count (as at Mk. 1). The next version starts from all of them, so
+  its parts are cheaper. Kestrel II costs what Kestrel I would with its whole
+  Build cost spend.
+- The program window shows one build price ("the same at every Mk") instead
+  of a Mk. 1 to Mk. 5 range. The Comparison tooltip still compares the build
+  price with the stock engine's; that number no longer moves with Mk.
+
+### 26.2 A part's title shows its own Mk
+
+- The parts list's title is shared by every part built from it, whatever Mk
+  each was built at, so it no longer has a Mk: "Augur I". Its description
+  still says which Mk new builds are at ("Program Augur I, now at Mk. 3").
+- A part's own window (right-click) is titled with **its own** Mk: "Augur I
+  Mk. 1", matching its Program line.
+- Other mods get the same title from a part saved in a file with
+  `PipApi.Title` (26.3). The Suite's parts-bin rows use it.
+
+### 26.3 A new part is the current Mk wherever its build starts
+
+- The rule, unchanged from section 5 but now enforced in one place: a **new**
+  part is the program family's newest version at its current Mk. **Flown**
+  hardware keeps the Mk it was built at.
+- One step does it, `PipApi.ToCurrent`, on a craft's nodes: it renames an old
+  version's parts to the newest version's, writes the program's current Mk and
+  points into each PIP module, clears its flight flags, and resizes what the
+  part holds (battery charge, ablator) to the new capacity at the same share
+  full.
+- The VAB runs it on every craft it loads, and the part modules take the same
+  values (`PipApi.WriteNewBuild`) for parts added from the parts list. Phil's
+  Reusability Suite runs it on a design before it prices a build that starts
+  at the Space Center. So both places build, and charge for, the same parts.
+- Calls for other mods, in `PIP.PipApi` (by reflection; a craft root, a save's
+  VESSEL node, or one PART node, in craft or save format):
+  `ToCurrent(node)`, `IsBehind(part)` (would ToCurrent change it?),
+  `Mk(part)` and `Title(part)`.
+
+### 26.4 Updating flown parts: a paid exception
+
+- Phil's design for the Suite: an **"Update PIP parts"** action for parts-bin
+  parts and hangar copies, and a prompt when a build or a Restore finds
+  old-Mk PIP parts that would fit if updated. "No" builds those parts new and
+  leaves the old ones in the bin, after a confirm step. Old-Mk parts never fly
+  unless they've been updated.
+- This is a **deliberate exception** to section 5's "built parts keep their
+  Mk". It's only ever done on purpose, and the Suite charges for it.
+- The Suite owns the buttons, prompts and fee. PIP's part is the Mk change
+  itself: the same `ToCurrent` step as 26.3, run on those parts.
+
+### 26.5 Also fixed and checked
+
+- **Flight flags start fresh on the pad.** A part reused from the parts bin or
+  a hangar copy carried "flew" or "fired" from its last flight. So it didn't
+  log its new flight, and a craft recovered straight off the pad still gained
+  recovery experience. PIP now clears them while a vessel waits on the pad.
+- **Checked:** PIP doesn't rewrite a flown part's Mk when it loads. The hangar
+  files where a flown craft's parts went from Mk. 2 to Mk. 1 after a Restore
+  held the design file's own parts (the same part IDs and `mk = 1`), not the
+  flown ones. That's the Suite's to fix.
+
+**Built 2026-11-08.** Offline checks updated for the flat price. Not yet
+checked in game: ToCurrent on a craft at the Space Center, a part window's
+title, the flags on the pad.
 
 ## Looks and side-mount build (2026-11-04)
 

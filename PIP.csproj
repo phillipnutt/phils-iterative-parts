@@ -61,6 +61,7 @@
     <Compile Include="KSP\PartInfo.cs" />
     <Compile Include="KSP\FuelLoader.cs" />
     <Compile Include="KSP\ModulePipBoiloff.cs" />
+    <Compile Include="KSP\PipApi.cs" />
   </ItemGroup>
   <ItemGroup>
     <GameDataFiles Include="GameData\**\*.*" />

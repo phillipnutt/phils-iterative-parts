@@ -111,16 +111,16 @@ namespace PIP
         static readonly MethodInfo Clone = typeof(object).GetMethod("MemberwiseClone", BindingFlags.Instance | BindingFlags.NonPublic);
         static readonly FieldInfo FinderByName = typeof(PartLoader).GetField("APFinderByName", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
 
-        public static bool IsProgramPart(AvailablePart ap) => ap?.name != null && ap.name.StartsWith(ProgramPrefix, StringComparison.Ordinal);
+        public static bool IsProgramPart(AvailablePart ap) => IsProgramPart(ap?.name);
+        public static bool IsProgramPart(string partName) => partName != null && partName.StartsWith(ProgramPrefix, StringComparison.Ordinal);
         public static bool IsChassis(AvailablePart ap) => ap?.name != null && ap.name.StartsWith(ChassisPrefix, StringComparison.Ordinal);
         public static bool IsPip(AvailablePart ap) => IsProgramPart(ap) || IsChassis(ap);
-        public static bool IsSidePart(string partName) => partName != null && IsProgramName(partName) && partName.EndsWith(SideSuffix, StringComparison.Ordinal);
-        static bool IsProgramName(string n) => n.StartsWith(ProgramPrefix, StringComparison.Ordinal);
+        public static bool IsSidePart(string partName) => IsProgramPart(partName) && partName.EndsWith(SideSuffix, StringComparison.Ordinal);
 
         // "PIP.<id>" or "PIP.<id>.side" -> "<id>".
         public static string ProgramIdOf(string partName)
         {
-            if (partName == null || !IsProgramName(partName)) return null;
+            if (!IsProgramPart(partName)) return null;
             string rest = partName.Substring(ProgramPrefix.Length);
             int dot = rest.IndexOf('.');
             return dot < 0 ? rest : rest.Substring(0, dot);
@@ -271,13 +271,41 @@ namespace PIP
             foreach (AvailablePart ap in PartsOf(p).ToList()) Refresh(ap, p);
         }
 
+        // A program part's title (DESIGN.md 26.2): "Augur I Mk. 1", with the Mk only
+        // when it's a part's own (mk 0: none). The parts list's title is shared by every
+        // part built from it, whatever Mk each was built at, so it has no Mk.
+        // programTitle: the version the part was built as, if not p's own title.
+        public static string TitleOf(Program p, string partName, string programTitle, int mk)
+        {
+            string title = programTitle ?? p?.Title ?? "PIP part";
+            if (mk >= Progress.MinMk) title += " " + Progress.MkName(mk);
+            if (IsSidePart(partName)) return title + " (side-mount)";
+            if (p != null && p.FixedSize && p.IsAdapter) title += $" ({(p.Type == PartTypes.Tank ? "adapter" : p.Type.MountName("A"))})";
+            return title;
+        }
+
+        // A built part's own title, from its PIP module; null for a part that isn't PIP's.
+        public static string OwnTitle(Part part)
+        {
+            if (part?.partInfo == null) return null;
+            foreach (PartModule m in part.Modules)
+            {
+                if (m is ModulePipPart pp && pp.Assigned) return OwnTitle(part, pp.programId, pp.programName, pp.mk);
+                if (m is ModulePipEngine pe && pe.Assigned) return OwnTitle(part, pe.programId, pe.programName, pe.mk);
+            }
+            return null;
+        }
+
+        static string OwnTitle(Part part, string programId, string programName, int mk) =>
+            TitleOf(PipScenario.Instance?.Find(programId), part.partInfo.name, programName, mk);
+
         static void Refresh(AvailablePart ap, Program p)
         {
             int mk = p.Mk;
             bool side = IsSidePart(ap.name);
             string variant = ListVariant(p, ap.name);
             Stats s = p.Stats(mk, PipSettings.Failures, variant);
-            ap.title = p.DisplayName(mk) + (side ? " (side-mount)" : p.FixedSize && p.IsAdapter ? $" ({(p.Type == PartTypes.Tank ? "adapter" : p.Type.MountName("A"))})" : "");
+            ap.title = TitleOf(p, ap.name, null, 0);
             ap.cost = (float)Math.Round(s.BuildPrice);
             // VAB search: the name follows a rename.
             ap.tags = $"pip program {p.Type.Noun} {p.Type.Id} {p.Name.ToLowerInvariant()}" + (side ? " side radial" : "");

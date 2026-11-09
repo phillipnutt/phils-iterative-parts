@@ -78,13 +78,6 @@ namespace PIP
             if (HighLogic.LoadedSceneIsEditor || (program != null && !Assigned)) Assign(program);
             // A renamed program: the part keeps its version and Mk, and shows the new name.
             else if (program != null && program.Id == programId) programName = program.Title;
-            if (HighLogic.LoadedSceneIsEditor)
-            {
-                fired = false;
-                ignitionChecked = false;
-                failed = false;
-            }
-
             Apply();
             if (HighLogic.LoadedSceneIsFlight) FlightTracker.Register(this);
             Debug.Log($"[PIP] {part.partInfo?.name} started in {HighLogic.LoadedScene}: program {(Assigned ? programName : "none")} " +
@@ -93,17 +86,15 @@ namespace PIP
 
         void OnDestroy() => FlightTracker.Unregister(this);
 
+        // The new-build rule (DESIGN.md 26.3), the same one PipApi.ToCurrent applies to a
+        // craft at the Space Center: the family's newest version at its current Mk.
         void Assign(Program program)
         {
             if (program == null) return;
-            programId = program.Id;
-            programName = program.Title;
-            model = program.ModelCode;
-            mk = program.Mk;
-            points = Program.PointsToText(program.Points);
+            var built = new ConfigNode("MODULE");
+            PipApi.WriteNewBuild(built, program, true);
+            Fields.Load(built);
             pointValues = (int[])program.Points.Clone();
-            startPoints = program.StartPoints == null ? "" : Program.PointsToText(program.StartPoints);
-            gimbalDeg = program.GimbalDegrees;
             statsReady = false;
         }
 

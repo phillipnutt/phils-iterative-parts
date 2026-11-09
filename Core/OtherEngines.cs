@@ -94,7 +94,7 @@ namespace PIP
             s[K.Burn] = s[K.Propellant] * s[K.IspVac] * Engines.G0 / Math.Max(0.001, s[K.ThrustVac]);
             s[K.Fail] = FailureAt(m, P(pts, 3), mk, level);
             // About 1 fund per unit of propellant, fuel included (as stock prices are).
-            s[K.Price] = BuildPrice(PropellantUnits(m), pts, mk);
+            s[K.Price] = BuildPrice(PropellantUnits(m), pts);
             return s;
         }
 
@@ -165,7 +165,7 @@ namespace PIP
             double light = Lerp(ThrustW[si, 0], ThrustW[si, 1], D(pts, 0, mk)) / (25 * Engines.G0);
             s[K.Mass] = light * (2 - E(pts, 2, mk) / 100.0);
             s[K.Fail] = FailureAt(m, P(pts, 3), mk, level);
-            s[K.Price] = BuildPrice(BasePrice[si], pts, mk);
+            s[K.Price] = BuildPrice(BasePrice[si], pts);
             return s;
         }
 
@@ -258,7 +258,7 @@ namespace PIP
             s[K.Mass] = light * (2 - E(pts, 2, mk) / 100.0);
             s[K.Fail] = FailureAt(m, P(pts, 3), mk, level);
             if (Kerbalism) s[K.Radiation] = Radiation[si] * (gas ? 2 : 1) * Math.Pow(0.1, E(pts, 4, mk) / 100.0);
-            s[K.Price] = BuildPrice(BasePrice[si] * (gas ? 2.5 : 1), pts, mk);
+            s[K.Price] = BuildPrice(BasePrice[si] * (gas ? 2.5 : 1), pts);
             return s;
         }
 
@@ -355,7 +355,7 @@ namespace PIP
             s[K.Fail] = FailureAt(m, P(pts, 3), mk, level);
             // EC/s at full thrust = kN x Isp/1000 x factor; points move the factor 6 -> 2.5.
             s[K.EcRate] = s[K.ThrustVac] * s[K.IspVac] / 1000 * Lerp(6, 2.5, E(pts, 4, mk));
-            s[K.Price] = BuildPrice(SizePrice[si] * TypePrice[t], pts, mk);
+            s[K.Price] = BuildPrice(SizePrice[si] * TypePrice[t], pts);
             return s;
         }
 
@@ -465,7 +465,7 @@ namespace PIP
             s[K.Mass] = light * (2 - E(pts, 2, mk) / 100.0);
             s[K.Speed] = Lerp(0.8, 1.2, E(pts, 3, mk));
             s[K.TopMach] = BaseTopMach[t] * s[K.Speed];
-            s[K.Price] = BuildPrice(SizePrice[si] * TypePrice[t], pts, mk);
+            s[K.Price] = BuildPrice(SizePrice[si] * TypePrice[t], pts);
             return s;
         }
 

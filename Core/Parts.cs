@@ -68,7 +68,7 @@ namespace PIP
             s[K.IspSL] = bi ? Lerp(100, 160, E(pts, 1, mk)) : Lerp(70, 120, E(pts, 1, mk));
             double designed = n * (bi ? Lerp(2, 12, D(pts, 0, mk)) : Lerp(0.25, 3, D(pts, 0, mk)));
             s[K.Mass] = designed / ((bi ? 25 : 12.5) * Engines.G0) * (2 - E(pts, 2, mk) / 100.0);
-            s[K.Price] = BuildPrice(n * (bi ? 150 : 50), pts, mk);
+            s[K.Price] = BuildPrice(n * (bi ? 150 : 50), pts);
             return s;
         }
 
@@ -126,7 +126,7 @@ namespace PIP
             s[Capacity] = Lerp(12000, 30000, E(pts, 0, mk));
             s[K.Mass] = side ? SideMass[v] : MassBySize[v];
             s[Ec] = s[K.Mass] * s[Capacity];
-            s[K.Price] = BuildPrice(side ? SidePrice[v] : PriceBySize[v], pts, mk);
+            s[K.Price] = BuildPrice(side ? SidePrice[v] : PriceBySize[v], pts);
             return s;
         }
 
@@ -180,7 +180,7 @@ namespace PIP
             s[TorqueKey] = Lerp(lo, hi, E(pts, 0, mk));
             s[K.EcRate] = s[TorqueKey] * Lerp(0.08, 0.015, E(pts, 1, mk));
             s[K.Mass] = Lerp(lo, hi, D(pts, 0, mk)) / Lerp(60, 180, E(pts, 2, mk));
-            s[K.Price] = BuildPrice(side ? SidePrice : PriceBySize[v], pts, mk);
+            s[K.Price] = BuildPrice(side ? SidePrice : PriceBySize[v], pts);
             return s;
         }
 
@@ -225,7 +225,7 @@ namespace PIP
             s[AblatorAmount] = Ablator[v];
             s[K.Mass] = ShieldMass[v] * Lerp(1.6, 0.8, E(pts, 1, mk));
             s[MaxTemp] = Lerp(2400, 3600, E(pts, 2, mk));
-            s[K.Price] = BuildPrice(PriceBySize[v], pts, mk);
+            s[K.Price] = BuildPrice(PriceBySize[v], pts);
             return s;
         }
 
@@ -289,7 +289,7 @@ namespace PIP
             // Durability: how much air pressure and g-force it takes. From 50 points (as designed) it folds back up.
             s[Toughness] = Deployable(m) ? Lerp(0.5, 3, E(pts, 2, mk)) : 1;
             s[Retractable] = Deployable(m) && P(pts, 2) >= 50 ? 1 : 0;
-            s[K.Price] = BuildPrice(PriceBySize[v], pts, mk);
+            s[K.Price] = BuildPrice(PriceBySize[v], pts);
             return s;
         }
 
@@ -357,7 +357,7 @@ namespace PIP
             s[K.EcRate] = Lerp(Power[k, 0], Power[k, 1], E(pts, 1, mk));
             s[K.Mass] = Lerp(Weight[k, 0], Weight[k, 1], E(pts, 2, mk));
             s[ConeKey] = Cone[k];
-            s[K.Price] = BuildPrice(PriceBy[k], pts, mk);
+            s[K.Price] = BuildPrice(PriceBy[k], pts);
             return s;
         }
 
@@ -426,7 +426,7 @@ namespace PIP
             s[K.Mass] = Lerp(Weight[v, 0], Weight[v, 1], E(pts, 2, mk));
             s[TorqueKey] = Lerp(0, Torque[v], E(pts, 3, mk));
             s[BatteryKey] = Battery[v];
-            s[K.Price] = BuildPrice(PriceBySize[v], pts, mk);
+            s[K.Price] = BuildPrice(PriceBySize[v], pts);
             return s;
         }
 
@@ -486,7 +486,7 @@ namespace PIP
             s[FuelTanks.UnitsKey] = s[FuelTanks.VolumeKey] * FuelTanks.UnitsPerVolume(m);
             s[K.Mass] = FuelTanks.ChassisMass + s[FuelTanks.VolumeKey] * FuelTanks.MassPerVolume(m) * s[FuelTanks.WeightFactor];
             // Dry price: about 0.8 a unit of volume (an FL-T400 is ~500 with its fuel).
-            s[K.Price] = BuildPrice(0.8 * s[FuelTanks.VolumeKey], pts, mk);
+            s[K.Price] = BuildPrice(0.8 * s[FuelTanks.VolumeKey], pts);
             return s;
         }
 
@@ -901,7 +901,7 @@ namespace PIP
             s[K.Mass] = (side ? SideMass[v] : 0.04 * d * d * sep) * Lerp(1.6, 0.8, E(pts, 1, mk));
             s[Crash] = Lerp(4, 20, E(pts, 2, mk));
             s[MaxTemp] = Lerp(1400, 2600, E(pts, 2, mk));
-            s[K.Price] = BuildPrice(side ? SidePrice[v] : 200 * Math.Pow(d, 0.6) * (Separator(m) ? 1.3 : 1), pts, mk);
+            s[K.Price] = BuildPrice(side ? SidePrice[v] : 200 * Math.Pow(d, 0.6) * (Separator(m) ? 1.3 : 1), pts);
             return s;
         }
 
@@ -953,7 +953,7 @@ namespace PIP
             s[K.Mass] = MassBySize[v];
             s[K.EcRate] = s[PerTon] * s[K.Mass];
             s[HalfLife] = Lerp(4, 20, E(pts, 1, mk));
-            s[K.Price] = BuildPrice(PriceBySize[v], pts, mk);
+            s[K.Price] = BuildPrice(PriceBySize[v], pts);
             return s;
         }
 
@@ -1027,7 +1027,7 @@ namespace PIP
             s[MassFactor] = Lerp(1.6, 0.8, E(pts, 2, mk));
             s[Area] = (side ? SideArea[t] : BaseArea[t] * sc * sc) * s[AreaFactor];
             s[K.Mass] = (side ? SideMass[t] : BaseMass[t] * sc * sc) * s[MassFactor];
-            s[K.Price] = BuildPrice(side ? 250 : 300 * sc * sc, pts, mk);
+            s[K.Price] = BuildPrice(side ? 250 : 300 * sc * sc, pts);
             return s;
         }
 

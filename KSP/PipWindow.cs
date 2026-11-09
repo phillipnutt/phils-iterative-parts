@@ -802,7 +802,7 @@ namespace PIP
                     // A long value steps down a size; the Mk. 1 → Mk. 5 line may reach further left.
                     GUIStyle vs = PipSkin.Width(PipSkin.Value, vN) > ValueW + 28 ? PipSkin.ValueTight : PipSkin.Value;
                     GUI.Label(new Rect(val.x - 30, val.y, ValueW + 30, val.height), new GUIContent(vN, vN), vs);
-                    string range = v0 + "  →  " + v10;
+                    string range = v0 == v10 ? "the same at every Mk" : v0 + "  →  " + v10;
                     var rangeContent = new GUIContent(range, "Mk. 1 → Mk. 5");
                     float rw = PipSkin.Width(PipSkin.ValueSmall, range);
                     float rx = Mathf.Min(val.x - 30, w - rw - 2);
@@ -852,7 +852,7 @@ namespace PIP
             Stat(ref x, y, "PROGRAM COST", PipScenario.Free ? "Free" : "√ " + cost.ToString("N0"), 118, short_ ? PipSkin.Bad : PipSkin.Ink,
                 PipScenario.Free ? "Programs are free in this game mode." : $"About √ {(PipScenario.Cost(type, model, pts.Select((v, i) => i == 0 ? v + 10 : v).ToArray()) - cost):N0} more for 10 more points.");
             if (s0 != null)
-                Stat(ref x, y, "BUILD PRICE, EACH", $"√ {s0.BuildPrice:N0}–{s10.BuildPrice:N0}", 150, PipSkin.Ink, $"Each {type.Noun} costs this to build: Mk. 0 to Mk. 10.");
+                Stat(ref x, y, "BUILD PRICE, EACH", $"√ {s0.BuildPrice:N0}", 150, PipSkin.Ink, $"Each {type.Noun} costs this to build, at every Mk.");
 
             float goW = 168;
             var text = new Rect(x, r.y + 8, r.width - x - goW - 2 * Pad, r.height - 16);
@@ -1410,7 +1410,7 @@ namespace PIP
             double lo = Math.Min(Math.Abs(now), Math.Abs(top)), hi = Math.Max(Math.Abs(now), Math.Abs(top));
             float share = hi <= 0 ? 0 : (float)(lo / hi);     // nothing at all (a fixed nozzle): no bar
             var bar = new Rect(r.x + LabelW + Gap, r.y + r.height / 2 - 3, r.width - LabelW - NowW - TopW - 3 * Gap, 6);
-            if (points != -2)   // the build price rises a little with Mk: not progress
+            if (row.Key != K.Price)   // the build price is the same at every Mk: no progress to show
             {
                 PipSkin.Bar(bar, PipSkin.Panel3);
                 PipSkin.Bar(new Rect(bar.x, bar.y, bar.width * share, bar.height), points == -1 ? PipSkin.Ink3 : PipSkin.Amber);

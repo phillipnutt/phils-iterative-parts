@@ -90,7 +90,7 @@ namespace PIP
         public abstract Choice[] Choices { get; }
 
         // The type's own sliders, then Build cost, which every type has (DESIGN.md
-        // section 18.3): it brings the build price down as the program matures.
+        // section 18.3): it brings the build price down (the same at every Mk, 26.1).
         protected abstract Category[] OwnCategories { get; }
         public Category[] Categories => OwnCategories.Concat(new[] { BuildCost }).ToArray();
         public int CostIndex => OwnCategories.Length;
@@ -280,11 +280,14 @@ namespace PIP
         protected static double Lerp(double a, double b, double points) => a + (b - a) * points / 100.0;
         protected static int Total(int[] points) => points?.Sum(p => Pricing.Clamp(p)) ?? 0;
         // Ambition from every slider but Build cost, which then brings the price down.
-        protected double BuildPrice(double basePrice, int[] points, int mk)
+        // The same at every Mk (DESIGN.md 26.1): a version's parts all cost what its
+        // Mk. 1 did. A later version starts from the points the one before ended on.
+        protected double BuildPrice(double basePrice, int[] points)
         {
+            const int at = Progress.MinMk;
             double built = 0;
-            for (int i = 0; i < CostIndex; i++) built += D(points, i, mk);
-            return basePrice * Pricing.Ambition(built, MaxTotal - Pricing.MaxPoints) * Pricing.CostFactor(E(points, CostIndex, mk));
+            for (int i = 0; i < CostIndex; i++) built += D(points, i, at);
+            return basePrice * Pricing.Ambition(built, MaxTotal - Pricing.MaxPoints) * Pricing.CostFactor(E(points, CostIndex, at));
         }
 
         // The share of its points a design spends, over the sliders it uses (section 18.5).

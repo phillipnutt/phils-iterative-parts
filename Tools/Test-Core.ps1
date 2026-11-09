@@ -80,11 +80,14 @@ Check 'failure at Mk. 10, 50 points' ($liq.FailureAt($k125, 50, 10, (Level Norma
 Check 'methalox mature failure, 100 points' ($liq.FailureAt((M 'M-125-S'), 100, 10, (Level Normal))) 0.0005
 Check 'light failures are half' ($liq.FailureAt($k125, 50, 0, (Level Light))) 0.05
 Check 'every type has Build cost last' ((@($liq, $jet, (TypeOf 'Tank')) | ForEach-Object { $_.Categories[$_.CostIndex].Label }) -join ',') 'Build cost,Build cost,Build cost'
-# Build price: 1,200 base x ambition (80 of 400 other points: x0.9) x cost factor (1.5 at 0 points, 0.5 at 100).
-Check 'build price, Build cost 0' ($liq.BuildPriceAt($k125, [int[]]@(20, 20, 20, 20, 0), 1)) 1620
-Check 'build price, Build cost 100 at Mk. 5' ($liq.BuildPriceAt($k125, [int[]]@(20, 20, 20, 20, 100), 5)) 540
-Check 'build price falls as it matures' ($liq.BuildPriceAt($k125, [int[]]@(20, 20, 20, 20, 100), 1)) 1080
-Check 'aerospike builds at x2' ($liq.BuildPriceAt((M 'K-125-A'), [int[]]@(20, 20, 20, 20, 0), 1)) 3240
+# Build price: 1,200 base x ambition (80 of 400 other points: x0.9) x cost factor (1.5 at 0 points, 0.5 at 100),
+# with Build cost counted as at Mk. 1 (half its points in a first version) at every Mk (section 26.1).
+Check 'build price, Build cost 0' ($liq.BuildPriceAt($k125, [int[]]@(20, 20, 20, 20, 0))) 1620
+Check 'build price, Build cost 100: half of it in a first version' ($liq.BuildPriceAt($k125, [int[]]@(20, 20, 20, 20, 100))) 1080
+Check 'aerospike builds at x2' ($liq.BuildPriceAt((M 'K-125-A'), [int[]]@(20, 20, 20, 20, 0))) 3240
+$pp = [int[]]@(25, 25, 25, 25, 75)
+Check 'the build price is the same at every Mk' ((1..5 | ForEach-Object { [Math]::Round((Stat $liq 'K-125-S' $pp $_ 'price'), 6) } | Select-Object -Unique) -join ',') ([Math]::Round((Stat $liq 'K-125-S' $pp 1 'price'), 6))
+Check 'a tank too' ((1..5 | ForEach-Object { [Math]::Round((Stat (TypeOf 'Tank') 'S' ([int[]]@(50, 50, 50, 50)) $_ 'price'), 6) } | Select-Object -Unique).Count) 1
 $pts = [int[]]@(25, 25, 25, 25, 25)
 Check 'Mk. 1 thrust uses half the points' (Stat $liq 'K-125-S' $pts 1 'thrustVac') 147.5
 Check 'Mk. 5 thrust uses all of them' (Stat $liq 'K-125-S' $pts 5 'thrustVac') 205
@@ -354,7 +357,9 @@ Check 'it keeps the design and gimbal' "$($v2.ModelCode) $($v2.Gimbal)" 'K-125-S
 Check 'II at Mk. 1 = I at Mk. 5' ($v2.Stats(1, (Level Normal)).Item('thrustVac')) ($v1.Stats(5, (Level Normal)).Item('thrustVac')) 1e-9
 Check 'failures start over' ($v2.Stats(1, (Level Normal)).Item('fail')) 0.10
 Check 'II at Mk. 1 weighs what I did at Mk. 5' ($v2.Stats(1, (Level Normal)).Item('mass')) ($v1.Stats(5, (Level Normal)).Item('mass')) 1e-9
-Check 'II at Mk. 1 costs what I did at Mk. 5' ($v2.Stats(1, (Level Normal)).Item('price')) ($v1.Stats(5, (Level Normal)).Item('price')) 1e-6
+Check 'II costs I''s price with its Build cost points carried on' ($v2.Stats(1, (Level Normal)).Item('price')) 1406.25 1e-6
+Check 'II costs the same at Mk. 5' ($v2.Stats(5, (Level Normal)).Item('price')) 1406.25 1e-6
+Check 'I costs the same at Mk. 1 and 5' ($v1.Stats(5, (Level Normal)).Item('price')) 1546.875 1e-6
 Check 'II at Mk. 5 uses its own points' ($v2.Stats(5, (Level Normal)).Item('thrustVac')) (Call $Liquid ThrustAt @($k125, [double]35))
 $vm = Call $Program Create @('vm', 'Kestrel', $liq, $k125, [int[]]@(100, 100, 100, 100, 100), [double]0, [double]0)
 Check 'every slider at 100 is Max' "$($vm.Title) $($vm.IsMax) $($vm.CanImprove(100))" 'Kestrel Max True False'
@@ -426,7 +431,7 @@ Check 'a look per fuel, the new one too' ($liq.LookKeys('125') -join ',') 'K,H,M
 Check 'its mix is now a liquid engine' $FuelTable::IsLiquidMix([string[]]@('NTO', 'Aerozine50')) $true
 Check 'Isp from its windows' "$(Call $Liquid IspSLAt @((M 'A-125-S'), [double]100)),$(Call $Liquid IspVacAt @((M 'A-125-V'), [double]100))" '298,367'
 Check 'thrust from its factor' (Call $Liquid ThrustAt @((M 'A-125-S'), [double]100)) 577.5
-Check 'price from its factor' ($liq.BuildPriceAt((M 'A-125-S'), [int[]]@(0, 0, 0, 0), 5) / $liq.BuildPriceAt($k125, [int[]]@(0, 0, 0, 0), 5)) 1.1 1e-9
+Check 'price from its factor' ($liq.BuildPriceAt((M 'A-125-S'), [int[]]@(0, 0, 0, 0)) / $liq.BuildPriceAt($k125, [int[]]@(0, 0, 0, 0))) 1.1 1e-9
 Check 'label keeps a name with capitals' "$($liq.Label((M 'A-125-S')))|$((T 'Fmt')::Lower('FLOX')),$((T 'Fmt')::Lower('ClF5')),$((T 'Fmt')::Lower('Nitric acid'))" '1.25 m aerozine, sea level nozzle|FLOX,ClF5,nitric acid'
 Check 'an unknown code falls back to kerolox' (Call $Liquid IspSLAt @((M 'Q-125-S'), [double]100)) 310
 $FuelTable::Reset()
