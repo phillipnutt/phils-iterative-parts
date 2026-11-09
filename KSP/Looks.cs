@@ -850,12 +850,14 @@ namespace PIP
         // Torque category and a battery.
         static void AddProbeParts(ConfigNode c)
         {
-            if (!c.GetNodes("MODULE").Any(m => m.GetValue("name") == "ModuleSAS"))
+            // The program sets the autopilot level; a look's own (an HECS2's 3) starts at 0.
+            ConfigNode sas = c.GetNodes("MODULE").FirstOrDefault(m => m.GetValue("name") == "ModuleSAS");
+            if (sas == null)
             {
-                ConfigNode sas = c.AddNode("MODULE");
+                sas = c.AddNode("MODULE");
                 sas.AddValue("name", "ModuleSAS");
-                sas.AddValue("SASServiceLevel", "0");
             }
+            sas.SetValue("SASServiceLevel", "0", true);
             if (!c.GetNodes("MODULE").Any(m => m.GetValue("name") == "ModuleReactionWheel"))
             {
                 ConfigNode w = c.AddNode("MODULE");

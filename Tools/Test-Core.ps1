@@ -158,9 +158,11 @@ Check 'solar: fixed has no durability' ((TypeOf 'Solar').CategoryUsed((M 'F'), 2
 Check 'antenna: short dish at 50 points ~22 Mm' ([Math]::Round((PStat 'Antenna' 'D' @(50, 0, 0) 10 'range' 'S') / 1e6, 1)) 22.4
 Check 'antenna: interplanetary dish at 50 points 20 Gm' ((PStat 'Antenna' 'D' @(50, 0, 0) 10 'range' 'I') / 1e9) 20 1e-6
 Check 'antenna: omni at 100 points 6 Mm' ((PStat 'Antenna' 'O' @(100, 0, 0) 10 'range' $null) / 1e6) 6 1e-6
-Check 'probe: SAS steps' "$((0..4 | ForEach-Object { [PIP.ProbeCores]::SasLevel(@(0, 10, 25, 50, 75)[$_]) }) -join ',')" '-1,0,1,2,3'
-Check 'probe: 50-point core at Mk. 0 has level 1' (PStat 'Probe' '' @(50, 0, 0, 0) 0 'sas' '125') 1
-Check 'probe: 50-point core at Mk. 10 has level 2' (PStat 'Probe' '' @(50, 0, 0, 0) 10 'sas' '125') 2
+Check 'probe: SAS steps (section 27.3)' "$((@(0, 9, 10, 49, 50, 74, 75, 99, 100) | ForEach-Object { [PIP.ProbeCores]::SasLevel($_) }) -join ',')" '-1,-1,0,0,1,1,2,2,3'
+Check 'probe: a 25-point first program only holds attitude, even at Mk. 5' (Stat (TypeOf 'Probe') '' ([int[]]@(25, 0, 0, 0, 0)) 5 'sas') 0
+Check 'probe: a 50-point program reaches prograde at Mk. 5, not before' "$((1..5 | ForEach-Object { Stat (TypeOf 'Probe') '' ([int[]]@(50, 0, 0, 0, 0)) $_ 'sas' }) -join ',')" '0,0,0,0,1'
+Check 'probe: 75 points at Mk. 5 adds normal, radial, target' (PStat 'Probe' '' @(75, 0, 0, 0) 5 'sas' '125') 2
+Check 'probe: 100 points at Mk. 5 adds the maneuver node; at Mk. 4 not yet' "$(PStat 'Probe' '' @(100, 0, 0, 0) 5 'sas' '125'),$(PStat 'Probe' '' @(100, 0, 0, 0) 4 'sas' '125')" '3,2'
 Check 'tank: FL-T400 volume' ([PIP.FuelTanks]::Volume('125-L')) 400
 Check 'tank: long 2.5 m is an X200-32' ([PIP.FuelTanks]::Volume('25-L')) 3200
 Check 'tank: weight factor at 100' (PStat 'Tank' 'S' @(100, 0, 0) 10 'weightFactor' '125-L') 0.8

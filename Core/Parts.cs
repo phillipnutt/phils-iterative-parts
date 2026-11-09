@@ -413,9 +413,17 @@ namespace PIP
 
         public const string Sas = "sas", TorqueKey = "torque", BatteryKey = "battery";
 
-        // -1 none, 0 hold, 1 + prograde/retrograde, 2 + normal/radial/target, 3 + maneuver node.
-        public static int SasLevel(double effectivePoints) =>
-            effectivePoints >= 75 ? 3 : effectivePoints >= 50 ? 2 : effectivePoints >= 25 ? 1 : effectivePoints >= 10 ? 0 : -1;
+        // KSP's SAS service levels: -1 none, 0 hold, 1 + prograde/retrograde, 2 + normal/
+        // radial/target, 3 + maneuver node. Phil's steps (DESIGN.md 27.3): 10, 50, 75 and 100
+        // points, so each comes with a research cap (Precision Engineering 50, Advanced
+        // Unmanned 75, Large Unmanned 100) and a program's maturing to it.
+        public static readonly int[] SasSteps = { 10, 50, 75, 100 };
+        public static int SasLevel(double effectivePoints)
+        {
+            int level = -1;
+            foreach (int step in SasSteps) if (effectivePoints >= step - 1e-6) level++;
+            return level;
+        }
 
         public override Stats Compute(string[] m, int[] pts, int mk, FailureLevel level, string variant = null)
         {
@@ -436,7 +444,7 @@ namespace PIP
             {
                 case 0: return "hold attitude";
                 case 1: return "+ pro/retrograde";
-                case 2: return "+ target, normal";
+                case 2: return "+ normal, radial, target";
                 case 3: return "+ maneuver node";
                 default: return "none";
             }
@@ -452,7 +460,7 @@ namespace PIP
         };
 
         public override string Label(string[] m) => "Probe cores";
-        public override string Character(string[] m) => "Autopilot comes in steps: 10, 25, 50 and 75 points.";
+        public override string Character(string[] m) => "Autopilot comes in steps: 10, 50, 75 and 100 points.";
     }
 
     // What fuel tanks and plane fuselages share: the tank's kind (what it holds), the

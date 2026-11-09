@@ -79,12 +79,12 @@ $u = @(
     @('unmannedTech', 'Deep Space Network', 'PIP-ANT-D', 'Deep-space dishes; antenna caps 75', 'Dishes can be deep-space class, and new antenna programs can put up to 75 points into every category.'),
     @('largeUnmanned', 'Phased Arrays', 'PIP-ANT-D', 'Antenna caps 100', 'New antenna programs can put up to 100 points into every category.'),
     # Probe cores
-    @('start', 'Guidance Units', 'PIP-PRB', 'First probe core program', 'Start a probe core program: 0.625 m, more sizes later. Caps 25.'),
+    @('start', 'Guidance Units', 'PIP-PRB', 'First probe core program', 'Start a probe core program: 0.625 m, more sizes later. Caps 25: SAS holds attitude (from 10 autopilot points).'),
     @('basicScience', 'Larger Avionics Bays', 'PIP-PRB', '1.25 m probe cores', 'Probe cores can be 1.25 m.'),
-    @('precisionEngineering', 'Digital Autopilots', 'PIP-PRB', 'Probe core caps 50', 'New probe core programs can put up to 50 points into every category.'),
+    @('precisionEngineering', 'Digital Autopilots', 'PIP-PRB', 'Probe core caps 50: prograde, retrograde', 'New probe core programs can put up to 50 points into every category. At 50 autopilot points, SAS also holds prograde and retrograde.'),
     @('unmannedTech', '1.875 m Avionics', 'PIP-PRB', '1.875 m probe cores', 'Probe cores can be 1.875 m.'),
-    @('advUnmanned', 'Maneuver Computers', 'PIP-PRB', 'Probe core caps 75', 'New probe core programs can put up to 75 points into every category: enough for maneuver-node autopilot.'),
-    @('largeUnmanned', 'Heavy Avionics', 'PIP-PRB', '2.5 m probe cores; caps 100', 'Probe cores can be 2.5 m, and new programs can put up to 100 points into every category.'),
+    @('advUnmanned', 'Star Trackers', 'PIP-PRB', 'Probe core caps 75: normal, radial, target', 'New probe core programs can put up to 75 points into every category. At 75 autopilot points, SAS also holds normal, radial and target.'),
+    @('largeUnmanned', 'Heavy Avionics', 'PIP-PRB', '2.5 m probe cores; caps 100: maneuver node', 'Probe cores can be 2.5 m, and new programs can put up to 100 points into every category. At 100 autopilot points, SAS also follows the maneuver node: maneuver computers.'),
     # Fuel tanks
     @('basicRocketry', 'Welded Tanks', 'PIP-TNK-S', 'First fuel tank programs', 'Start standard fuel tank programs: any fuel, size and length picked on the part. No insulation, so cryogenic fuels boil off. Caps 25.'),
     @('flightControl', 'Monopropellant Tanks', 'PIP-TNK-M', 'Monopropellant tanks', 'Fuel tank programs can hold monopropellant.'),

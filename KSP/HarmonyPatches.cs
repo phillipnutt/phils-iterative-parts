@@ -158,3 +158,33 @@ namespace PIP
         }
     }
 }
+
+namespace PIP
+{
+    // A look keeps its installed part's paint variants (ModulePartVariants), and only
+    // their paint (Looks.Build drops their node moves). But KSP makes each variant as
+    // a copy of the part's base variant, which carries the look's own unscaled stack
+    // nodes, and applying one puts the nodes back there: changing a held part's
+    // variant in the VAB left a shrunk tank's top and bottom nodes at the full-size
+    // model's spacing (DESIGN.md 27.1). PIP's size switch owns a look's nodes, so a
+    // variant applied to a look moves none.
+    [HarmonyPatch(typeof(ModulePartVariants), nameof(ModulePartVariants.ApplyVariant),
+        new[] { typeof(Part), typeof(Transform), typeof(PartVariant), typeof(Material[]), typeof(bool), typeof(int) })]
+    static class LookVariantNodesPatch
+    {
+        static readonly System.Reflection.FieldInfo SrfNode = AccessTools.Field(typeof(PartVariant), "srfAttachNode");
+
+        static void Prefix(Part part, PartVariant variant)
+        {
+            try
+            {
+                if (part == null || variant == null) return;
+                ModulePipPart pip = part.FindModuleImplementing<ModulePipPart>();
+                if (pip == null || !pip.look) return;
+                variant.AttachNodes?.Clear();
+                SrfNode?.SetValue(variant, null);
+            }
+            catch (Exception e) { Debug.LogError("[PIP] Keeping a look's nodes through a variant change failed: " + e); }
+        }
+    }
+}

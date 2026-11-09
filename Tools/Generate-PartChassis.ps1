@@ -202,6 +202,12 @@ L '}'
 
 # --- Probe cores (scaled OKTO2, plus a reaction wheel for the Torque category)
 Begin 'PIP-PRB' 'probe core' 'probeCoreOcto2_v2' 1000 @()
+# The program sets the autopilot level (ModulePipPart.ApplyProbe); the OKTO2's own
+# level 2 would otherwise offer seven SAS modes on any program (DESIGN.md 27.3).
+L '    @MODULE[ModuleSAS]'
+L '    {'
+L '        @SASServiceLevel = 0'
+L '    }'
 L '    MODULE'
 L '    {'
 L '        name = ModuleReactionWheel'

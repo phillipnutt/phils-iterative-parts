@@ -292,7 +292,9 @@ namespace PIP
             int level = (int)Math.Round(stats[ProbeCores.Sas]);
             foreach (ModuleSAS sas in part.FindModulesImplementing<ModuleSAS>())
             {
-                sas.SASServiceLevel = Math.Max(0, level);
+                // ModuleSAS resets its level from targetSASServiceLevel every physics frame
+                // (taken from the config when it starts), so both are set (DESIGN.md 27.3).
+                sas.SASServiceLevel = sas.targetSASServiceLevel = Math.Max(0, level);
                 sas.moduleIsEnabled = level >= 0;
                 sas.enabled = level >= 0;
             }

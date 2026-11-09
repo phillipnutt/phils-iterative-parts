@@ -1002,12 +1002,17 @@ built in.
 
 **Autopilot** works in steps:
 
-| Points | 0–9 | 10 | 25 | 50 | 75 |
+| Points | 0–9 | 10 | 50 | 75 | 100 |
 |---|---|---|---|---|---|
 | SAS | none | hold attitude | + prograde, retrograde | + normal, radial, target | + maneuver node |
 
-Mk. 0 performs at half points, so a 50-point core starts out with prograde
-hold and gains target hold as it matures.
+(Steps changed 2026-11-09 by Phil, section 27.3; they were 10, 25, 50 and 75.)
+Mk. 1 performs at half points, so a 50-point core holds attitude at first and
+gains prograde hold at Mk. 5. Each step past hold needs its research cap.
+
+Stock comparison: the HECS brings prograde hold at Precision Engineering, as
+here; stock's OKTO2 (normal, radial, target) and HECS2 (maneuver node) come one
+node earlier than PIP's 75 and 100 caps.
 
 | Category | 0 → 100 points | Stock |
 |---|---|---|
@@ -1019,10 +1024,10 @@ hold and gains target hold as it matures.
 |---|---|---|
 | Start (0) | Guidance Units | First program: 0.625 m; caps 25 |
 | Basic Science (45) | Larger Avionics Bays | 1.25 m |
-| Precision Engineering (160) | Digital Autopilots | Caps 50 |
+| Precision Engineering (160) | Digital Autopilots | Caps 50: prograde, retrograde |
 | Unmanned Tech (300) | 1.875 m Avionics | 1.875 m |
-| Advanced Unmanned (550) | Maneuver Computers | Caps 75 (maneuver-node SAS) |
-| Large Unmanned (1000) | Heavy Avionics | 2.5 m; caps 100 |
+| Advanced Unmanned (550) | Star Trackers | Caps 75: normal, radial, target |
+| Large Unmanned (1000) | Heavy Avionics | 2.5 m; caps 100: maneuver node |
 
 ### 14.8 Fuel tanks
 
@@ -2424,9 +2429,81 @@ causing a lot of issues."
   held the design file's own parts (the same part IDs and `mk = 1`), not the
   flown ones. That's the Suite's to fix.
 
-**Built 2026-11-08.** Offline checks updated for the flat price. Not yet
-checked in game: ToCurrent on a craft at the Space Center, a part window's
-title, the flags on the pad.
+**Built 2026-11-08.** Offline checks updated for the flat price. Checked in
+game the same day (41 checks, then 47 with pricing): ToCurrent at the Space
+Center, a part window's title, the flags on the pad. Not checked: a real VAB
+load of hangar hardware (the Suite's run covered it).
+
+## 27. Third play-test fixes (2026-11-09)
+
+From Phil's third play-test, on a new career save with KSP's "entry purchase"
+option on.
+
+### 27.1 A shrunk look keeps its nodes through a paint change
+
+**Bug:** a 1.25 m tank wearing the 3.75 m Kerbodyne S3-14400 look attached
+fine, but changing its paint variant while it was held in the VAB moved its
+top and bottom nodes to the full-size tank's spacing.
+
+**Cause:** KSP makes each of a part's variants as a copy of the part's base
+variant, which carries the part's own, unscaled stack nodes. PIP already drops
+a look variant's own node moves (16, "only the paint stays"), but the copied
+nodes stayed, so applying a variant put them back.
+
+**Fix:** a variant applied to a PIP look moves none of its nodes (a Harmony
+prefix on `ModulePartVariants.ApplyVariant` empties the variant's node list
+first). PIP's size switch places a look's nodes, as before. Every shrunk or
+stretched look of a non-engine type is covered. Engine looks keep their
+variants' node moves; they're never scaled.
+
+### 27.2 A locked mount shows its lock
+
+On the New program page, a mount (side-mount, adapter) none of whose sizes
+can be picked yet shows a padlock and the reason ("Research Stability"),
+like the size rows. Before, it looked open and only the footer said it was
+locked.
+
+### 27.3 Autopilot steps, and the probe core bug
+
+**Bug:** a probe core with 25 autopilot points offered seven SAS modes.
+PIP's probe chassis copies the OKTO2, whose SAS module is level 2. KSP's
+`ModuleSAS` copies its configured level into a target when it starts, and
+resets its level from that target every physics frame, so the lower level
+PIP set was undone at once. **Fix:** PIP sets the target too, and the probe
+chassis and probe looks start at level 0.
+
+**Phil's steps (2026-11-09):** hold attitude at **10** autopilot points (as
+before), prograde and retrograde at **50**, normal, radial and target at
+**75**, the maneuver node at **100** (they were 10, 25, 50 and 75). Phil:
+"and then put those accordingly in the tech tree". The probe research caps
+already sit at the new steps:
+- Start: caps 25, hold attitude only ("Guidance Units").
+- Precision Engineering: caps 50, prograde and retrograde ("Digital
+  Autopilots").
+- Advanced Unmanned: caps 75, normal, radial and target ("Star Trackers",
+  renamed from "Maneuver Computers").
+- Large Unmanned: 2.5 m and caps 100, the maneuver node ("Heavy Avionics";
+  it keeps its name, which the 2.5 m size switch uses).
+
+Each R&D entry says which SAS modes it brings. Steps past hold also need the
+program to mature: Mk. 1 performs at half its points, so a 50-point program
+holds prograde from Mk. 5, and a later version from its start.
+
+Kept later than stock on purpose: stock's OKTO2 (normal, radial, target)
+unlocks at Unmanned Tech and its HECS2 (maneuver node) at Advanced Unmanned,
+each one node earlier. Phil had found probes too strong, and the caps also
+pace a probe's power draw, weight and torque.
+
+### 27.4 Entry purchase (open)
+
+Phil: "Follow the setting". With KSP's entry purchase on, PIP's R&D entries
+are bought like stock parts; with it off, they're free once researched. KSP's
+own check of an entry (`PartUpgradeHandler.IsUnlocked`) already follows the
+setting; PIP's own research checks don't yet. What's bought and for how much
+is with Phil (proposed: every entry but a type's first program, at 30 funds per
+science point of its node, about what stock parts there cost).
+
+**Built 2026-11-09:** 27.1 to 27.3. 364 offline checks pass.
 
 ## Looks and side-mount build (2026-11-04)
 

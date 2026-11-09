@@ -500,8 +500,21 @@ namespace PIP
             var mounts = new List<string> { "" };
             if (sides.Length > 0) mounts.Add("R");
             if (adapters.Length > 0) mounts.Add("A");
+            // A mount none of whose sizes can be picked yet is padlocked, with the first
+            // size's reason ("Research Stability"), as the size rows are (DESIGN.md 27.2).
+            string MountLocked(int i)
+            {
+                string why = null;
+                foreach (Option o in mounts[i] == "R" ? sides : mounts[i] == "A" ? adapters : inline)
+                {
+                    string reason = SizeLocked(type, model, o);
+                    if (reason == null) return null;
+                    why = why ?? reason;
+                }
+                return why;
+            }
             if (mounts.Count > 1)
-                SizeRow("Mount", mounts.Select(type.MountName).ToArray(), mounts.IndexOf(mount), i => null, i =>
+                SizeRow("Mount", mounts.Select(type.MountName).ToArray(), mounts.IndexOf(mount), MountLocked, i =>
                 {
                     if (mounts[i] == mount) return;
                     previewVariants[type.Id] = mounts[i] == "R" ? sides[0].Code

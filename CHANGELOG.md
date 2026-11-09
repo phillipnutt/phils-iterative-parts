@@ -49,6 +49,20 @@ logged. Recoveries through Phil's Reusability Suite always counted.
   part) didn't count its new flight, and a craft recovered straight off the
   pad could still gain recovery experience.
 
+**Autopilot steps** (DESIGN.md 27.3): a probe core's SAS holds attitude from 10
+autopilot points, prograde and retrograde from 50, normal, radial and target
+from 75, the maneuver node from 100. Each probe research entry says which
+modes it brings.
+
+**Fixed** (DESIGN.md 27):
+- A probe core offered every SAS mode its chassis part (the OKTO2) had,
+  whatever its program's autopilot points.
+- Changing the paint variant of a held part wearing a shrunk look (a 1.25 m
+  tank with a 3.75 m tank's look) moved its top and bottom nodes to the
+  full-size model's spacing.
+- On the New program page, a locked mount (Side-mount on a decoupler before
+  Stability) looked open; it now shows its lock and what to research.
+
 **Fixed:** a battery's part tooltip listed its chassis's 100 electric charge, not
 what the program holds; heat shields (ablator) and probe cores (built-in battery)
 had the same mistake. The part itself always held the right amount.
