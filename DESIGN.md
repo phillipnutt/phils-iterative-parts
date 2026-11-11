@@ -2541,6 +2541,48 @@ settings event, and entry purchase off and on again all work. That run found
 that KSP's events can't hold a static method: the settings hook threw every
 time a game scene loaded. It's now a method of the scenario.
 
+## 28. Tech nodes never look empty because of PIP (2026-11-10)
+
+**Seen:** in Phil's main game, with Hide Empty Tech Tree Nodes (HETTN), R&D
+didn't draw some nodes that hold PIP's unlocks. Tech lines ran in from nodes
+that weren't there.
+
+**Cause:**
+- **HETTN's count:** HETTN decides once per game which nodes are empty. It
+  counts every part whose tech node is that node, hidden ones too. It marks
+  nearly every node "hide if empty". It removes the empty ones from its tree and
+  joins their lines around them. It keeps nodes that hold only part upgrades,
+  so PIP's entries alone don't make a node empty to it.
+- **Replace empties nodes:** Replace hides stock parts in R&D (TechHidden). A
+  node whose parts are all replaced still looks full to HETTN, so it stays in
+  the tree, marked "hide if empty".
+- **Stock R&D hides it:** when R&D draws a node marked that way, it counts only
+  the parts it can show (not TechHidden ones, and not part upgrades). If there
+  are none, it hides the node, whatever its state.
+- **Nothing can be researched there:** a hidden node has no button, so it can't
+  be researched and its entries can't be bought. The nodes after it can't be
+  researched either, unless another parent of theirs is researched.
+
+**Rule (Phil chose it, 2026-11-10):** a tech node never looks empty because of
+PIP. When R&D asks whether a node has anything to show, the stock parts Replace
+hid there count, and so do PIP's own entries there. The node shows and can be
+researched, just as it would without Replace. The hidden stock parts stay out of
+the node's parts list and the VAB. Nodes that are truly empty are still HETTN's
+to remove.
+
+**Turned down:**
+- Only nodes with PIP's entries: a node Replace emptied with no PIP entry
+  would still hide and block the nodes after it.
+- Turning off HETTN's hiding, or dropping HETTN from the pack: that loses what
+  HETTN is for.
+- No longer hiding replaced stock parts in R&D: Replace would only half work.
+
+**How:** a Harmony postfix on stock's `RDNode.PartsInTotal` (used only to
+decide hiding): when it's 0, it gives 1 if the node's parts include one
+`EditorHider.HiddenByPip` (hidden now, not before PIP), or if PIP sells an entry
+at the node (`TechUnlocks.SellsAt`). The first time each node is kept, KSP.log
+says so: "[PIP] R&D keeps generalRocketry showing: Replace hid its stock parts".
+
 ## Looks and side-mount build (2026-11-04)
 
 Built from sections 15 and 16 after Phil's "Yes, build it". This is Looks

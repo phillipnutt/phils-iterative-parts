@@ -70,5 +70,8 @@ namespace PIP
         // Every entry name that sells something, and every type it names.
         public static IEnumerable<string> Names => all.Select(e => e.Name).Distinct();
         public static IEnumerable<string> TypesNamed => all.Select(e => e.Type).Distinct();
+
+        // Whether any entry sells something at node tech.
+        public static bool AnyAt(string tech) => !string.IsNullOrEmpty(tech) && all.Any(e => e.Tech == tech);
     }
 }

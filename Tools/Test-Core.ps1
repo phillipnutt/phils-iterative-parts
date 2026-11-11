@@ -701,6 +701,8 @@ Check 'Techs still lists the same nodes' (($liq.Techs((M 'H-25-V'), $null)) -joi
 function EntryCost([double]$sci, $lvl = 'Normal') { Call $Pricing EntryCost @($sci, [Enum]::Parse($PriceT, $lvl)) }
 Check 'entry prices: 30 funds a science point (Basic Science, Precision Engineering, Advanced Unmanned, start)' "$(EntryCost 45),$(EntryCost 160),$(EntryCost 550),$(EntryCost 0)" '1350,4800,16500,0'
 Check 'entry prices follow the PIP prices option' "$(EntryCost 45 'Quarter'),$(EntryCost 45 'Half'),$(EntryCost 45 'Double')" '338,675,2700'
+# Section 28: R&D keeps a node showing when PIP's entries are there.
+Check 'nodes with PIP entries (General Rocketry, Extreme Fuel Storage, Basic Science); none at a made-up node or no node' "$($Entries::AnyAt('generalRocketry')),$($Entries::AnyAt('extremeFuelStorage')),$($Entries::AnyAt('basicScience')),$($Entries::AnyAt('noSuchNode')),$($Entries::AnyAt(''))" 'True,True,True,False,False'
 $Entries::Clear()
 
 Write-Host 'What a program gained (section 25)'

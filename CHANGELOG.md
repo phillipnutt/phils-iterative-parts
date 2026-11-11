@@ -62,6 +62,11 @@ before. In a game already under way, the entries for nodes it had researched
 count as bought. The program window says what's left: research a node, or buy
 an entry. The size tooling entries now say they open every type's sizes.
 
+**Fixed** (DESIGN.md 28): with Hide Empty Tech Tree Nodes installed, R&D hid
+nodes whose stock parts Replace had hidden, so they, and the nodes after them,
+couldn't be researched. A node now never looks empty because of PIP. The stock
+parts stay hidden.
+
 **Fixed** (DESIGN.md 27):
 - A probe core offered every SAS mode its chassis part (the OKTO2) had,
   whatever its program's autopilot points.

@@ -122,6 +122,38 @@ namespace PIP
             return false;
         }
     }
+
+    // A tech node never looks empty because of PIP (DESIGN.md 28). R&D hides a node
+    // marked "hide if empty" (Hide Empty Tech Tree Nodes marks nearly all) when it has
+    // no part to show, and a hidden node can't be researched, nor can the nodes after
+    // it. Here the stock parts Replace hid at a node, and PIP's own entries there,
+    // count as something to show. They stay hidden in the node's parts list and the VAB.
+    [HarmonyPatch(typeof(KSP.UI.Screens.RDNode), "PartsInTotal")]
+    static class KeepNodePatch
+    {
+        static readonly System.Collections.Generic.HashSet<string> kept = new System.Collections.Generic.HashSet<string>();
+        static bool failed;
+
+        static void Postfix(KSP.UI.Screens.RDNode __instance, ref int __result)
+        {
+            if (__result > 0 || failed) return;
+            try
+            {
+                RDTech tech = __instance?.tech;
+                if (tech == null) return;
+                bool hidByPip = (tech.partsAssigned?.Any(EditorHider.HiddenByPip) ?? false) || (tech.partsPurchased?.Any(EditorHider.HiddenByPip) ?? false);
+                if (!hidByPip && !TechUnlocks.SellsAt(tech.techID)) return;
+                __result = 1;
+                if (kept.Add(tech.techID))
+                    Debug.Log($"[PIP] R&D keeps {tech.techID} showing: " + (hidByPip ? "Replace hid its stock parts" : "it has PIP's entries and no parts"));
+            }
+            catch (Exception e)
+            {
+                failed = true;
+                Debug.LogError("[PIP] Keeping tech nodes from looking empty failed; R&D may hide some: " + e);
+            }
+        }
+    }
 }
 
 namespace PIP

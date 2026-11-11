@@ -38,6 +38,10 @@ namespace PIP
         // own setting is remembered so another game that doesn't replace it gets it back.
         static readonly Dictionary<AvailablePart, bool> originalTechHidden = new Dictionary<AvailablePart, bool>();
 
+        // A part Replace took out of R&D: hidden now, and it wasn't before PIP.
+        public static bool HiddenByPip(AvailablePart ap) =>
+            ap != null && ap.TechHidden && originalTechHidden.TryGetValue(ap, out bool was) && !was;
+
         public static void ApplyToResearch()
         {
             if (PartLoader.Instance == null) return;

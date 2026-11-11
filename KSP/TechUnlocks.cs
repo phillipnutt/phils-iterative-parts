@@ -110,6 +110,13 @@ namespace PIP
             return string.Join("; ", parts);
         }
 
+        // Whether one of PIP's R&D entries is at this node.
+        public static bool SellsAt(string tech)
+        {
+            Load();
+            return Entries.AnyAt(tech);
+        }
+
         // Every PARTUPGRADE that says what it sells (pipUnlocks), read once.
         static bool loaded;
         static void Load()
