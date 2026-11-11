@@ -2581,7 +2581,15 @@ to remove.
 decide hiding): when it's 0, it gives 1 if the node's parts include one
 `EditorHider.HiddenByPip` (hidden now, not before PIP), or if PIP sells an entry
 at the node (`TechUnlocks.SellsAt`). The first time each node is kept, KSP.log
-says so: "[PIP] R&D keeps generalRocketry showing: Replace hid its stock parts".
+says so: "[PIP] R&D keeps basicRocketry showing: Replace hid its stock parts".
+
+**Built 2026-11-10; seen in game 2026-11-11** on a throwaway career with HETTN
+1.3.2 and the Community Tech Tree (HETTN hid 65 empty nodes): without the rule,
+R&D would hide 9 nodes because Replace hid their stock parts (Basic, Heavy and
+Heavier Rocketry, Propulsion Systems, Nuclear and Ion Propulsion, Large Volume
+Containment, Automation, Large Unmanned). With it, no node is hidden, every
+one is drawn, and Basic Rocketry, which has no part left to show, can be
+researched. 378 offline checks pass.
 
 ## Looks and side-mount build (2026-11-04)
 
