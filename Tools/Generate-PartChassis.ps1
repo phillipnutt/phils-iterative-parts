@@ -27,7 +27,18 @@ function Begin($name, $title, $base, [double]$cost, [string[]]$strip) {
     L '    %TechRequired = start'
     L '    %entryCost = 0'
     L "    %cost = $([Math]::Round($cost))"
-    foreach ($m in @('TweakScale', 'ModulePartVariants', 'ModuleTestSubject', 'Reliability') + $strip) { L "    !MODULE[$m],* {}" }
+    foreach ($m in @('TweakScale', 'ModuleTestSubject', 'Reliability') + $strip) { L "    !MODULE[$m],* {}" }
+    # Paint variants stay, paint only, as on looks (DESIGN.md 29.1): some models (ReStock's)
+    # hold overlapping meshes that only a variant switches off. No node moves, mass or cost.
+    L '    @MODULE[ModulePartVariants],*'
+    L '    {'
+    L '        @VARIANT,*'
+    L '        {'
+    L '            !NODES,* {}'
+    L '            !mass = delete'
+    L '            !cost = delete'
+    L '        }'
+    L '    }'
     # Name every model so B9PartSwitch can scale it (it can't see the part's own "model" root).
     L '    @MODEL,*'
     L '    {'

@@ -62,6 +62,12 @@ before. In a game already under way, the entries for nodes it had researched
 count as bought. The program window says what's left: research a node, or buy
 an entry. The size tooling entries now say they open every type's sizes.
 
+**Fixed** (DESIGN.md 29.1): with ReStock, PIP's probe core, dish antenna, RCS,
+heat shield, decoupler and separator showed two overlapping shells that
+flickered (the Seer probe: half gold, half silver). Every PIP part now keeps its
+model's paint variants, paint only, so one shell shows, and the paint can be
+picked in the VAB.
+
 **Fixed** (DESIGN.md 28): with Hide Empty Tech Tree Nodes installed, R&D hid
 nodes whose stock parts Replace had hidden, so they, and the nodes after them,
 couldn't be researched. A node now never looks empty because of PIP. The stock

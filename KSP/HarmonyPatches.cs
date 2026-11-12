@@ -193,16 +193,17 @@ namespace PIP
 
 namespace PIP
 {
-    // A look keeps its installed part's paint variants (ModulePartVariants), and only
-    // their paint (Looks.Build drops their node moves). But KSP makes each variant as
-    // a copy of the part's base variant, which carries the look's own unscaled stack
-    // nodes, and applying one puts the nodes back there: changing a held part's
-    // variant in the VAB left a shrunk tank's top and bottom nodes at the full-size
-    // model's spacing (DESIGN.md 27.1). PIP's size switch owns a look's nodes, so a
-    // variant applied to a look moves none.
+    // A PIP part keeps its model's paint variants (ModulePartVariants), and only their
+    // paint: Looks.Build and the chassis configs drop their node moves (DESIGN.md 29.1).
+    // But KSP makes each variant as a copy of the part's base variant, which carries
+    // the model's own unscaled stack nodes, and applying one puts the nodes back
+    // there: changing a held part's variant in the VAB left a shrunk tank's top and
+    // bottom nodes at the full-size model's spacing (DESIGN.md 27.1). PIP's size
+    // switch owns the nodes of its parts (not engines, whose chassis keep their whole
+    // variants), so a variant applied to one moves none.
     [HarmonyPatch(typeof(ModulePartVariants), nameof(ModulePartVariants.ApplyVariant),
         new[] { typeof(Part), typeof(Transform), typeof(PartVariant), typeof(Material[]), typeof(bool), typeof(int) })]
-    static class LookVariantNodesPatch
+    static class VariantNodesPatch
     {
         static readonly System.Reflection.FieldInfo SrfNode = AccessTools.Field(typeof(PartVariant), "srfAttachNode");
 
@@ -211,12 +212,11 @@ namespace PIP
             try
             {
                 if (part == null || variant == null) return;
-                ModulePipPart pip = part.FindModuleImplementing<ModulePipPart>();
-                if (pip == null || !pip.look) return;
+                if (part.FindModuleImplementing<ModulePipPart>() == null) return;
                 variant.AttachNodes?.Clear();
                 SrfNode?.SetValue(variant, null);
             }
-            catch (Exception e) { Debug.LogError("[PIP] Keeping a look's nodes through a variant change failed: " + e); }
+            catch (Exception e) { Debug.LogError("[PIP] Keeping a PIP part's nodes through a variant change failed: " + e); }
         }
     }
 }

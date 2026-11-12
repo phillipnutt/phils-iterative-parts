@@ -2591,6 +2591,57 @@ Containment, Automation, Large Unmanned). With it, no node is hidden, every
 one is drawn, and Basic Rocketry, which has no part left to show, can be
 researched. 378 offline checks pass.
 
+## 29. Main-game play-test fixes (2026-11-12)
+
+From Phil's play on his main game (ReStock, Kerbalism, RemoteTech).
+
+### 29.1 Every PIP part keeps its model's paint, and only one shell shows
+
+**Seen:** the "Seer" probe flickered half gold, half silver.
+
+**Cause:** ReStock's probe model holds two shells in the same place, bare and
+foil, and its paint variants switch one off. PIP's default chassis removed the
+paint variants module (`!MODULE[ModulePartVariants]`), so both shells drew and
+fought. Under ReStock the same hit the dish antenna, both RCS chassis, the heat
+shield, the decoupler and the separator. Looks kept their variants and were fine.
+
+**Rule (Phil, "Build both as shown"):** every PIP part keeps its model's paint
+variants, paint only, as looks already did. A variant's node moves, mass and
+cost are dropped (`Generate-PartChassis.ps1` writes the edit), and the 27.1
+guard (`VariantNodesPatch`, was `LookVariantNodesPatch`) now keeps the nodes of
+every non-engine PIP part through a paint change, since PIP's size switch owns
+them. Engine chassis keep their whole variants, as before. Side effect: default
+PIP parts show the paint picker in the VAB (ReStock's OKTO2: Bare, Gold, Silver).
+
+### 29.2 Antenna speed follows the program (agreed, waiting)
+
+**Seen:** an antenna's data rate never changed with its program. It came from
+its chassis or look, so under Kerbalism and RemoteTech a deep-space Mk 5 dish
+sent no faster than a short-range Mk 1.
+
+**Agreed (Phil, "Build both as shown"):** top speed follows the Range slider,
+class by class, matched to Kerbalism's own antennas of the same range. The
+numbers are at 0 points and fully developed:
+
+| Class | Kerbalism (kB/s) | Without Kerbalism (Mits/s) |
+|---|---|---|
+| Omni | 1.1 → 12 | 2 → 5 |
+| Short-range dish | 10 → 60 | 4 → 10 |
+| Interplanetary dish | 150 → 500 | 10 → 25 |
+| Deep-space dish | 450 → 850 | 20 → 40 |
+
+The Power draw slider means what the antenna uses while switched on under
+RemoteTech (as now), while sending under Kerbalism without RemoteTech, and the
+charge per Mit sent in a plain game (8 EC at 0 points down to 1 EC).
+
+**Snag found while building:** a program's part is a shallow copy of its
+chassis's part entry, so every program of a chassis shares one prefab. Kerbalism
+reads a ship that's out of physics range from the prefab (`CommHandlerRemoteTech
+.GetTransmittersUnloaded` takes `partInfo.partPrefab`'s `RTPacketSize`; its
+background RTG reads `BasePower`/`HalfLife` the same way). So setting the speed
+on loaded parts alone would leave background ships, where Kerbalism does most
+of its sending, at the chassis's speed. Put to Phil before building 29.2.
+
 ## Looks and side-mount build (2026-11-04)
 
 Built from sections 15 and 16 after Phil's "Yes, build it". This is Looks
