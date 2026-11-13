@@ -32,6 +32,8 @@ namespace PIP
             // Kerbalism's radiation comes from its Emitter part module.
             NuclearEngines.Kerbalism = AssemblyLoader.GetClassByName(typeof(PartModule), "Emitter") != null;
             Debug.Log($"[PIP] Kerbalism {(NuclearEngines.Kerbalism ? "found: nuclear engines get Shielding" : "not found: nuclear engines get Gimbal")}");
+            // RemoteTech or stock antennas, and Kerbalism's data rates (DESIGN.md 29.2).
+            Comms.Detect();
         }
     }
 

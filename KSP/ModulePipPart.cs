@@ -30,6 +30,8 @@ namespace PIP
         [KSPField(isPersistant = true)] public string points = "";
         [KSPField(isPersistant = true)] public string startPoints = "";   // a later version's start (DESIGN.md 18.1)
         [KSPField(isPersistant = true)] public bool flew;   // left the pad on this flight (counts recoveries)
+        // The layout "points" is saved in (PartType.Format); 0 on parts from before it was saved.
+        [KSPField(isPersistant = true)] public int pointsFormat;
 
         [KSPField(guiName = "Program", guiActive = true, guiActiveEditor = true)]
         public string programLabel = "";
@@ -55,6 +57,7 @@ namespace PIP
         public override void OnLoad(ConfigNode node)
         {
             base.OnLoad(node);
+            if (pointsFormat < Type.Format && !string.IsNullOrEmpty(points)) UpgradePoints();
             pointValues = Program.PointsFromText(points, Type.Categories.Length);
             statsReady = false;
             // B9PartSwitch sends a new size this way, and can reload the chassis config
@@ -88,6 +91,24 @@ namespace PIP
         }
 
         void OnDestroy() => FlightTracker.Unregister(this);
+
+        // A part built before its type's sliders changed (antennas' Data rate, DESIGN.md
+        // 29.2): its own points, at its own Mk, in today's layout, by the type's rule.
+        void UpgradePoints()
+        {
+            try
+            {
+                string look = PipScenario.Instance?.Find(programId)?.Look;
+                if (Type.Upgrade(pointsFormat, Model, variant, look, points, startPoints, out int[] now, out int[] start))
+                {
+                    Debug.Log($"[PIP] {part?.partInfo?.name} ({programName} {Progress.MkName(mk)}): points {points} -> {Program.PointsToText(now)}");
+                    points = Program.PointsToText(now);
+                    startPoints = Program.PointsToText(start);
+                }
+            }
+            catch (Exception e) { Debug.LogError($"[PIP] Updating {part?.partInfo?.name}'s points failed: {e}"); }
+            pointsFormat = Type.Format;
+        }
 
         // The new-build rule (DESIGN.md 26.3), the same one PipApi.ToCurrent applies to a
         // craft at the Space Center: the family's newest version at its current Mk.
@@ -264,27 +285,79 @@ namespace PIP
             SetField("SolarPanelFixer", "nominalRate", stats[K.EcRate]);
         }
 
-        // RemoteTech when installed (omni or dish range, cone, power); stock CommNet otherwise.
+        // Range, cone, speed and power (DESIGN.md 29.2), on RemoteTech's antenna when it's
+        // installed, stock's transmitter otherwise. Speed is in Kerbalism's terms when its
+        // science is on (packets of MB, one a second), stock's otherwise (Mits a packet).
         void ApplyAntenna()
         {
-            bool dish = Antennas.Dish(Model);
-            float range = (float)stats[Antennas.RangeKey];
+            bool dish = Antennas.Dish(Model), kerbalism = Antennas.KerbalismScience;
+            double range = stats[Antennas.RangeKey], cone = stats[Antennas.ConeKey];
+            double kb = stats[Antennas.SpeedKbKey], mits = stats[Antennas.SpeedMitsKey];
             bool rt = false;
             foreach (PartModule m in part.Modules)
             {
-                if (m.moduleName != "ModuleRTAntenna") continue;
-                rt = true;
-                if (dish)
+                if (m.moduleName == "ModuleRTAntenna")
                 {
-                    m.Fields["Mode1DishRange"]?.SetValue(range, m);
-                    m.Fields["DishAngle"]?.SetValue((float)stats[Antennas.ConeKey], m);
+                    rt = true;
+                    if (dish)
+                    {
+                        SetValue(m, "Mode1DishRange", range);
+                        SetValue(m, "DishAngle", cone);
+                        // RemoteTech works its cone out once, as the part loads, and saves it with
+                        // the ship: set only DishAngle and the look's own cone stays.
+                        SetValue(m, "RTDishCosAngle", Math.Cos(cone / 2 * Math.PI / 180));
+                    }
+                    else SetValue(m, "Mode1OmniRange", range);
+                    SetValue(m, "EnergyCost", stats[K.EcRate]);
+                    // Kerbalism reads these; RemoteTech copies them into its science sender.
+                    double interval = kerbalism ? 1 : Positive(GetValue(m, "RTPacketInterval"), 0.3);
+                    SetValue(m, "RTPacketInterval", interval);
+                    SetValue(m, "RTPacketSize", kerbalism ? kb / 1000 : mits * interval);
                 }
-                else m.Fields["Mode1OmniRange"]?.SetValue(range, m);
-                m.Fields["EnergyCost"]?.SetValue((float)stats[K.EcRate], m);
+                else if (m.moduleName == "ModuleRTDataTransmitter")
+                {
+                    // RemoteTech's sender, made while the antenna is switched on.
+                    double interval = kerbalism ? 1 : Positive(GetValue(m, "PacketInterval"), 0.3);
+                    SetValue(m, "PacketInterval", interval);
+                    SetValue(m, "PacketSize", kerbalism ? kb / 1000 : mits * interval);
+                }
             }
-            if (!rt)
-                foreach (ModuleDataTransmitter t in part.FindModulesImplementing<ModuleDataTransmitter>())
-                    t.antennaPower = range;
+            if (rt) return;
+            foreach (ModuleDataTransmitter t in part.FindModulesImplementing<ModuleDataTransmitter>())
+            {
+                SetValue(t, "antennaPower", range);
+                if (kerbalism)
+                {
+                    // Kerbalism: MB a second, and Power draw is what sending costs a second.
+                    SetValue(t, "packetInterval", 1);
+                    SetValue(t, "packetSize", kb / 1000);
+                    SetValue(t, "packetResourceCost", stats[K.EcRate]);
+                }
+                else
+                {
+                    // Stock: Mits a packet at the transmitter's own pace, and a charge per Mit.
+                    double interval = Positive(t.packetInterval, 0.6);
+                    double size = mits * interval;
+                    SetValue(t, "packetInterval", interval);
+                    SetValue(t, "packetSize", size);
+                    SetValue(t, "packetResourceCost", stats[Antennas.MitCostKey] * size);
+                }
+            }
+        }
+
+        static double Positive(double v, double otherwise) => v > 0 && !double.IsNaN(v) ? v : otherwise;
+
+        // A field of another mod's module by name, in that field's own type (float or double).
+        internal static void SetValue(PartModule m, string field, double value)
+        {
+            System.Reflection.FieldInfo f = m.GetType().GetField(field, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (f != null) f.SetValue(m, Convert.ChangeType(value, f.FieldType, System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        internal static double GetValue(PartModule m, string field)
+        {
+            object v = m.GetType().GetField(field, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(m);
+            return v == null ? double.NaN : Convert.ToDouble(v, System.Globalization.CultureInfo.InvariantCulture);
         }
 
         void ApplyProbe()

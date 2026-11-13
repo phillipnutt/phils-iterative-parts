@@ -62,6 +62,22 @@ before. In a game already under way, the entries for nodes it had researched
 count as bought. The program window says what's left: research a node, or buy
 an entry. The size tooling entries now say they open every type's sizes.
 
+**Antennas: Omni, Wide Dish, Focused Dish** (DESIGN.md 29.2)
+- **The kind sets the reach:** omni 0.5 to 6 Mm, Wide Dish 5 to 200 Mm, Focused
+  Dish 5 to 500 Gm. Range points move it along that, and widen a dish's cone
+  with it (Wide 12.5° to 90°, Focused 0.025° to 0.25°).
+- **New slider, Data rate:** top speed, the same for every kind. It's 1 to 900
+  kB/s with Kerbalism's science on, 2 to 40 Mits/s without. Speed no longer
+  comes from the look.
+- **Power draw now counts everywhere:** what the antenna draws while on (with
+  RemoteTech), uses while sending (Kerbalism without RemoteTech), or charges per
+  Mit sent (a plain game, where it did nothing before).
+- **Fixed:** under RemoteTech, a dish's cone was always its look's own.
+- **Antennas already in a game get no worse:** short-range dishes become Wide
+  and interplanetary ones Focused, both on the same points. Deep-space ones
+  become Focused with their reach kept, keeping their size. Each keeps at least
+  its look's cone and speed, and its price.
+
 **Fixed** (DESIGN.md 29.1): with ReStock, PIP's probe core, dish antenna, RCS,
 heat shield, decoupler and separator showed two overlapping shells that
 flickered (the Seer probe: half gold, half silver). Every PIP part now keeps its

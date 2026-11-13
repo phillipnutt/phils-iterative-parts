@@ -177,6 +177,21 @@ namespace PIP
         public Option[] VariantsForMount(string[] model, string mount) =>
             mount == "R" ? SideVariants(model) : mount == "A" ? AdapterVariants(model) : Variants(model);
 
+        // A size kept only for programs and parts that already have it (an antenna's old
+        // deep-space dish, DESIGN.md 29.2): still valid and still built, never offered.
+        public virtual bool RetiredVariant(string code) => false;
+
+        // The layout a type's points are saved in. It goes up when a type's sliders change
+        // (antennas' Data rate, DESIGN.md 29.2), and Upgrade turns points saved in an older
+        // layout (a program's, or a built part's) into today's, from what they were saved with.
+        public virtual int Format => 1;
+        public virtual bool Upgrade(int from, string[] model, string variant, string look, string pointsText, string startText,
+                                    out int[] points, out int[] start)
+        {
+            points = start = null;
+            return false;
+        }
+
         // A size code, in-line, side-mount or adapter, or null when this model has no such size.
         public Option VariantOption(string[] model, string code) =>
             string.IsNullOrEmpty(code) ? null

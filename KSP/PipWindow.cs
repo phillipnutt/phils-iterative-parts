@@ -446,7 +446,8 @@ namespace PIP
         static Option[] SizeChoices(PartType type, string[] model)
         {
             if (!type.Valid(model)) return null;
-            Option[] inline = type.Variants(model);
+            // A retired size (an antenna's old deep-space dish) stays valid but is never offered.
+            Option[] inline = type.Variants(model)?.Where(o => !type.RetiredVariant(o.Code)).ToArray();
             if (inline == null) return null;
             Option[] sides = type.HasSideMount && type.HasLooks && Looks.List(type, true, model).Count > 0 ? type.SideVariants(model) : null;
             Option[] adapters = type.HasAdapters && type.HasLooks && Looks.List(type, "A", model, null).Count > 0 ? type.AdapterVariants(model) : null;

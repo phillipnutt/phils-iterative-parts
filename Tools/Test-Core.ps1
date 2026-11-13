@@ -155,9 +155,60 @@ Check 'heat shield: max temperature at 100' (PStat 'Shield' '' @(0, 0, 100) 10 '
 Check 'solar: huge deployable at 100' (PStat 'Solar' 'D' @(100, 0, 0) 10 'ecRate' 'H') 300
 Check 'solar: folds up from 50 designed points' (PStat 'Solar' 'D' @(0, 0, 50) 0 'retractable' 'M') 1
 Check 'solar: fixed has no durability' ((TypeOf 'Solar').CategoryUsed((M 'F'), 2)) $false
-Check 'antenna: short dish at 50 points ~22 Mm' ([Math]::Round((PStat 'Antenna' 'D' @(50, 0, 0) 10 'range' 'S') / 1e6, 1)) 22.4
-Check 'antenna: interplanetary dish at 50 points 20 Gm' ((PStat 'Antenna' 'D' @(50, 0, 0) 10 'range' 'I') / 1e9) 20 1e-6
-Check 'antenna: omni at 100 points 6 Mm' ((PStat 'Antenna' 'O' @(100, 0, 0) 10 'range' $null) / 1e6) 6 1e-6
+Check 'antenna: wide dish at 50 points ~32 Mm' ([Math]::Round((PStat 'Antenna' 'D' @(50, 0, 0, 0) 10 'range' 'S') / 1e6, 1)) 31.6
+Check 'antenna: focused dish at 50 points 50 Gm' ((PStat 'Antenna' 'D' @(50, 0, 0, 0) 10 'range' 'I') / 1e9) 50 1e-6
+Check 'antenna: omni at 100 points 6 Mm' ((PStat 'Antenna' 'O' @(100, 0, 0, 0) 10 'range' $null) / 1e6) 6 1e-6
+
+Write-Host 'Antennas: kinds, Data rate, widening cone, old saves (section 29.2)'
+$antT = TypeOf 'Antenna'
+function AS([string]$v, [int[]]$p, [int]$mk, $key, [string]$model = 'D') { PStat 'Antenna' $model $p $mk $key $v }
+Check 'antenna sliders' (($antT.Categories | ForEach-Object { $_.Label }) -join ',') 'Range,Data rate,Power draw,Weight,Build cost'
+Check 'kinds: omni, wide and focused dish; the old deep-space size is kept but never offered' "$((($antT.Variants((M 'D'))) | ForEach-Object { $_.Label }) -join '/'),$($antT.RetiredVariant('D')),$($antT.RetiredVariant('I'))" 'Wide Dish/Focused Dish/Focused Dish, large,True,False'
+Check 'an old deep-space dish is a focused dish' ((AS 'D' @(50, 0, 0, 0) 10 'range') / 1e9) 50 1e-6
+Check 'cones widen with Range points (wide 0/25/50/75/100, focused 0/100, omni)' "$((@(0, 25, 50, 75, 100) | ForEach-Object { [Math]::Round((AS 'S' @($_, 0, 0, 0) 10 'cone'), 1) }) -join '/'),$([Math]::Round((AS 'I' @(0, 0, 0, 0) 10 'cone'), 3))/$([Math]::Round((AS 'I' @(100, 0, 0, 0) 10 'cone'), 3)),$(AS 'O' @(0, 0, 0, 0) 10 'cone' 'O')" '12.5/20.5/33.5/54.9/90,0.025/0.25,360'
+Check 'Data rate, the same band for every kind (kB/s 0/50/100; omni at 50; Mits/s 0/100)' "$(@(0, 50, 100) | ForEach-Object { [Math]::Round((AS 'I' @(0, $_, 0, 0) 10 'speedKb'), 1) }),$([Math]::Round((AS 'O' @(0, 50, 0, 0) 10 'speedKb' 'O'), 1)),$((AS 'S' @(0, 0, 0, 0) 10 'speedMits'))/$((AS 'S' @(0, 100, 0, 0) 10 'speedMits'))" '1 30 900,30,2/40'
+Check 'Power draw and Weight: wide as short-range was, focused as interplanetary was' "$((AS 'S' @(0, 0, 0, 0) 10 'ecRate')),$((AS 'I' @(0, 0, 0, 0) 10 'ecRate')),$((AS 'I' @(0, 0, 100, 100) 10 'mass'))" '1,1.5,0.05'
+
+# Saves from before Data rate: Range, Power draw, Weight, Build cost.
+function OldAntenna([string]$model, [string]$size, [string]$points, [string]$start = $null, [string]$look = $null) {
+    $m = @{ id = 'old'; name = 'Old'; type = 'antenna'; model = $model; points = $points; created = '0'; fundsPaid = '0' }
+    if ($size) { $m.size = $size }; if ($start) { $m.startPoints = $start }; if ($look) { $m.look = $look }
+    $Program.GetMethod('FromValues').Invoke($null, @([Func[string, string]] { param($k) $m[$k] }))
+}
+function OldRange([double]$e, [string]$v) { switch ($v) { 'S' { 5e6 * [Math]::Pow(20, $e / 100) } 'I' { 5e9 * [Math]::Pow(16, $e / 100) } 'D' { 50e9 * [Math]::Pow(10, $e / 100) } } }
+function OldPrice([double]$base, [int[]]$p) { $base * (0.75 + 0.75 * ($p[0] + $p[1] + $p[2]) / 300) * (1.5 - $p[3] / 200) }
+function NoWorse($prog, [string]$v, [int[]]$old) {
+    $ok = @()
+    foreach ($mk in 1, 3, 5) {
+        $was = OldRange ([double]$Progress.GetMethod('Effective', [type[]]@([int], [int])).Invoke($null, @([int]$old[0], [int]$mk))) $v
+        $ok += ($prog.Stats($mk, (Level 'Normal'), [NullString]::Value)).Item('range') -ge $was * 0.999
+    }
+    $base = @{ S = 800; I = 2500; D = 8000 }[$v]
+    $ok += ($prog.Stats(1, (Level 'Normal'), [NullString]::Value)).Item('price') -le (OldPrice $base $old) + 0.5
+    ($ok | Where-Object { -not $_ }).Count -eq 0
+}
+$sOld = OldAntenna 'D' 'S' '50,40,30,0'
+Check 'short-range: same Range points, Data rate from its look (stock HG-55, 20 Mits/s), start points kept' "$($Program::PointsToText($sOld.Points))|$($Program::PointsToText($sOld.StartPoints))" '50,77,40,30,0|25,77,20,15,0'
+Check 'short-range: no less reach at Mk. 1, 3, 5, and no dearer' (NoWorse $sOld 'S' @(50, 40, 30, 0)) $true
+Check 'short-range: its old speed from Mk. 1 on' ([Math]::Round(($sOld.Stats(1, (Level 'Normal'), [NullString]::Value)).Item('speedMits'), 1) -ge 20) $true
+$iOld = OldAntenna 'D' 'I' '30,0,0,0'
+Check 'interplanetary: same points, so more reach, and no dearer' (NoWorse $iOld 'I' @(30, 0, 0, 0)) $true
+$dOld = OldAntenna 'D' 'D' '50,20,20,40'
+Check 'deep-space: Range points (100 + old) / 2, so the same reach' "$($dOld.Points[0])/$($dOld.StartPoints[0]),$([Math]::Round(($dOld.Stats(5, (Level 'Normal'), [NullString]::Value)).Item('range') / 1e9))" '75/63,158'
+Check 'deep-space: no less reach at Mk. 1, 3, 5, and no dearer' (NoWorse $dOld 'D' @(50, 20, 20, 40)) $true
+$vOld = OldAntenna 'D' 'I' '60,10,10,0' '50,5,5,0'
+Check 'a later version: start points carried over the same way (Build cost up 16 to keep the price)' "$($Program::PointsToText($vOld.StartPoints))" '50,77,5,5,16'
+[PIP.Antennas]::LookCone = [Func[string, double]] { param($l) if ($l -eq 'HighGainAntenna5_v2') { 90 } else { 0.12 } }
+[PIP.Antennas]::LookSpeed = [Func[string, double]] { param($l) 3.2 }
+$cOld = OldAntenna 'D' 'S' '20,0,0,0' $null 'HighGainAntenna5_v2'
+Check 'RemoteTech: a dish keeps at least its look''s cone (HG-5 look, 90 degrees)' "$($cOld.Points[0])/$($cOld.StartPoints[0]),$([Math]::Round(($cOld.Stats(1, (Level 'Normal'), [NullString]::Value)).Item('cone')))" '100/100,90'
+$fOld = OldAntenna 'D' 'I' '10,0,0,0'
+Check 'RemoteTech: the HG-55''s 0.12 degrees on a focused dish' ([Math]::Round(($fOld.Stats(1, (Level 'Normal'), [NullString]::Value)).Item('cone'), 3) -ge 0.12) $true
+Check 'Data rate from the look''s own speed (3.2 Mits/s)' ($cOld.Points[1]) 16
+[PIP.Antennas]::LookCone = $null; [PIP.Antennas]::LookSpeed = $null
+$saved = @{}; foreach ($kv in $sOld.ToValues()) { $saved[$kv.Key] = $kv.Value }
+$again = $Program.GetMethod('FromValues').Invoke($null, @([Func[string, string]] { param($k) $saved[$k] }))
+Check 'saved again: format 2, loaded as is' "$($saved['format']),$($Program::PointsToText($again.Points))" '2,50,77,40,30,0'
 Check 'probe: SAS steps (section 27.3)' "$((@(0, 9, 10, 49, 50, 74, 75, 99, 100) | ForEach-Object { [PIP.ProbeCores]::SasLevel($_) }) -join ',')" '-1,-1,0,0,1,1,2,2,3'
 Check 'probe: a 25-point first program only holds attitude, even at Mk. 5' (Stat (TypeOf 'Probe') '' ([int[]]@(25, 0, 0, 0, 0)) 5 'sas') 0
 Check 'probe: a 50-point program reaches prograde at Mk. 5, not before' "$((1..5 | ForEach-Object { Stat (TypeOf 'Probe') '' ([int[]]@(50, 0, 0, 0, 0)) $_ 'sas' }) -join ',')" '0,0,0,0,1'

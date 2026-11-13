@@ -76,9 +76,9 @@ $u = @(
     @('cuttingEdgeSolarTech', 'Multi-Junction Cells', 'PIP-PV-D', 'Huge panels; solar caps 100', 'Deployable solar panels can be huge, and new programs can put up to 100 points into every category.'),
     # Antennas
     @('start', 'Radio', 'PIP-ANT-O', 'First antenna programs', 'Start omni antenna programs. Caps 25.'),
-    @('basicScience', 'Directional Antennas', 'PIP-ANT-D', 'Short-range dishes', 'Antenna programs can be dishes, short-range class.'),
-    @('precisionEngineering', 'Parabolic Dishes', 'PIP-ANT-D', 'Interplanetary dishes; antenna caps 50', 'Dishes can be interplanetary class, and new antenna programs can put up to 50 points into every category.'),
-    @('unmannedTech', 'Deep Space Network', 'PIP-ANT-D', 'Deep-space dishes; antenna caps 75', 'Dishes can be deep-space class, and new antenna programs can put up to 75 points into every category.'),
+    @('basicScience', 'Directional Antennas', 'PIP-ANT-D', 'Wide dishes', 'Antenna programs can be wide dishes: shorter reach, a wider cone.'),
+    @('precisionEngineering', 'Parabolic Dishes', 'PIP-ANT-D', 'Focused dishes; antenna caps 50', 'Antenna programs can be focused dishes: the longest reach, a narrow cone. New antenna programs can put up to 50 points into every category.'),
+    @('unmannedTech', 'Deep Space Network', 'PIP-ANT-D', 'Antenna caps 75', 'New antenna programs can put up to 75 points into every category.'),
     @('largeUnmanned', 'Phased Arrays', 'PIP-ANT-D', 'Antenna caps 100', 'New antenna programs can put up to 100 points into every category.'),
     # Probe cores
     @('start', 'Guidance Units', 'PIP-PRB', 'First probe core program', 'Start a probe core program: 0.625 m, more sizes later. Caps 25: SAS holds attitude (from 10 autopilot points).'),

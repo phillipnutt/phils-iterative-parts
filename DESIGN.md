@@ -2613,34 +2613,109 @@ every non-engine PIP part through a paint change, since PIP's size switch owns
 them. Engine chassis keep their whole variants, as before. Side effect: default
 PIP parts show the paint picker in the VAB (ReStock's OKTO2: Bare, Gold, Silver).
 
-### 29.2 Antenna speed follows the program (agreed, waiting)
+### 29.2 Antennas: Omni, Wide Dish, Focused Dish, and a Data rate slider
 
 **Seen:** an antenna's data rate never changed with its program. It came from
 its chassis or look, so under Kerbalism and RemoteTech a deep-space Mk 5 dish
-sent no faster than a short-range Mk 1.
+sent no faster than a short-range Mk 1. Looking into it turned up a second
+bug: under RemoteTech the dish cone was always the look's own. RemoteTech
+works its cone (`RTDishCosAngle`, saved with the ship) out once, in `OnLoad`,
+and PIP only set `DishAngle` after that.
 
-**Agreed (Phil, "Build both as shown"):** top speed follows the Range slider,
-class by class, matched to Kerbalism's own antennas of the same range. The
-numbers are at 0 points and fully developed:
+**Agreed with Phil (2026-11-12, through Phil's Mods):** "Omni / Wide Dish /
+Focused Dish, and that choice dictate the maximum possible distance", and
+"transfer speed for kerbalism stuff should be independent of that category".
+Then: "a wider dish angle is better", so the cone widens with points.
 
-| Class | Kerbalism (kB/s) | Without Kerbalism (Mits/s) |
-|---|---|---|
-| Omni | 1.1 → 12 | 2 → 5 |
-| Short-range dish | 10 → 60 | 4 → 10 |
-| Interplanetary dish | 150 → 500 | 10 → 25 |
-| Deep-space dish | 450 → 850 | 20 → 40 |
+- **The kind sets the reach.** Range points move an antenna along its kind's
+  band, and widen a dish's cone with it (wider covers more at once):
 
-The Power draw slider means what the antenna uses while switched on under
-RemoteTech (as now), while sending under Kerbalism without RemoteTech, and the
-charge per Mit sent in a plain game (8 EC at 0 points down to 1 EC).
+| Kind | Range, 0 → 100 Range pts | Cone at 0 / 25 / 50 / 75 / 100 pts | Unlock |
+|---|---|---|---|
+| Omni | 0.5 → 6 Mm | all round | start |
+| Wide Dish | 5 → 200 Mm | 12.5° / 20.5° / 33.5° / 54.9° / 90° | Basic Science |
+| Focused Dish | 5 → 500 Gm | 0.025° / 0.044° / 0.079° / 0.141° / 0.25° | Precision Engineering |
 
-**Snag found while building:** a program's part is a shallow copy of its
-chassis's part entry, so every program of a chassis shares one prefab. Kerbalism
-reads a ship that's out of physics range from the prefab (`CommHandlerRemoteTech
-.GetTransmittersUnloaded` takes `partInfo.partPrefab`'s `RTPacketSize`; its
-background RTG reads `BasePower`/`HalfLife` the same way). So setting the speed
-on loaded parts alone would leave background ships, where Kerbalism does most
-of its sending, at the chassis's speed. Put to Phil before building 29.2.
+- **Data rate is its own slider,** the same band for every kind, as top
+  speed: 1 → 900 kB/s with Kerbalism's science on, 2 → 40 Mits/s without.
+  Kerbalism still slows every link with distance, so the kind sets how far,
+  the slider how fast close up.
+- **Power draw stays its own slider,** not tied to speed (Kerbalism already
+  charges more a second while a faster antenna sends). It's what the antenna
+  draws while switched on under RemoteTech, what it uses while sending under
+  Kerbalism without RemoteTech, and the charge per Mit sent in a plain game
+  (8 EC at 0 points down to 1 EC; stock's antennas charge 6 to 10).
+- **Power, weight and price follow the kind:** omni and Wide Dish as the old
+  omni and short-range class; Focused Dish as the old interplanetary class
+  (1.5 → 0.3 EC/s, 0.3 → 0.05 t, base 2,500). This is a change from the
+  proposal's "between interplanetary and deep-space", made so no existing
+  dish gets heavier or hungrier.
+- **Sliders:** Range, Data rate, Power draw, Weight, Build cost.
+- **In the window:** Kind is Omni or Dish, and a dish's Class is Wide Dish or
+  Focused Dish.
+
+**Programs and parts from before (Antennas.Upgrade; "no existing antenna gets
+worse", speed and cone included).** Points saved as Range, Power draw, Weight,
+Build cost become Range, Data rate, Power draw, Weight, Build cost. Every
+result gets start points (where Mk. 1 begins), so each rule holds at every Mk:
+
+| Old | Becomes | Range points | Also |
+|---|---|---|---|
+| Omni | Omni | same | |
+| Short-range | Wide Dish (code S) | same: more reach above 0 | |
+| Interplanetary | Focused Dish (code I) | same: more reach above 0 | |
+| Deep-space | Focused Dish, large (code D) | (100 + old) / 2: the same reach | lighter, less power, cheaper; keeps its larger model |
+
+- **Cone:** under RemoteTech a dish keeps at least its look's own cone (what
+  it really had): Range points rise to match where needed. A focused dish in
+  the default HG-55 look (0.12°) gets 69 Range points, so about 120 Gm.
+- **Data rate:** the speed its look gave it, from Mk. 1 on (Kerbalism with
+  RemoteTech: the HG-55 look's 253 kB/s is 82 points, the Communotron 16's 3.2
+  kB/s is 18). This is allowed above the research cap.
+- **Build price:** no dearer. Build cost points rise where the new layout
+  would cost more (the Data rate grant adds to ambition).
+- **The old deep-space size "D" stays valid** for programs and parts that have
+  it (so built dishes keep their size and nodes), but a new program can't pick
+  it (`PartType.RetiredVariant`). Its R&D entry, Deep Space Network, now reads
+  "Antenna caps 75".
+- **How it's recorded:** a program saves `format = 2`, and a built part saves
+  `pointsFormat = 2`. Loading something without it upgrades its points once
+  (`Program.FromValues`, `ModulePipPart.OnLoad`). There's no guessing from the
+  number of values.
+
+**Game side (ModulePipPart.ApplyAntenna, KSP/Comms.cs):**
+- RemoteTech: range, `DishAngle` and `RTDishCosAngle` (the cone fix), and
+  `EnergyCost`. The speed goes into `RTPacketSize`/`RTPacketInterval`, which
+  Kerbalism reads and RemoteTech copies into its science sender; the sender's
+  own fields are set too while it's switched on.
+- Stock: `antennaPower`, with `packetSize`/`packetInterval`/`packetResourceCost`
+  in Kerbalism's terms (MB a second, EC a second) or stock's (Mits a packet, EC
+  per Mit).
+- `Comms.Detect` (main menu) checks for RemoteTech (`ModuleRTAntenna`) and
+  Kerbalism's `KERBALISM.Features.Science`, which is read each time it's asked.
+
+**Still to come (29.3):** for a ship out of physics range, Kerbalism reads the
+part's master copy (`partInfo.partPrefab`), which every program of a chassis
+shares. So a background ship's speed is still its chassis's or look's until
+each program has its own master copy. RemoteTech's range and cone are saved
+with each ship and are already right there.
+
+### 29.3 Each program its own master copy (agreed, not built)
+
+**Phil chose:** every program gets its own master copy, holding the program's
+numbers at its current Mk. A ship out of range uses the current Mk, which is
+the same as its own or later, never earlier.
+
+**Why it isn't built yet:** a copy made at runtime with `Instantiate` doesn't
+go through `PartModule.Awake`, which sets each module's `part` and its field
+lists. Waking a copy instead runs every module's Awake mid-game. And a copy
+carrying the program's identity would make parts placed from it skip their
+own setup (a fixed size's lock, `fixedSize`, isn't copied). So the plan is:
+the copy gets numbers only, and PIP's own module goes back to blank. A
+test-only check (the scratchpad `pipcheck6`: shared, asleep and woken copies of
+a dish, probe, tank, RTG, engine and 4-way RCS, each flown) will show which way
+of copying is safe before any of it goes into PIP. Waiting on Phil's OK for
+the D: run.
 
 ## Looks and side-mount build (2026-11-04)
 
