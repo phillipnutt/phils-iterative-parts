@@ -2611,7 +2611,10 @@ cost are dropped (`Generate-PartChassis.ps1` writes the edit), and the 27.1
 guard (`VariantNodesPatch`, was `LookVariantNodesPatch`) now keeps the nodes of
 every non-engine PIP part through a paint change, since PIP's size switch owns
 them. Engine chassis keep their whole variants, as before. Side effect: default
-PIP parts show the paint picker in the VAB (ReStock's OKTO2: Bare, Gold, Silver).
+PIP parts show the paint picker in the VAB (ReStock's OKTO2: Bare, Gold, Silver). Their variants use one drag shape
+(`useMultipleDragCubes = false`): with ReStock's HG-55, per-paint drag cubes weren't
+found once PIP's size switch reshaped the dish ("Drag cube named 0 not found",
+seen on the main install 2026-11-12, where the Seer showed one shell).
 
 ### 29.2 Antennas: Omni, Wide Dish, Focused Dish, and a Data rate slider
 

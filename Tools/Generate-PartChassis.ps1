@@ -32,6 +32,9 @@ function Begin($name, $title, $base, [double]$cost, [string[]]$strip) {
     # hold overlapping meshes that only a variant switches off. No node moves, mass or cost.
     L '    @MODULE[ModulePartVariants],*'
     L '    {'
+    # One drag shape: PIP's size switch reshapes the part, so per-paint drag cubes (ReStock's
+    # HG-55) aren't found ("Drag cube named 0 not found"), DESIGN.md 29.1.
+    L '        %useMultipleDragCubes = false'
     L '        @VARIANT,*'
     L '        {'
     L '            !NODES,* {}'

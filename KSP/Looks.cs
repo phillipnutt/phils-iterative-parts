@@ -481,6 +481,10 @@ namespace PIP
                 if (Stripped.Contains(mn) || (mn == "ModuleB9PartSwitch" && !Cosmetic(m)) || (t is TankKind && TankModules.Contains(mn)))
                     c.RemoveNode(m);
                 else if (mn == "ModulePartVariants")
+                {
+                    // One drag shape: the size switch reshapes a look, so per-paint drag cubes
+                    // aren't found (DESIGN.md 29.1).
+                    m.SetValue("useMultipleDragCubes", "false", true);
                     foreach (ConfigNode variant in m.GetNodes("VARIANT"))
                     {
                         // Only the paint stays: no node moves, no extra mass or cost.
@@ -488,6 +492,7 @@ namespace PIP
                         variant.RemoveValue("mass");
                         variant.RemoveValue("cost");
                     }
+                }
             }
             foreach (ConfigNode r in c.GetNodes("RESOURCE"))
                 if (!Keeps(t, r.GetValue("name"))) c.RemoveNode(r);
