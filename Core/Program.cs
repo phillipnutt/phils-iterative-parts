@@ -160,7 +160,6 @@ namespace PIP
             Add("type", Type.Id);
             Add("model", ModelCode);
             Add("points", PointsToText(Points));
-            if (Type.Format > 1) Add("format", Type.Format.ToString(Inv));
             Add("created", CreatedUT.ToString("R", Inv));
             Add("fundsPaid", FundsPaid.ToString("R", Inv));
             Add("launches", Launches.ToString(Inv));
@@ -186,12 +185,7 @@ namespace PIP
             PartType type = PartTypes.Get(get("type"));
             string[] model = type?.ParseModel(get("model"));
             if (string.IsNullOrEmpty(id) || model == null) return null;
-            // Points saved in an older layout (no "format": the first) are turned into today's.
-            int format = string.IsNullOrEmpty(get("format")) ? 1 : I(get("format"));
-            int[] upPoints = null, upStart = null;
-            bool upgraded = format < type.Format &&
-                type.Upgrade(format, model, get("size"), get("look"), get("points"), get("startPoints"), out upPoints, out upStart);
-            var p = Create(id, get("name") ?? "Unnamed", type, model, upPoints ?? PointsFromText(get("points"), type.Categories.Length),
+            var p = Create(id, get("name") ?? "Unnamed", type, model, PointsFromText(get("points"), type.Categories.Length),
                 D(get("created")), D(get("fundsPaid")));
             p.Launches = I(get("launches"));
             p.Recoveries = I(get("recoveries"));
@@ -202,8 +196,7 @@ namespace PIP
             if (!string.IsNullOrEmpty(size) && type.VariantOption(model, size) != null) p.Variant = size;
             p.Gimbal = type.HasGimbalPick ? get("gimbal") ?? "" : "";
             p.Version = Math.Max(1, I(get("version")));
-            if (upgraded) p.StartPoints = upStart;
-            else if (!string.IsNullOrEmpty(get("startPoints"))) p.StartPoints = PointsFromText(get("startPoints"), type.Categories.Length);
+            if (!string.IsNullOrEmpty(get("startPoints"))) p.StartPoints = PointsFromText(get("startPoints"), type.Categories.Length);
             p.PredecessorId = get("predecessor") ?? "";
             p.SuccessorId = get("successor") ?? "";
             foreach (string x in Ids(get("launchIds"))) p.CountedLaunches.Add(x);

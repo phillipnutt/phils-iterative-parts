@@ -2657,38 +2657,18 @@ Then: "a wider dish angle is better", so the cone widens with points.
 - **In the window:** Kind is Omni or Dish, and a dish's Class is Wide Dish or
   Focused Dish.
 
-**Programs and parts from before (Antennas.Upgrade; "no existing antenna gets
-worse" in reach, speed, power, weight and price).** Points saved as Range, Power draw, Weight,
-Build cost become Range, Data rate, Power draw, Weight, Build cost. Every
-result gets start points (where Mk. 1 begins), so each rule holds at every Mk:
-
-| Old | Becomes | Range points | Also |
-|---|---|---|---|
-| Omni | Omni | same | |
-| Short-range | Wide Dish (code S) | same: more reach above 0 | |
-| Interplanetary | Focused Dish (code I) | same: more reach above 0 | |
-| Deep-space | Focused Dish, large (code D) | (100 + old) / 2: the same reach | lighter, less power, cheaper; keeps its larger model |
-
-- **Cone: no floor (Phil, 2026-11-12, "C, no cone floor").** A converted dish's
-  cone follows its Range points like any dish's. What it had before was its
-  look's own cone, from the RemoteTech bug above, not anything PIP set. A first
-  build kept at least the look's cone by raising Range points. On the main
-  install (ReStock + RemoteTech), though, the HG-55 look's cone is 0.25°, the
-  widest a Focused Dish gets, which would have pushed every converted
-  interplanetary or deep-space dish in that look to 100 Range points (500 Gm).
-- **Data rate:** the speed its look gave it, from Mk. 1 on (Kerbalism with
-  RemoteTech: the HG-55 look's 253 kB/s is 82 points, the Communotron 16's 3.2
-  kB/s is 18). This is allowed above the research cap.
-- **Build price:** no dearer. Build cost points rise where the new layout
-  would cost more (the Data rate grant adds to ambition).
-- **The old deep-space size "D" stays valid** for programs and parts that have
-  it (so built dishes keep their size and nodes), but a new program can't pick
-  it (`PartType.RetiredVariant`). Its R&D entry, Deep Space Network, now reads
-  "Antenna caps 75".
-- **How it's recorded:** a program saves `format = 2`, and a built part saves
-  `pointsFormat = 2`. Loading something without it upgrades its points once
-  (`Program.FromValues`, `ModulePipPart.OnLoad`). There's no guessing from the
-  number of values.
+**Antenna programs and parts from before: not converted (Phil, 2026-11-12).**
+Phil: "I don't want a bunch of bloated bullshit code for accommodating old save
+files". His one antenna program he'll make again. A conversion was built and
+tried, then removed: about 120 lines (format markers on programs and parts, the
+mapping, matching each look's old speed, a no-dearer price check, and a hidden
+old deep-space size). What an old save does now:
+- An antenna program or part saved before this version loads with its points one
+  slider off. The old Range, Power draw, Weight, Build cost land on Range, Data
+  rate, Power draw, Weight, so its numbers are wrong. Retire it and start a new one.
+- An old deep-space dish ("D") isn't a size any more. Its program shows as
+  every size, and a built one falls back to the wide dish's model.
+- Deep Space Network now sells only the caps ("Antenna caps 75").
 
 **Game side (ModulePipPart.ApplyAntenna, KSP/Comms.cs):**
 - RemoteTech: range, `DishAngle` and `RTDishCosAngle` (the cone fix), and

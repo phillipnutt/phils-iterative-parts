@@ -209,8 +209,7 @@ L '}'
 Begin 'PIP-ANT-D' 'dish antenna' 'HighGainAntenna' 2500 @()
 SizeSwitch @(
     @{ code = 'S'; title = 'Wide Dish'; scale = 0.6; default = $true },
-    @{ code = 'I'; title = 'Focused Dish'; scale = 1; upgrade = 'PIP-ParabolicDishes' },
-    @{ code = 'D'; title = 'Focused Dish, large'; scale = 2; upgrade = 'PIP-DeepSpaceNetwork' }) 'Class'   # D: old deep-space dishes only (DESIGN.md 29.2)
+    @{ code = 'I'; title = 'Focused Dish'; scale = 1; upgrade = 'PIP-ParabolicDishes' }) 'Class'
 PipModule 'antenna' 'D'
 L '}'
 

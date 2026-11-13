@@ -30,8 +30,6 @@ namespace PIP
         [KSPField(isPersistant = true)] public string points = "";
         [KSPField(isPersistant = true)] public string startPoints = "";   // a later version's start (DESIGN.md 18.1)
         [KSPField(isPersistant = true)] public bool flew;   // left the pad on this flight (counts recoveries)
-        // The layout "points" is saved in (PartType.Format); 0 on parts from before it was saved.
-        [KSPField(isPersistant = true)] public int pointsFormat;
 
         [KSPField(guiName = "Program", guiActive = true, guiActiveEditor = true)]
         public string programLabel = "";
@@ -57,7 +55,6 @@ namespace PIP
         public override void OnLoad(ConfigNode node)
         {
             base.OnLoad(node);
-            if (pointsFormat < Type.Format && !string.IsNullOrEmpty(points)) UpgradePoints();
             pointValues = Program.PointsFromText(points, Type.Categories.Length);
             statsReady = false;
             // B9PartSwitch sends a new size this way, and can reload the chassis config
@@ -91,24 +88,6 @@ namespace PIP
         }
 
         void OnDestroy() => FlightTracker.Unregister(this);
-
-        // A part built before its type's sliders changed (antennas' Data rate, DESIGN.md
-        // 29.2): its own points, at its own Mk, in today's layout, by the type's rule.
-        void UpgradePoints()
-        {
-            try
-            {
-                string look = PipScenario.Instance?.Find(programId)?.Look;
-                if (Type.Upgrade(pointsFormat, Model, variant, look, points, startPoints, out int[] now, out int[] start))
-                {
-                    Debug.Log($"[PIP] {part?.partInfo?.name} ({programName} {Progress.MkName(mk)}): points {points} -> {Program.PointsToText(now)}");
-                    points = Program.PointsToText(now);
-                    startPoints = Program.PointsToText(start);
-                }
-            }
-            catch (Exception e) { Debug.LogError($"[PIP] Updating {part?.partInfo?.name}'s points failed: {e}"); }
-            pointsFormat = Type.Format;
-        }
 
         // The new-build rule (DESIGN.md 26.3), the same one PipApi.ToCurrent applies to a
         // craft at the Space Center: the family's newest version at its current Mk.
@@ -219,7 +198,7 @@ namespace PIP
         public void SetUpMasterCopy(Program program, string size)
         {
             string id = programId, name = programName, mdl = model, pts = points, start = startPoints, size0 = variant, label = programLabel, fixedWas = fixedSize;
-            int mkWas = mk, formatWas = pointsFormat;
+            int mkWas = mk;
             bool flewWas = flew;
             try
             {
@@ -231,7 +210,7 @@ namespace PIP
             finally
             {
                 programId = id; programName = name; model = mdl; points = pts; startPoints = start; variant = size0;
-                programLabel = label; fixedSize = fixedWas; mk = mkWas; pointsFormat = formatWas; flew = flewWas;
+                programLabel = label; fixedSize = fixedWas; mk = mkWas; flew = flewWas;
                 pointValues = Program.PointsFromText(points, Type.Categories.Length);
                 stats = new Stats();
                 statsReady = false;

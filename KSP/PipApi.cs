@@ -76,11 +76,7 @@ namespace PIP
                 module.SetValue("ignitionChecked", "False", true);
                 module.SetValue("failed", "False", true);
             }
-            else
-            {
-                module.SetValue("flew", "False", true);
-                module.SetValue("pointsFormat", p.Type.Format.ToString(CultureInfo.InvariantCulture), true);
-            }
+            else module.SetValue("flew", "False", true);
         }
 
         // vab: the VAB loading a craft, which leaves hardware alone (IsHardware).

@@ -318,10 +318,7 @@ namespace PIP
 
         static readonly Choice[] choices = { new Choice("Kind", new Option("O", "Omni"), new Option("D", "Dish", "basicScience")) };
         static readonly Option[] omni = { new Option("O", "Omni", "") };
-        // "D" is the old deep-space dish: kept for programs and parts that have it (its model
-        // keeps its old, larger size), a focused dish in every number, never offered.
-        static readonly Option[] dishes =
-            { new Option("S", "Wide Dish", ""), new Option("I", "Focused Dish", "precisionEngineering"), new Option("D", "Focused Dish, large", "unmannedTech") };
+        static readonly Option[] dishes = { new Option("S", "Wide Dish", ""), new Option("I", "Focused Dish", "precisionEngineering") };
 
         // [omni, wide, focused]: range m, cone degrees, power EC/s, weight t, base price
         static readonly double[,] Range = { { 0.5e6, 6e6 }, { 5e6, 200e6 }, { 5e9, 500e9 } };
@@ -333,10 +330,6 @@ namespace PIP
         // RemoteTech or Kerbalism, Power draw is the charge per Mit sent (stock's: 6 to 10 EC).
         static readonly double[] SpeedKb = { 1, 900 }, SpeedMits = { 2, 40 };
         const double MitCostAt0 = 8, MitCostAt100 = 1;
-        // What a dish look is scaled to, per size code: the weights of the classes before
-        // DESIGN.md 29.2, so dishes already built keep their size.
-        static readonly Dictionary<string, double> LookMass = new Dictionary<string, double>
-            { { "S", Math.Sqrt(0.1 * 0.01) }, { "I", Math.Sqrt(0.3 * 0.05) }, { "D", Math.Sqrt(1.0 * 0.15) } };
 
         // What's installed decides what speed and power mean, set by the KSP layer.
         public static bool RemoteTech;
@@ -349,7 +342,6 @@ namespace PIP
         public override string[] CapTechs => new[] { "start", "precisionEngineering", "unmannedTech", "largeUnmanned" };
         public override double CostCeiling => 2.5e5;
         public override Option[] Variants(string[] m) => Dish(m) ? dishes : omni;
-        public override bool RetiredVariant(string code) => code == "D";
         public override string VariantName => "Class";
         public override string DefaultVariant(string[] m) => Dish(m) ? "S" : "O";
 
@@ -360,7 +352,11 @@ namespace PIP
         public override LookScale ScaleBasis(bool side, string kind) => kind == "D" ? LookScale.Mass : LookScale.None;
         public override bool LookFits(string[] m, string kind) => kind == (Dish(m) ? "D" : "O");
         public override string[] LookModel(string kind, string key) => new[] { kind };
-        public override double NominalMass(string variant) => LookMass.TryGetValue(variant ?? "", out double t) ? t : LookMass["S"];
+        public override double NominalMass(string variant)
+        {
+            int k = KindOf(new[] { "D" }, variant);
+            return Math.Sqrt(Weight[k, 0] * Weight[k, 1]);
+        }
 
         public static bool Dish(string[] m) => m != null && m.Length > 0 && m[0] == "D";
         static int KindOf(string[] m, string variant) => !Dish(m) ? 0 : variant == "S" ? 1 : 2;
@@ -400,72 +396,6 @@ namespace PIP
         };
 
         public override string Label(string[] m) => Dish(m) ? "Dish antennas" : "Omni antennas";
-
-        #region Programs and parts from before Data rate (DESIGN.md 29.2)
-
-        // A look's own top speed today, in Data rate's units: what an antenna wearing it sent
-        // before, set by the KSP layer.
-        public static Func<string, double> LookSpeed;
-        static readonly double[] OldPriceBy = { 300, 800, 2500, 8000 };
-
-        public override int Format => 2;
-
-        // Points saved as Range, Power draw, Weight, Build cost become Range, Data rate,
-        // Power draw, Weight, Build cost. No antenna gets worse in reach, speed, power, weight
-        // or price: a deep-space dish's Range points rise to keep its reach; Data rate is the
-        // speed its look gave it, from Mk. 1 on; Build cost rises if the price would. The cone
-        // follows Range points like any dish's (Phil, "C, no cone floor"): the old cone came
-        // from the RemoteTech bug (always the look's own), not from PIP.
-        // Every result has start points (where Mk. 1 begins), so this holds at every Mk.
-        public override bool Upgrade(int from, string[] m, string variant, string look, string pointsText, string startText,
-                                     out int[] points, out int[] start)
-        {
-            points = start = null;
-            if (from >= Format || m == null) return false;
-            bool dish = Dish(m);
-            string v = !dish ? "O" : string.IsNullOrEmpty(variant) ? "S" : variant;
-            int[] op = Program.PointsFromText(pointsText, 4);
-            int[] os = string.IsNullOrEmpty(startText) ? null : Program.PointsFromText(startText, 4);
-            double Begin(int i) => os != null ? Math.Min(os[i], op[i]) : op[i] / 2.0;
-
-            Func<double, double> reach = v == "D" ? (x => (100 + x) / 2) : (Func<double, double>)(x => x);
-            double rp = reach(op[0]), rs = reach(Begin(0));
-            if (string.IsNullOrEmpty(look)) look = DefaultLook(m);
-            bool kerbalism = KerbalismScience;
-            double speed = LookSpeed?.Invoke(look) ?? double.NaN;
-            if (!(speed > 0)) speed = kerbalism ? (dish ? 253.5 : 3.2) : (dish ? 20 : 10 / 3.0);
-            double d = kerbalism ? Need(SpeedKb[0], SpeedKb[1], speed) : Need(SpeedMits[0], SpeedMits[1], speed);
-
-            points = new[] { Up(rp), Up(d), op[1], op[2], op[3] };
-            start = new[] { Up(rs), Up(d), Up(Begin(1)), Up(Begin(2)), Up(Begin(3)) };
-            double was = OldPrice(v, op, os);
-            while (start[4] < Pricing.MaxPoints && PriceOf(m, v, points, start) > was + 0.5)
-            {
-                start[4]++;
-                points[4] = Math.Max(points[4], start[4]);
-            }
-            return true;
-        }
-
-        // The fewest points that reach a value on a log band (0 when the band starts above it).
-        static double Need(double lo, double hi, double value) =>
-            value <= lo ? 0 : Math.Min(Pricing.MaxPoints, 100 * Math.Log(value / lo) / Math.Log(hi / lo));
-        static int Up(double v) => Pricing.Clamp((int)Math.Ceiling(v - 1e-9));
-
-        double PriceOf(string[] m, string v, int[] points, int[] start) => Compute(m, points, Progress.MinMk, default(FailureLevel), v, start, 0)[K.Price];
-
-        // The build price before: Range, Power draw and Weight's points (a later version's
-        // from its start), and Build cost's at Mk. 1, at the old classes' base prices.
-        static double OldPrice(string v, int[] op, int[] os)
-        {
-            int c = v == "O" ? 0 : v == "S" ? 1 : v == "I" ? 2 : 3;
-            double built = 0;
-            for (int i = 0; i < 3; i++) built += os != null ? Math.Min(os[i], op[i]) : op[i];
-            double cost = os != null ? Math.Min(os[3], op[3]) : op[3] / 2.0;
-            return OldPriceBy[c] * Pricing.Ambition(built, 3 * Pricing.MaxPoints) * Pricing.CostFactor(cost);
-        }
-
-        #endregion
     }
 
     // Probe cores: autopilot in steps, power, weight, torque; size on the part.

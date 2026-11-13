@@ -144,7 +144,7 @@ $sells = @{
     'Photovoltaics' = 'solar:cap'; 'Deployable Arrays' = 'solar:Kind=D, solar:size, solar:cap'; 'Large Arrays' = 'solar:size'
     'Gallium Arsenide' = 'solar:cap'; 'Multi-Junction Cells' = 'solar:size, solar:cap'
     'Radio' = 'antenna:cap'; 'Directional Antennas' = 'antenna:Kind=D'; 'Parabolic Dishes' = 'antenna:size, antenna:cap'
-    'Deep Space Network' = 'antenna:size, antenna:cap'; 'Phased Arrays' = 'antenna:cap'
+    'Deep Space Network' = 'antenna:cap'; 'Phased Arrays' = 'antenna:cap'
     'Guidance Units' = 'probe:cap'; 'Larger Avionics Bays' = 'probe:size'; 'Digital Autopilots' = 'probe:cap'; '1.875 m Avionics' = 'probe:size'
     'Star Trackers' = 'probe:cap'; 'Heavy Avionics' = 'probe:size, probe:cap'
     'Welded Tanks' = 'tank:cap'; 'Monopropellant Tanks' = 'tank:Kind=M, plane:Kind=M'; 'Radial Tanks' = 'tank:size'; 'Adapter Tanks' = 'tank:size'

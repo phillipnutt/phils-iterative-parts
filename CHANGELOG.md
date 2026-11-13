@@ -73,10 +73,8 @@ an entry. The size tooling entries now say they open every type's sizes.
   RemoteTech), uses while sending (Kerbalism without RemoteTech), or charges per
   Mit sent (a plain game, where it did nothing before).
 - **Fixed:** under RemoteTech, a dish's cone was always its look's own.
-- **Antennas already in a game get no worse:** short-range dishes become Wide
-  and interplanetary ones Focused, both on the same points. Deep-space ones
-  become Focused with their reach kept, keeping their size. Each keeps at least
-  its look's speed, and its price; its cone follows its Range points.
+- **Antenna programs from earlier builds aren't carried over:** their numbers
+  load one slider off. Retire them and start new ones.
 
 **Ships out of range use their program** (DESIGN.md 29.3): each program's part
 now has its own master copy, carrying the program's numbers at its current Mk.
