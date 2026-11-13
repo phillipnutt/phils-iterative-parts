@@ -19,7 +19,6 @@ namespace PIP
                 ?.GetField("Science", BindingFlags.Public | BindingFlags.Static);
             Antennas.KerbalismCheck = science == null ? (Func<bool>)null : () => science.GetValue(null) is bool on && on;
             Antennas.LookSpeed = Speed;
-            Antennas.LookCone = Cone;
             Debug.Log($"[PIP] Antennas: {(Antennas.RemoteTech ? "RemoteTech" : "stock CommNet")}, " +
                       $"Kerbalism science {(science == null ? "not installed" : Antennas.KerbalismScience ? "on" : "off")}");
         }
@@ -42,17 +41,6 @@ namespace PIP
                 if (size > 0 && interval > 0) return Antennas.KerbalismScience ? size / interval * 1000 : size / interval;
             }
             return double.NaN;
-        }
-
-        // A look's own dish cone under RemoteTech, in degrees (0: no cone to keep).
-        static double Cone(string look)
-        {
-            Part p = Antennas.RemoteTech ? Prefab(look) : null;
-            if (p == null) return 0;
-            foreach (PartModule m in p.Modules)
-                if (m.moduleName == "ModuleRTAntenna" && ModulePipPart.GetValue(m, "Mode1DishRange") > 0)
-                    return ModulePipPart.GetValue(m, "DishAngle");
-            return 0;
         }
     }
 }

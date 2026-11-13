@@ -2658,7 +2658,7 @@ Then: "a wider dish angle is better", so the cone widens with points.
   Focused Dish.
 
 **Programs and parts from before (Antennas.Upgrade; "no existing antenna gets
-worse", speed and cone included).** Points saved as Range, Power draw, Weight,
+worse" in reach, speed, power, weight and price).** Points saved as Range, Power draw, Weight,
 Build cost become Range, Data rate, Power draw, Weight, Build cost. Every
 result gets start points (where Mk. 1 begins), so each rule holds at every Mk:
 
@@ -2669,9 +2669,13 @@ result gets start points (where Mk. 1 begins), so each rule holds at every Mk:
 | Interplanetary | Focused Dish (code I) | same: more reach above 0 | |
 | Deep-space | Focused Dish, large (code D) | (100 + old) / 2: the same reach | lighter, less power, cheaper; keeps its larger model |
 
-- **Cone:** under RemoteTech a dish keeps at least its look's own cone (what
-  it really had): Range points rise to match where needed. A focused dish in
-  the default HG-55 look (0.12°) gets 69 Range points, so about 120 Gm.
+- **Cone: no floor (Phil, 2026-11-12, "C, no cone floor").** A converted dish's
+  cone follows its Range points like any dish's. What it had before was its
+  look's own cone, from the RemoteTech bug above, not anything PIP set. A first
+  build kept at least the look's cone by raising Range points. On the main
+  install (ReStock + RemoteTech), though, the HG-55 look's cone is 0.25°, the
+  widest a Focused Dish gets, which would have pushed every converted
+  interplanetary or deep-space dish in that look to 100 Range points (500 Gm).
 - **Data rate:** the speed its look gave it, from Mk. 1 on (Kerbalism with
   RemoteTech: the HG-55 look's 253 kB/s is 82 points, the Communotron 16's 3.2
   kB/s is 18). This is allowed above the research cap.

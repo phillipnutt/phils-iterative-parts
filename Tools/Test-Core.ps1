@@ -198,14 +198,11 @@ Check 'deep-space: Range points (100 + old) / 2, so the same reach' "$($dOld.Poi
 Check 'deep-space: no less reach at Mk. 1, 3, 5, and no dearer' (NoWorse $dOld 'D' @(50, 20, 20, 40)) $true
 $vOld = OldAntenna 'D' 'I' '60,10,10,0' '50,5,5,0'
 Check 'a later version: start points carried over the same way (Build cost up 16 to keep the price)' "$($Program::PointsToText($vOld.StartPoints))" '50,77,5,5,16'
-[PIP.Antennas]::LookCone = [Func[string, double]] { param($l) if ($l -eq 'HighGainAntenna5_v2') { 90 } else { 0.12 } }
 [PIP.Antennas]::LookSpeed = [Func[string, double]] { param($l) 3.2 }
 $cOld = OldAntenna 'D' 'S' '20,0,0,0' $null 'HighGainAntenna5_v2'
-Check 'RemoteTech: a dish keeps at least its look''s cone (HG-5 look, 90 degrees)' "$($cOld.Points[0])/$($cOld.StartPoints[0]),$([Math]::Round(($cOld.Stats(1, (Level 'Normal'), [NullString]::Value)).Item('cone')))" '100/100,90'
-$fOld = OldAntenna 'D' 'I' '10,0,0,0'
-Check 'RemoteTech: the HG-55''s 0.12 degrees on a focused dish' ([Math]::Round(($fOld.Stats(1, (Level 'Normal'), [NullString]::Value)).Item('cone'), 3) -ge 0.12) $true
+Check 'no cone floor (Phil, "C"): a dish keeps its Range points whatever its look, and its cone follows them' "$($cOld.Points[0])/$($cOld.StartPoints[0]),$([Math]::Round(($cOld.Stats(5, (Level 'Normal'), [NullString]::Value)).Item('cone'), 1))" '20/10,18.6'
 Check 'Data rate from the look''s own speed (3.2 Mits/s)' ($cOld.Points[1]) 16
-[PIP.Antennas]::LookCone = $null; [PIP.Antennas]::LookSpeed = $null
+[PIP.Antennas]::LookSpeed = $null
 $saved = @{}; foreach ($kv in $sOld.ToValues()) { $saved[$kv.Key] = $kv.Value }
 $again = $Program.GetMethod('FromValues').Invoke($null, @([Func[string, string]] { param($k) $saved[$k] }))
 Check 'saved again: format 2, loaded as is' "$($saved['format']),$($Program::PointsToText($again.Points))" '2,50,77,40,30,0'

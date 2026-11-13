@@ -403,17 +403,19 @@ namespace PIP
 
         #region Programs and parts from before Data rate (DESIGN.md 29.2)
 
-        // A look's own top speed today, in Data rate's units, and its own cone under
-        // RemoteTech (0 when there's none): what an antenna had before, set by the KSP layer.
-        public static Func<string, double> LookSpeed, LookCone;
+        // A look's own top speed today, in Data rate's units: what an antenna wearing it sent
+        // before, set by the KSP layer.
+        public static Func<string, double> LookSpeed;
         static readonly double[] OldPriceBy = { 300, 800, 2500, 8000 };
 
         public override int Format => 2;
 
         // Points saved as Range, Power draw, Weight, Build cost become Range, Data rate,
-        // Power draw, Weight, Build cost. No antenna gets worse: a deep-space dish's Range
-        // points rise to keep its reach; a dish keeps at least its look's cone; Data rate
-        // is the speed its look gave it, from Mk. 1 on; and Build cost rises if the price would.
+        // Power draw, Weight, Build cost. No antenna gets worse in reach, speed, power, weight
+        // or price: a deep-space dish's Range points rise to keep its reach; Data rate is the
+        // speed its look gave it, from Mk. 1 on; Build cost rises if the price would. The cone
+        // follows Range points like any dish's (Phil, "C, no cone floor"): the old cone came
+        // from the RemoteTech bug (always the look's own), not from PIP.
         // Every result has start points (where Mk. 1 begins), so this holds at every Mk.
         public override bool Upgrade(int from, string[] m, string variant, string look, string pointsText, string startText,
                                      out int[] points, out int[] start)
@@ -422,7 +424,6 @@ namespace PIP
             if (from >= Format || m == null) return false;
             bool dish = Dish(m);
             string v = !dish ? "O" : string.IsNullOrEmpty(variant) ? "S" : variant;
-            int k = KindOf(m, v);
             int[] op = Program.PointsFromText(pointsText, 4);
             int[] os = string.IsNullOrEmpty(startText) ? null : Program.PointsFromText(startText, 4);
             double Begin(int i) => os != null ? Math.Min(os[i], op[i]) : op[i] / 2.0;
@@ -430,13 +431,6 @@ namespace PIP
             Func<double, double> reach = v == "D" ? (x => (100 + x) / 2) : (Func<double, double>)(x => x);
             double rp = reach(op[0]), rs = reach(Begin(0));
             if (string.IsNullOrEmpty(look)) look = DefaultLook(m);
-            double cone = dish && LookCone != null ? LookCone(look) : 0;
-            if (cone > 0)
-            {
-                double need = Need(Cone[k, 0], Cone[k, 1], cone);
-                rp = Math.Max(rp, need);
-                rs = Math.Max(rs, need);
-            }
             bool kerbalism = KerbalismScience;
             double speed = LookSpeed?.Invoke(look) ?? double.NaN;
             if (!(speed > 0)) speed = kerbalism ? (dish ? 253.5 : 3.2) : (dish ? 20 : 10 / 3.0);
