@@ -109,6 +109,29 @@ namespace PIP
             statsReady = false;
         }
 
+        // This program's own master copy (DESIGN.md 29.3): its numbers at the current Mk on
+        // the copy's engine modules, then this module put back as it was, blank, so a part
+        // placed from the copy is set up from its program as always.
+        public void SetUpMasterCopy(Program program)
+        {
+            string id = programId, name = programName, mdl = model, pts = points, start = startPoints, label = programLabel, ignition = ignitionLabel;
+            int mkWas = mk, gimbalWas = gimbalDeg;
+            bool firedWas = fired, checkedWas = ignitionChecked, failedWas = failed;
+            try
+            {
+                Assign(program);
+                engines = part.FindModulesImplementing<ModuleEngines>();
+                Apply();
+            }
+            finally
+            {
+                programId = id; programName = name; model = mdl; points = pts; startPoints = start; programLabel = label; ignitionLabel = ignition;
+                mk = mkWas; gimbalDeg = gimbalWas; fired = firedWas; ignitionChecked = checkedWas; failed = failedWas;
+                pointValues = Program.PointsFromText(points, Type.Categories.Length);
+                statsReady = false;
+            }
+        }
+
         // Mass and cost can be asked for before OnStart, so stats are computed on demand.
         bool statsReady;
         bool started;

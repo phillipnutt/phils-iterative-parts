@@ -182,20 +182,7 @@ namespace PIP
             if (!Assigned) return;
             try
             {
-                switch (typeId)
-                {
-                    case "rcs": ApplyRcs(); break;
-                    case "wheel": SetWheel(stats[ReactionWheels.TorqueKey], stats[K.EcRate]); break;
-                    case "shield": ApplyShield(); break;
-                    case "solar": ApplySolar(); break;
-                    case "antenna": ApplyAntenna(); break;
-                    case "probe": ApplyProbe(); break;
-                    case "tank": ApplyTank(); break;
-                    case "plane": ApplyTank(); ApplyLift(); break;
-                    case "rtg": SetField("ModuleRadioisotopeGenerator", "BasePower", (float)stats[K.EcRate]); SetField("ModuleRadioisotopeGenerator", "HalfLife", (float)stats[Rtgs.HalfLife]); break;
-                    case "intake": ApplyIntake(); break;
-                    case "decoupler": ApplyDecoupler(); break;
-                }
+                ApplyNumbers();
                 if (Held(typeId, stats, out string held, out double amount)) SetResource(held, amount);
             }
             catch (Exception e)
@@ -203,6 +190,52 @@ namespace PIP
                 Debug.LogError($"[PIP] Applying {typeId} program {programName} to {part.partInfo?.name} failed: {e}");
             }
             if (HighLogic.LoadedSceneIsEditor) GameEvents.onEditorShipModified.Fire(EditorLogic.fetch?.ship);
+        }
+
+        // The program's numbers onto the stock and mod modules. No geometry and no
+        // resources, so it serves a program's master copy too (SetUpMasterCopy).
+        void ApplyNumbers()
+        {
+            switch (typeId)
+            {
+                case "rcs": ApplyRcs(); break;
+                case "wheel": SetWheel(stats[ReactionWheels.TorqueKey], stats[K.EcRate]); break;
+                case "shield": ApplyShield(); break;
+                case "solar": ApplySolar(); break;
+                case "antenna": ApplyAntenna(); break;
+                case "probe": ApplyProbe(); break;
+                case "tank": ApplyTank(); break;
+                case "plane": ApplyTank(); ApplyLift(); break;
+                case "rtg": ApplyRtg(); break;
+                case "intake": ApplyIntake(); break;
+                case "decoupler": ApplyDecoupler(); break;
+            }
+        }
+
+        // This program's own master copy (DESIGN.md 29.3, PartFactory.MasterCopy): its numbers
+        // at the current Mk on the copy's other modules, for what reads a master copy instead
+        // of a part (Kerbalism, for a ship out of range). This module is then put back as it
+        // was, blank, so a part placed from the copy is set up from its program as always.
+        public void SetUpMasterCopy(Program program, string size)
+        {
+            string id = programId, name = programName, mdl = model, pts = points, start = startPoints, size0 = variant, label = programLabel, fixedWas = fixedSize;
+            int mkWas = mk, formatWas = pointsFormat;
+            bool flewWas = flew;
+            try
+            {
+                Assign(program);
+                if (!string.IsNullOrEmpty(size)) variant = size;
+                Recompute();
+                if (Assigned) ApplyNumbers();
+            }
+            finally
+            {
+                programId = id; programName = name; model = mdl; points = pts; startPoints = start; variant = size0;
+                programLabel = label; fixedSize = fixedWas; mk = mkWas; pointsFormat = formatWas; flew = flewWas;
+                pointValues = Program.PointsFromText(points, Type.Categories.Length);
+                stats = new Stats();
+                statsReady = false;
+            }
         }
 
         // The size switch moves stack nodes but can't move the surface-attach
@@ -443,6 +476,24 @@ namespace PIP
             if (r == null) return;
             r.maxAmount = amount;
             r.amount = amount;
+        }
+
+        // Kerbalism's RTG decays (ModuleRadioisotopeGenerator); without it the stock RTG's
+        // generator makes the program's power, steady. It used to keep stock's 0.75 EC/s.
+        void ApplyRtg()
+        {
+            bool decays = false;
+            foreach (PartModule m in part.Modules)
+                if (m.moduleName == "ModuleRadioisotopeGenerator")
+                {
+                    decays = true;
+                    SetValue(m, "BasePower", stats[K.EcRate]);
+                    SetValue(m, "HalfLife", stats[Rtgs.HalfLife]);
+                }
+            if (decays) return;
+            foreach (ModuleGenerator g in part.FindModulesImplementing<ModuleGenerator>())
+                foreach (ModuleResource r in g.resHandler.outputResources)
+                    if (r.name == "ElectricCharge") r.rate = stats[K.EcRate];
         }
 
         void SetField(string module, string field, object value)

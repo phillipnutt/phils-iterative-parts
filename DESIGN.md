@@ -2694,28 +2694,51 @@ result gets start points (where Mk. 1 begins), so each rule holds at every Mk:
 - `Comms.Detect` (main menu) checks for RemoteTech (`ModuleRTAntenna`) and
   Kerbalism's `KERBALISM.Features.Science`, which is read each time it's asked.
 
-**Still to come (29.3):** for a ship out of physics range, Kerbalism reads the
-part's master copy (`partInfo.partPrefab`), which every program of a chassis
-shares. So a background ship's speed is still its chassis's or look's until
-each program has its own master copy. RemoteTech's range and cone are saved
-with each ship and are already right there.
+**Ships out of range (29.3):** Kerbalism reads a ship out of physics range from the
+part's master copy (`partInfo.partPrefab`), and each program now has its own,
+carrying its speed and power at its current Mk. RemoteTech's range and cone are
+saved with each ship.
 
-### 29.3 Each program its own master copy (agreed, not built)
+### 29.3 Each program its own master copy
 
 **Phil chose:** every program gets its own master copy, holding the program's
 numbers at its current Mk. A ship out of range uses the current Mk, which is
 the same as its own or later, never earlier.
 
-**Why it isn't built yet:** a copy made at runtime with `Instantiate` doesn't
-go through `PartModule.Awake`, which sets each module's `part` and its field
-lists. Waking a copy instead runs every module's Awake mid-game. And a copy
-carrying the program's identity would make parts placed from it skip their
-own setup (a fixed size's lock, `fixedSize`, isn't copied). So the plan is:
-the copy gets numbers only, and PIP's own module goes back to blank. A
-test-only check (the scratchpad `pipcheck6`: shared, asleep and woken copies of
-a dish, probe, tank, RTG, engine and 4-way RCS, each flown) will show which way
-of copying is safe before any of it goes into PIP. Waiting on Phil's OK for
-the D: run.
+**Why:** a program's part entry is a shallow copy of its chassis's, so every
+program of a chassis shared one master copy (`partPrefab`). Kerbalism reads a
+ship that's out of physics range from the master copy, not the part. That
+covers RemoteTech antennas' `RTPacketSize`/`EnergyCost` and the background RTG's
+`BasePower`/`HalfLife`. So a background ship got its chassis's or look's
+numbers, not its program's.
+
+**How it's made (tried on D: first, 2026-11-12):**
+- PIP makes the copy with `Instantiate`, the way KSP makes every placed part,
+  then wakes it once and puts it back to sleep
+  (`SetActive(true)`/`SetActive(false)`).
+- A copy left asleep has no `PartModule.part` and no resource list, because
+  both are set up in Awake. A probe built from one lost its ElectricCharge.
+- A woken copy matched its chassis's in every reading for a dish, probe, tank,
+  RTG, engine and RCS block: modules, resources, drag cubes, nodes, B9 sizes,
+  paint and mass. It woke with no errors, and parts flown from it matched too.
+- `PartFactory.MasterCopy` makes it when a program's part is first made. If
+  making one fails, that session's programs share their chassis's, as before.
+
+**What's on it:** `PartFactory.Refresh` sets it whenever the part's entry is
+refreshed, which includes a Mk gain. `ModulePipPart`/`ModulePipEngine
+.SetUpMasterCopy` take the program's numbers at its current Mk onto the copy's
+other modules (`ApplyNumbers`: no geometry, no resources). They then put PIP's
+own module back as it was, blank. A copy carrying the program would make a
+part placed from it skip its own setup (a fixed size's lock isn't copied).
+
+### 29.4 An RTG makes its program's power in a plain game
+
+**Found while building 29.3:** PIP set an RTG's power only on
+`ModuleRadioisotopeGenerator`, which mods like Kerbalism add. In a plain game the
+RTG keeps stock's `ModuleGenerator`, so every PIP RTG made stock's 0.75 EC/s,
+whatever its program. Now, with no decaying generator, the stock generator's
+ElectricCharge output is set to the program's power (steady: stock RTGs don't
+decay).
 
 ## Looks and side-mount build (2026-11-04)
 

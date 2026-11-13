@@ -78,6 +78,15 @@ an entry. The size tooling entries now say they open every type's sizes.
   become Focused with their reach kept, keeping their size. Each keeps at least
   its look's cone and speed, and its price.
 
+**Ships out of range use their program** (DESIGN.md 29.3): each program's part
+now has its own master copy, carrying the program's numbers at its current Mk.
+Kerbalism reads a ship out of physics range from it, so a background probe sends
+at its antenna program's speed and an RTG gives its program's power, not the
+basic part's.
+
+**Fixed** (DESIGN.md 29.4): without Kerbalism, a PIP RTG made stock's 0.75 EC/s
+whatever its program; it now makes its program's power.
+
 **Fixed** (DESIGN.md 29.1): with ReStock, PIP's probe core, dish antenna, RCS,
 heat shield, decoupler and separator showed two overlapping shells that
 flickered (the Seer probe: half gold, half silver). Every PIP part now keeps its

@@ -211,6 +211,7 @@ namespace PIP
                     }
                     ap = (AvailablePart)Clone.Invoke(chassis, null);
                     ap.name = partName;
+                    ap.partPrefab = MasterCopy(chassis.partPrefab, ap) ?? chassis.partPrefab;
                     ap.category = CategoryOf(p.Type);
                     // Filed under the type's first-programs node and hidden from R&D.
                     // The launch check reads that node's purchased list directly, so
@@ -314,7 +315,58 @@ namespace PIP
             ap.moduleInfos = PartInfo.ModuleInfos(from, p, s, side);
             ap.resourceInfos = ResourceInfos(from?.resourceInfos ?? ap.resourceInfos, p, s);
             ap.description = $"{p.Label}{(side && !p.FixedSize ? ", side-mount" : "")}. Program {p.Title}, now at {Progress.MkName(mk)}.\n" + Describe(p.Type, p.Model, s);
+            SetUpMasterCopy(ap, p, variant);
         }
+
+        // Each program's part has its own master copy (KSP's partPrefab, DESIGN.md 29.3),
+        // not its chassis's. What reads a part's master copy instead of the part (Kerbalism,
+        // for a ship out of range: antenna speed, RTG power) then gets this program's numbers,
+        // at its current Mk. Made the way KSP makes every placed part, then woken once so each
+        // module knows its part and has its field lists and resources (a copy that never woke
+        // has neither, and parts built from it lost their resources), and put back to sleep.
+        static readonly HashSet<string> ownCopies = new HashSet<string>();
+        static bool copyFailed;
+
+        static Part MasterCopy(Part chassis, AvailablePart ap)
+        {
+            if (chassis == null || copyFailed) return null;
+            try
+            {
+                Part copy = UnityEngine.Object.Instantiate(chassis);
+                copy.gameObject.SetActive(true);
+                copy.gameObject.SetActive(false);
+                UnityEngine.Object.DontDestroyOnLoad(copy.gameObject);
+                copy.gameObject.name = ap.name;
+                copy.partInfo = ap;
+                ownCopies.Add(ap.name);
+                return copy;
+            }
+            catch (Exception e)
+            {
+                // Without its own copy a program shares its chassis's, as before 29.3.
+                copyFailed = true;
+                Debug.LogError($"[PIP] Making {ap.name}'s own master copy failed; programs share their chassis's this session: {e}");
+                return null;
+            }
+        }
+
+        // The program's numbers at its current Mk on the copy's modules. PIP's own module on
+        // it stays blank, so a part placed from the copy is set up from its program as always.
+        static void SetUpMasterCopy(AvailablePart ap, Program p, string variant)
+        {
+            if (!ownCopies.Contains(ap.name) || ap.partPrefab == null) return;
+            try
+            {
+                foreach (PartModule m in ap.partPrefab.Modules)
+                {
+                    if (m is ModulePipPart pp) pp.SetUpMasterCopy(p, variant);
+                    else if (m is ModulePipEngine pe) pe.SetUpMasterCopy(p);
+                }
+            }
+            catch (Exception e) { Debug.LogError($"[PIP] Setting {ap.name}'s master copy to {p.Title} {Progress.MkName(p.Mk)} failed: {e}"); }
+        }
+
+        public static bool HasOwnMasterCopy(string partName) => ownCopies.Contains(partName);
 
         // The VAB tooltip's resource lines come from the chassis (a Z-100's 100
         // charge), but the part holds what its program says, so those lines are
