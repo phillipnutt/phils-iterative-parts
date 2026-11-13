@@ -171,8 +171,7 @@ namespace PIP
             if (HighLogic.LoadedSceneIsEditor) GameEvents.onEditorShipModified.Fire(EditorLogic.fetch?.ship);
         }
 
-        // The program's numbers onto the stock and mod modules. No geometry and no
-        // resources, so it serves a program's master copy too (SetUpMasterCopy).
+        // The program's numbers onto the stock and mod modules (no geometry, no resources).
         void ApplyNumbers()
         {
             switch (typeId)
@@ -191,31 +190,6 @@ namespace PIP
             }
         }
 
-        // This program's own master copy (DESIGN.md 29.3, PartFactory.MasterCopy): its numbers
-        // at the current Mk on the copy's other modules, for what reads a master copy instead
-        // of a part (Kerbalism, for a ship out of range). This module is then put back as it
-        // was, blank, so a part placed from the copy is set up from its program as always.
-        public void SetUpMasterCopy(Program program, string size)
-        {
-            string id = programId, name = programName, mdl = model, pts = points, start = startPoints, size0 = variant, label = programLabel, fixedWas = fixedSize;
-            int mkWas = mk;
-            bool flewWas = flew;
-            try
-            {
-                Assign(program);
-                if (!string.IsNullOrEmpty(size)) variant = size;
-                Recompute();
-                if (Assigned) ApplyNumbers();
-            }
-            finally
-            {
-                programId = id; programName = name; model = mdl; points = pts; startPoints = start; variant = size0;
-                programLabel = label; fixedSize = fixedWas; mk = mkWas; flew = flewWas;
-                pointValues = Program.PointsFromText(points, Type.Categories.Length);
-                stats = new Stats();
-                statsReady = false;
-            }
-        }
 
         // The size switch moves stack nodes but can't move the surface-attach
         // point, so a scaled look would float off (or sink into) what it's stuck to.
