@@ -1290,12 +1290,16 @@ namespace PIP
             int[] nextPts = p.NextPoints(cap);
             bool nextMax = Enumerable.Range(0, nextPts.Length).All(i => !p.Type.CategoryUsed(p.Model, i) || nextPts[i] >= Pricing.MaxPoints);
             string nextTitle = p.Name + " " + (nextMax ? "Max" : Program.Roman(p.Version + 1));
+            // Exactly what the next version improves, and which sliders wait on research.
+            string nextChanges = p.NextChanges(cap, TechUnlocks.Lower(TechUnlocks.NextCap(p.Type)));
             string xp = mk < Progress.MaxMk
                 ? $"{p.Xp} of {Progress.XpForMk(mk + 1)} experience for {Progress.MkName(mk + 1)}. Each flight is worth {Progress.LaunchXp}, and each recovery {Progress.RecoveryXp}."
-                : blocked == null ? $"Fully developed. {nextTitle} is ready: every slider +10, starting from these numbers."
+                : blocked == null ? $"Fully developed. {nextTitle} is ready: {nextChanges}"
                 : $"Fully developed. {blocked}";
-            GUI.Label(new Rect(x, y, w, 40), xp, PipSkin.XpLine);
-            y += 44;
+            var xpContent = new GUIContent(xp);
+            float xpH = Mathf.Max(40, PipSkin.XpLine.CalcHeight(xpContent, w));
+            GUI.Label(new Rect(x, y, w, xpH), xpContent, PipSkin.XpLine);
+            y += xpH + 4;
             // A mod its model came from was removed: say so instead of a silent gap.
             if (PartFactory.Problem(p) is string problem)
             {
@@ -1371,7 +1375,7 @@ namespace PIP
                 }
                 if (GUI.Button(new Rect(area.width - 26 - 326, fy + 4, 326, 38),
                         new GUIContent($"Start {nextTitle}  ·  " + (PipScenario.Free ? "free" : $"√ {nextCost:N0}") + "  →",
-                            $"Every slider +10 (cap {cap}). A tenth of a new program's cost. {p.Title} retires; its parts keep flying."), PipSkin.Go))
+                            $"{char.ToUpperInvariant(nextChanges[0])}{nextChanges.Substring(1)} A tenth of a new program's cost. {p.Title} retires; its parts keep flying."), PipSkin.Go))
                 {
                     // Unchanged: keep it; back to the standard look: "".
                     string lookArg = nextLook == CurrentLookOf(p) ? null : !side && nextLook == PartFactory.StandardSource(p.Type, p.Model) ? "" : nextLook;

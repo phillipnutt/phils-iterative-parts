@@ -103,6 +103,12 @@ parts stay hidden.
 - On the New program page, a locked mount (Side-mount on a decoupler before
   Stability) looked open; it now shows its lock and what to research.
 
+**Fixed** (DESIGN.md 18.1): at Mk. 5, a program's page said the next version
+gets "every slider +10" even when sliders were held at the research cap. It now
+says exactly what goes up ("Build cost +10"), which sliders wait on research
+("Range, Data rate, Power draw and Weight are at your research cap (25)") and
+what raises the cap.
+
 **Fixed:** a battery's part tooltip listed its chassis's 100 electric charge, not
 what the program holds; heat shields (ablator) and probe cores (built-in battery)
 had the same mistake. The part itself always held the right amount.

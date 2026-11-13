@@ -1520,6 +1520,13 @@ A program family improves in versions: **Kestrel I, Kestrel II, Kestrel III ...*
     challenges. If it stayed, we'd never have failures past version 1."
 - **Waiting on research:** when every slider is at the cap but not at 100, the
   page says which research raises the cap.
+- **The page says exactly what the next version improves, and which sliders are
+  waiting on research** (Phil, 2026-11-13). A Hertz I at the 25 cap with Build
+  cost at 0 reads: "Hertz II is ready: Build cost +10. Range, Data rate, Power
+  draw and Weight are at your research cap (25); research ... to raise it."
+  When every slider goes up by the same amount it says "every slider +10";
+  sliders already at 100 aren't mentioned. The Start button's tooltip says the
+  same. (It used to say "every slider +10" even when most were held at the cap.)
 - **Max:** the version with every used slider at 100 is named
   **"<name> Max"** instead of a numeral. It has no successor.
 - Its page has a short history: each version's points and Mk. 5 numbers.

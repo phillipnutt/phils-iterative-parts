@@ -363,6 +363,11 @@ Check 'next points: +10 each' ($v1.NextPoints(100) -join ',') '35,35,35,35,35'
 Check 'never past the research cap' ($v1.NextPoints(25) -join ',') '25,25,25,25,25'
 Check 'at the cap: waiting on research' "$($v1.CanImprove(25)) $($v1.WaitingOnResearch(25))" 'False True'
 Check 'never past 100' (((Call $Program Create @('x', 'X', $liq, $k125, [int[]]@(95, 100, 0, 50, 50), [double]0, [double]0)).NextPoints(100)) -join ',') '100,100,10,60,60'
+# The program page says exactly what the next version improves (Phil, 2026-11-13).
+$hz = Call $Program Create @('hz', 'Hertz', $antT, (M 'D'), [int[]]@(25, 25, 25, 25, 0), [double]0, [double]0)
+Check 'next version: only what goes up, and what waits on research' $hz.NextChanges(25, 'research Precision Engineering') 'Build cost +10. Range, Data rate, Power draw and Weight are at your research cap (25); research Precision Engineering to raise it.'
+Check 'next version: every slider +10 when every slider goes up' $v1.NextChanges(100, $null) 'every slider +10.'
+Check 'next version: partial gains; one slider held; sliders at 100 not mentioned' ((Call $Program Create @('x', 'X', $liq, $k125, [int[]]@(100, 45, 20, 50, 40), [double]0, [double]0)).NextChanges(50, $null)) 'Efficiency +5, Weight +10 and Build cost +10. Reliability is at your research cap (50).'
 $v2 = $v1.NextVersion('v2', 100, [double]0, [double]0)
 Check 'the next version is II' "$($v2.Title) $($v2.Version) $($v2.PredecessorId)" 'Kestrel II 2 v1'
 Check 'it keeps the design and gimbal' "$($v2.ModelCode) $($v2.Gimbal)" 'K-125-S 5'

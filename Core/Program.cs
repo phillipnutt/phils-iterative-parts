@@ -72,6 +72,32 @@ namespace PIP
         public bool CanImprove(int cap) => !IsMax && NextPoints(cap).Where((v, i) => v > Points[i]).Any();
         public bool WaitingOnResearch(int cap) => !IsMax && !CanImprove(cap);
 
+        // What the next version improves, as the program page says it: "every slider +10.",
+        // or "Build cost +10. Range and Weight are at your research cap (25); research
+        // Precision Engineering to raise it." raise is the step that lifts the cap, or null.
+        // Sliders already at 100 go unmentioned: there is nothing left to wait for.
+        public string NextChanges(int cap, string raise)
+        {
+            int[] next = NextPoints(cap);
+            string[] labels = Type.Categories.Select(c => c.Label).ToArray();
+            int[] used = Enumerable.Range(0, Points.Length).Where(i => Type.CategoryUsed(Model, i)).ToArray();
+            int[] up = used.Where(i => next[i] > Points[i]).ToArray();
+            int[] held = used.Where(i => next[i] == Points[i] && Points[i] < Pricing.MaxPoints).ToArray();
+            string gains = up.Length == 0 ? "no slider goes up"
+                : up.Length == used.Length && up.All(i => next[i] - Points[i] == next[up[0]] - Points[up[0]]) ? $"every slider +{next[up[0]] - Points[up[0]]}"
+                : And(up.Select(i => $"{labels[i]} +{next[i] - Points[i]}"));
+            if (held.Length == 0) return gains + ".";
+            return gains + ". " + And(held.Select(i => labels[i])) + (held.Length == 1 ? " is" : " are") + $" at your research cap ({cap})"
+                + (string.IsNullOrEmpty(raise) ? "." : $"; {raise} to raise it.");
+        }
+
+        // "A", "A and B", "A, B and C".
+        static string And(IEnumerable<string> items)
+        {
+            string[] a = items.ToArray();
+            return a.Length <= 1 ? string.Concat(a) : string.Join(", ", a.Take(a.Length - 1)) + " and " + a[a.Length - 1];
+        }
+
         // Kestrel II: same design, the next points, starting where this one ends.
         public Program NextVersion(string id, int cap, double ut, double funds)
         {
