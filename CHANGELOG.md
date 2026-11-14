@@ -103,6 +103,11 @@ parts stay hidden.
 - On the New program page, a locked mount (Side-mount on a decoupler before
   Stability) looked open; it now shows its lock and what to research.
 
+**Fixed** (DESIGN.md 29.5): with MechJeb installed, a PIP probe core had every
+MechJeb feature unlocked from the start. MechJeb on a PIP probe now unlocks
+feature by feature with research, like on any other probe, including craft
+and vessels saved before this fix.
+
 **Fixed** (DESIGN.md 18.1): at Mk. 5, a program's page said the next version
 gets "every slider +10" even when sliders were held at the research cap. It now
 says exactly what goes up ("Build cost +10"), which sliders wait on research

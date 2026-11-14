@@ -2737,6 +2737,39 @@ whatever its program. Now, with no decaying generator, the stock generator's
 ElectricCharge output is set to the program's power (steady: stock RTGs don't
 decay).
 
+### 29.5 MechJeb on a PIP probe unlocks with research (2026-11-13)
+
+**Phil:** "just noticed my lil shitty first probe core has mechjeb built in and it
+has full functionality". Asked to pick, he chose "Unlock with research". The rule:
+**MechJeb on a PIP probe unlocks feature by feature with research, exactly like
+on any other probe.**
+
+**Why it was all on:** MechJeb gives every probe its research limits (SmartASS
+needs Flight Control, the maneuver planner Advanced Flight Control, and so on).
+It finds a part's limits by the part's name, in a list it builds while the game
+loads. PIP's program parts are made later, when a save loads, so MechJeb found
+nothing for them and switched every feature on. MechJeb 2.15.4 also saves the
+limits into each craft file and vessel, so craft saved since then carry "no
+limits".
+
+**What PIP does:** right after MechJeb loads on a PIP part, PIP sets each
+feature's limits from the part's own config, which is the chassis's after
+ModuleManager, the same values a stock probe gets. In a career MechJeb checks
+them every frame, so a locked feature switches off at once. Craft and vessels
+saved with "no limits" get the right ones when they load, and store them at
+their next save. That isn't old-save conversion: the rule is simply applied at
+every load.
+
+**Not chosen:** adding PIP's parts to MechJeb's private list. That would only
+have fixed newly placed probes; Phil's saved craft would have stayed fully on.
+
+MechJeb has no API for this, so PIP uses only its public members
+(`GetComputerModules`, each feature's `unlockTechs` and `unlockParts`), through
+one Harmony postfix on `MechJebCore.OnLoad` that acts only on PIP parts. Without
+MechJeb, or if those members change, nothing is patched: one log line, and PIP
+probes keep MechJeb's own behaviour. Sandbox games are unchanged: MechJeb
+ignores limits there.
+
 ## Looks and side-mount build (2026-11-04)
 
 Built from sections 15 and 16 after Phil's "Yes, build it". This is Looks
