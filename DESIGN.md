@@ -2770,6 +2770,54 @@ MechJeb, or if those members change, nothing is patched: one log line, and PIP
 probes keep MechJeb's own behaviour. Sandbox games are unchanged: MechJeb
 ignores limits there.
 
+## 30. KRASH sims get full MechJeb and Kerbal Engineer (2026-11-15)
+
+**Phil:** "Would it be possible to make it where KRASH simulations always have
+max Mechjeb and Kerbal Engineer enabled? Just would be useful for testing, and
+it makes sense that a "computer sim" could do that". He chose PIP to own it, and
+research only, not buildings ("no don't upgrade the tracking stations").
+
+**The rule:** while KRASH says a sim is running, every MechJeb feature and Kerbal
+Engineer's flight readouts are on, whatever you've researched. When the sim ends,
+you're back to your real research.
+
+**Buildings stay as they are.** Four MechJeb features also need the Tracking
+Station level that gives maneuver nodes: the maneuver planner, node editor,
+landing guidance and rendezvous. A sim lifts research only, so those four still
+need that upgrade.
+
+**How it works:**
+- **Is a sim running?** Every frame in flight, PIP asks KRASH through its public
+  API (`simulationActive`). PIP keeps no flag of its own. Outside flight the
+  answer is always no.
+- **MechJeb:** in a career, MechJeb checks every feature against your research
+  every frame. During a sim, PIP skips the research part of that check; the
+  building part still runs. Nothing gets written: the limits saved in craft files
+  and vessels stay exactly as they are. On the first frame after the sim,
+  MechJeb's own check sees your real research again.
+- **Kerbal Engineer:** each frame, KER asks whether to show its flight readouts
+  (yes with an Engineer aboard, a fully upgraded Tracking Station, or an ER-7500
+  or chip). During a sim, PIP answers yes. Hiding the UI with F2 still hides KER.
+  KER's own career switches aren't used: they write to its settings file, and
+  that would stick after a crash.
+
+**Revert, restart and terminate:** KRASH's Restart and Revert to Launch are still
+the sim, so everything stays on. Terminating reloads the save from before the
+sim, and you're back to your real research. KRASH blocks quicksaves during sims,
+so a sim can't become a real flight, and after a crash mid-sim KRASH restores
+the save from before the sim. MechJeb remembers which windows were open in its
+own settings file, but on a real flight a feature you haven't researched stays
+hidden, because MechJeb's research check wins.
+
+**Fails safe:** each of KRASH, MechJeb and KER is found by name. If one is
+missing, or the members PIP uses have changed, that piece does nothing and logs
+one line. A failure always means your real research, never "unlocked". Sandbox
+is unchanged: everything is on there anyway.
+
+**Code:** `KSP/KrashSim.cs`, three Harmony patches, no settings and no save data.
+PIP calls KRASH by reflection and doesn't copy KRASH's wrapper file: KRASH is
+GPL and PIP is MIT.
+
 ## Looks and side-mount build (2026-11-04)
 
 Built from sections 15 and 16 after Phil's "Yes, build it". This is Looks

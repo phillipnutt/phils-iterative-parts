@@ -103,6 +103,13 @@ parts stay hidden.
 - On the New program page, a locked mount (Side-mount on a decoupler before
   Stability) looked open; it now shows its lock and what to research.
 
+**KRASH sims get full MechJeb and Kerbal Engineer** (DESIGN.md 30): while a
+KRASH sim runs, every MechJeb feature and Kerbal Engineer's flight readouts are
+on, whatever you've researched. When the sim ends, you're back to your real
+research. Buildings still count: MechJeb features that need a Tracking Station
+upgrade still need it. Nothing is saved, so craft files and real flights keep
+your research limits.
+
 **Fixed** (DESIGN.md 29.5): with MechJeb installed, a PIP probe core had every
 MechJeb feature unlocked from the start. MechJeb on a PIP probe now unlocks
 feature by feature with research, like on any other probe, including craft
