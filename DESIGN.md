@@ -2867,6 +2867,22 @@ resource on craft saved with it: KSP keeps a saved resource the part's config
 doesn't list, so the store stays and keeps working until the part is placed
 fresh.
 
+## 32. Code-scan fixes (2026-11-16)
+
+Phil asked for a code scan: "let's check for any bugs, artifacts, bad
+interactions, etc." A reviewer read the code, Phil's Mods re-checked the
+findings, and PIP checked each one in the code (and stock's or B9's IL) before
+fixing it. One commit per fix, so each can be undone on its own.
+
+### 32.1 Harmony patches apply one class at a time
+
+Harmony's PatchAll stops at the first patch class that fails. A KSP or mod
+update that broke one target would have skipped every patch after it,
+including the ones that register program parts before a save's vessels load
+(without them KSP deletes every vessel carrying a PIP part). Each class is now
+patched on its own, and a failure is logged with the class's name. **Code:**
+`PipHarmony.Awake`.
+
 ## Looks and side-mount build (2026-11-04)
 
 Built from sections 15 and 16 after Phil's "Yes, build it". This is Looks

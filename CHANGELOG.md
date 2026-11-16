@@ -103,6 +103,10 @@ parts stay hidden.
 - On the New program page, a locked mount (Side-mount on a decoupler before
   Stability) looked open; it now shows its lock and what to research.
 
+**Fixed** (DESIGN.md 32.1): if a KSP or mod update ever broke one of PIP's
+patches, the patches after it were skipped too, including the ones that keep
+vessels with PIP parts from being deleted. Each patch now applies on its own.
+
 **Fixed** (DESIGN.md 31): PIP jets lost thrust in physics warp (Prop.
 Requirement Met 100% at 1x, 76% at 2x, 50% at 3x, 25% at 4x on a turbofan fed
 by an intake with a small look). Every PIP jet now carries half a second of the

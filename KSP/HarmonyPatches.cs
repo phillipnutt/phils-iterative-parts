@@ -8,17 +8,23 @@ namespace PIP
     [KSPAddon(KSPAddon.Startup.Instantly, true)]
     public class PipHarmony : MonoBehaviour
     {
+        // Each patch class on its own (PatchAll stops at the first one that fails), so a
+        // KSP or mod update that breaks one target can't take the others down with it,
+        // such as the ones that keep vessels with PIP parts from being deleted.
         void Awake()
         {
-            try
+            var harmony = new Harmony("PhilsIterativeParts");
+            int applied = 0, failed = 0;
+            foreach (Type t in AccessTools.GetTypesFromAssembly(typeof(PipHarmony).Assembly))
             {
-                new Harmony("PhilsIterativeParts").PatchAll(typeof(PipHarmony).Assembly);
-                Debug.Log("[PIP] Harmony patches applied");
+                try { if (harmony.CreateClassProcessor(t).Patch()?.Count > 0) applied++; }
+                catch (Exception e)
+                {
+                    failed++;
+                    Debug.LogError($"[PIP] Harmony patch {t.Name} failed; the others still apply: {e}");
+                }
             }
-            catch (Exception e)
-            {
-                Debug.LogError("[PIP] Harmony patching failed: " + e);
-            }
+            Debug.Log($"[PIP] Harmony patches applied: {applied} classes{(failed > 0 ? $", {failed} failed" : "")}");
         }
     }
 
