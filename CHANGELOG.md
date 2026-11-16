@@ -125,6 +125,10 @@ intake (none of stock's or B9's can be a look) would have logged an error every
 physics step on ships saved before the air reserve (DESIGN.md 31). Its intake
 now finds the jet's air store.
 
+**Faster VAB loads** (DESIGN.md 32.6): loading a craft, an undo or an SPH/VAB
+switch told other mods (Kerbalism's planner, Kerbal Engineer) the ship changed
+once for every PIP part on it. Now it's once.
+
 **Fixed** (DESIGN.md 31): PIP jets lost thrust in physics warp (Prop.
 Requirement Met 100% at 1x, 76% at 2x, 50% at 3x, 25% at 4x on a turbofan fed
 by an intake with a small look). Every PIP jet now carries half a second of the

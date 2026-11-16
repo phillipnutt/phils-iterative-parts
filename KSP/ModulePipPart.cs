@@ -178,7 +178,7 @@ namespace PIP
             {
                 Debug.LogError($"[PIP] Applying {typeId} program {programName} to {part.partInfo?.name} failed: {e}");
             }
-            if (HighLogic.LoadedSceneIsEditor) GameEvents.onEditorShipModified.Fire(EditorLogic.fetch?.ship);
+            EditorShip.Changed();
         }
 
         // The program's numbers onto the stock and mod modules (no geometry, no resources).

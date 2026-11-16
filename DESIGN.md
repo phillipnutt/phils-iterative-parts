@@ -2932,6 +2932,15 @@ before PIP adds the store, so PIP now points it at the store. Whether a look
 should bring its built-in intake at all would be a design question, if one
 ever turns up. **Code:** `ModulePipEngine.LinkIntakes`.
 
+### 32.6 The VAB hears "ship changed" once a frame
+
+Each PIP part told the editor the ship had changed every time it applied its
+program, so loading a craft with 40 PIP parts (or an undo, or an SPH/VAB
+switch) sent the event 40 times, on a ship still being put together, and every
+listener (Kerbalism's planner, Kerbal Engineer, the Reusability Suite's Build
+panel) ran each time. PIP's parts now ask for it, and it goes out once, at the
+end of the frame. Nothing else changes. **Code:** `EditorShip`.
+
 ## Looks and side-mount build (2026-11-04)
 
 Built from sections 15 and 16 after Phil's "Yes, build it". This is Looks

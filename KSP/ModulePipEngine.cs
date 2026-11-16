@@ -71,7 +71,7 @@ namespace PIP
             if (started && !IsPrefab && HighLogic.LoadedSceneIsEditor)
             {
                 Apply();
-                GameEvents.onEditorShipModified.Fire(EditorLogic.fetch?.ship);
+                EditorShip.Changed();
             }
         }
 
