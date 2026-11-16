@@ -2891,6 +2891,17 @@ it got no part, so craft and ships carrying its parts were missing them. It now
 uses the default side-mount look the same way, and keeps its own pick for when
 the mod is back. **Code:** `PartFactory.SideChassis`.
 
+### 32.3 A fixed size stays locked after a reload
+
+A program with its own size (14) hides the part's size picker and keeps the
+part at that size. The lock wasn't saved and was set only when a part was
+placed from the parts list, so after loading a craft, an undo, an SPH/VAB switch
+or the Reusability Suite reloading a ship, the picker came back and the size
+(with its stats and price) could be changed. The lock now comes from the
+program every time the part starts. A program's versions share its size, so
+built hardware keeps the size it was built at. **Code:**
+`ModulePipPart.LockSize`.
+
 ## Looks and side-mount build (2026-11-04)
 
 Built from sections 15 and 16 after Phil's "Yes, build it". This is Looks

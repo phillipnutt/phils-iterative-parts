@@ -81,6 +81,9 @@ namespace PIP
             if (program != null && !Assigned) Assign(program);
             // A renamed program: the part keeps its version and Mk, and shows the new name.
             else if (program != null && program.Id == programId) programName = program.Title;
+            // The size lock isn't saved, so it comes from the program every time the part
+            // starts (DESIGN.md 32.3): it holds after a load, undo or SPH/VAB switch.
+            LockSize(program);
             started = true;
             Apply();
             if (HighLogic.LoadedSceneIsFlight) FlightTracker.Register(this);
@@ -98,8 +101,15 @@ namespace PIP
             PipApi.WriteNewBuild(built, program, false);
             Fields.Load(built);
             pointValues = (int[])program.Points.Clone();
-            fixedSize = program.FixedSize ? program.Variant : "";
+            LockSize(program);
             statsReady = false;
+        }
+
+        // A program's versions all have its size (Program.NextVersion), so the newest
+        // version and the part's own agree.
+        void LockSize(Program program)
+        {
+            if (program != null) fixedSize = program.FixedSize ? program.Variant : "";
         }
 
         void Update()
