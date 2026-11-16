@@ -205,6 +205,70 @@ namespace PIP
                 e.maxFuelFlow = (float)(thrust / (isp * e.g));
                 if (e.useVelCurve && like?.velCurve != null) e.velCurve = Stretch(like.velCurve, stats[K.Speed]);
             }
+            SetAirReserve();
+        }
+
+        // Two physics steps at 12x warp (KSP steps 0.02 s at 1x, so 0.24 s at 12x,
+        // BetterTimeWarp's fastest physics warp). One step's worth fell short: stock
+        // doesn't fill the ship's air back to the brim between steps (DESIGN.md 31).
+        public const double AirReserveSeconds = 0.5;
+        const string Air = "IntakeAir";
+
+        // An engine can take in one physics step only the air the ship holds at that
+        // moment, and warp makes the steps longer, so the intakes' small stores ran dry
+        // (DESIGN.md 31). A PIP jet holds half a second of the air it burns at full power;
+        // stock intakes push their overflow into any air store on the ship, so it fills
+        // itself. Set in every scene, so craft and ships built before get it when they load.
+        void SetAirReserve()
+        {
+            double need = 0;
+            foreach (ModuleEngines e in engines)
+                if (e != null) need = Math.Max(need, FullPowerAir(e));
+            if (!(need > 0)) return;
+            double max = need * AirReserveSeconds;
+            PartResource r = part.Resources[Air];
+            if (r == null)
+            {
+                var node = new ConfigNode("RESOURCE");
+                node.AddValue("name", Air);
+                node.AddValue("amount", max.ToString("R", System.Globalization.CultureInfo.InvariantCulture));
+                node.AddValue("maxAmount", max.ToString("R", System.Globalization.CultureInfo.InvariantCulture));
+                part.AddResource(node);
+                if (HighLogic.LoadedSceneIsFlight) part.vessel?.UpdateResourceSets();
+                return;
+            }
+            r.maxAmount = max;
+            if (HighLogic.LoadedSceneIsEditor || r.amount > max) r.amount = max;
+        }
+
+        // Air a second at full throttle, where the speed and altitude curves peak: the
+        // propellant mix's tons a second, in units, times air's share of the mix.
+        static double FullPowerAir(ModuleEngines e)
+        {
+            Propellant air = e.propellants.Find(p => p.name == Air);
+            if (air == null) return 0;
+            double tonsPerMix = 0;
+            foreach (Propellant p in e.propellants)
+                if (!p.ignoreForIsp) tonsPerMix += p.ratio * (PartResourceLibrary.Instance?.GetDefinition(p.name)?.density ?? 0);
+            if (!(tonsPerMix > 0)) return 0;
+            double flow = 1;
+            if (e.useAtmCurve) flow *= Peak(e.atmCurve);
+            if (e.useVelCurve) flow *= Peak(e.velCurve);
+            // Stock's soft cap (ModuleEngines.ModifyFlow): past flowMultCap the flow still
+            // rises, more slowly.
+            if (e.flowMultCap > 0 && flow > e.flowMultCap)
+            {
+                double over = flow - e.flowMultCap;
+                flow = e.flowMultCap + over / (e.flowMultCapSharpness + over / e.flowMultCap);
+            }
+            return e.maxFuelFlow * flow / tonsPerMix * air.ratio;
+        }
+
+        static double Peak(FloatCurve c)
+        {
+            if (c?.Curve == null || c.Curve.keys.Length == 0) return 1;
+            c.FindMinMaxValue(out float min, out float max);
+            return max;
         }
 
         static FloatCurve Stretch(FloatCurve source, double factor)

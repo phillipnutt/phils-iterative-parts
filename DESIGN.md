@@ -2818,6 +2818,55 @@ is unchanged: everything is on there anyway.
 PIP calls KRASH by reflection and doesn't copy KRASH's wrapper file: KRASH is
 GPL and PIP is MIT.
 
+## 31. Jets carry their own air for physics warp (2026-11-15)
+
+**Phil:** a PIP turbofan (the Fujin) showed Prop. Requirement Met 100% at 1x
+physics warp, 76% at 2x, and 50% and 25% at 3x and 4x, "all propellant met.
+intake looks normal. strange".
+
+**Why it happened (stock):** every physics step, an intake adds its airflow
+times the step's length to the air it holds, up to what it can hold, and a jet
+then takes the air for that step from what the ship holds at that moment.
+Warp makes each step longer (0.02 s at 1x, 0.08 s at 4x, 0.24 s at 12x), so a
+jet asks for more air per step than a small store holds, however much air the
+intakes bring a second. A test (2026-11-15) showed it on stock parts too: a
+Wheesley on a circular intake (2 air) kept 100% to 2x, then 76% and 61%. PIP
+made it worse: an intake keeps the store of the part whose look it wears, and
+the small-intake look holds 0.5 air. A PIP turbofan on that look went 100%,
+69%, 55%, 41%; on PIP's own intake (2 air), 100% at all four.
+
+**Not an intake rule:** an intake's airflow is (its intake speed + the flight
+speed) x area x air density, so in flight one intake brings several times what
+it brings standing still and can feed several engines. An intake can't know what
+is drawn from it, so no store sized on the intake fits.
+
+**The rule (Phil chose it, 2026-11-15):** every PIP jet carries half a second
+of the air it burns at full power, enough for 12x warp (BetterTimeWarp's
+fastest physics warp), so warp never starves it while the intakes bring enough
+air a second.
+- *Half a second, not one step:* Phil agreed one 12x step (0.24 s). The test
+  of that gave 89% at 12x: stock doesn't fill the ship's air back to the brim
+  between steps (the store settled about 3.4 air a second x the step short of
+  full), so the jet carries two steps' worth.
+- *Full power* is full throttle where the jet's speed and altitude curves peak,
+  after stock's soft flow cap (`flowMultCap`), so a turbojet's afterburner, a
+  Whiplash or a RAPIER near top speed are covered.
+- *It fills itself:* when an intake's own store is full, stock pushes the rest
+  of that step's air into any air store on the ship, the jet's included.
+- *1x play is unchanged:* air a second is the same, and an engine that's short
+  of air at 1x is short at every warp.
+- *Side effects:* the air weighs 0.005 t a unit (about 40 kg on a 60 kN
+  turbofan), and after its air runs out an engine runs on for up to half a
+  second.
+- *Built before:* PIP adds the store whenever the part starts, in the VAB or SPH
+  and in flight, so older craft and ships get it without a re-save.
+
+**Code:** `ModulePipEngine.SetAirReserve`, called from `ApplyJet`. No save data
+beyond the part's own IntakeAir resource. Undoing the change leaves that
+resource on craft saved with it: KSP keeps a saved resource the part's config
+doesn't list, so the store stays and keeps working until the part is placed
+fresh.
+
 ## Looks and side-mount build (2026-11-04)
 
 Built from sections 15 and 16 after Phil's "Yes, build it". This is Looks

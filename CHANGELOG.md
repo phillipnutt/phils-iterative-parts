@@ -103,6 +103,14 @@ parts stay hidden.
 - On the New program page, a locked mount (Side-mount on a decoupler before
   Stability) looked open; it now shows its lock and what to research.
 
+**Fixed** (DESIGN.md 31): PIP jets lost thrust in physics warp (Prop.
+Requirement Met 100% at 1x, 76% at 2x, 50% at 3x, 25% at 4x on a turbofan fed
+by an intake with a small look). Every PIP jet now carries half a second of the
+air it burns at full power, enough for 12x warp, so warp never starves it while
+the intakes bring enough air a second. Craft and ships built before get it when
+they load. The air weighs a little (about 40 kg on a 60 kN turbofan), and an
+engine runs on for up to half a second after its air runs out.
+
 **KRASH sims get full MechJeb and Kerbal Engineer** (DESIGN.md 30): while a
 KRASH sim runs, every MechJeb feature and Kerbal Engineer's flight readouts are
 on, whatever you've researched. When the sim ends, you're back to your real
