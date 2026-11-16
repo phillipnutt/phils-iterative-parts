@@ -2883,6 +2883,14 @@ including the ones that register program parts before a save's vessels load
 patched on its own, and a failure is logged with the class's name. **Code:**
 `PipHarmony.Awake`.
 
+### 32.2 A side-mount look whose mod is gone falls back to the default
+
+An adapter program whose look's mod was removed already used its ratio's
+default adapter until the mod came back (20.2). A side-mount program didn't:
+it got no part, so craft and ships carrying its parts were missing them. It now
+uses the default side-mount look the same way, and keeps its own pick for when
+the mod is back. **Code:** `PartFactory.SideChassis`.
+
 ## Looks and side-mount build (2026-11-04)
 
 Built from sections 15 and 16 after Phil's "Yes, build it". This is Looks

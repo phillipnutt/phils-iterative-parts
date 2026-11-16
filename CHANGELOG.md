@@ -107,6 +107,10 @@ parts stay hidden.
 patches, the patches after it were skipped too, including the ones that keep
 vessels with PIP parts from being deleted. Each patch now applies on its own.
 
+**Fixed** (DESIGN.md 32.2): a side-mount program whose look came from a mod you
+removed had no part, so craft and ships with it were missing parts. It now uses
+the default side-mount look until the mod is back, as adapters already did.
+
 **Fixed** (DESIGN.md 31): PIP jets lost thrust in physics warp (Prop.
 Requirement Met 100% at 1x, 76% at 2x, 50% at 3x, 25% at 4x on a turbofan fed
 by an intake with a small look). Every PIP jet now carries half a second of the

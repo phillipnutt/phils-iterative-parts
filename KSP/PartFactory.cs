@@ -161,11 +161,17 @@ namespace PIP
         }
 
         // A program without a side-mount look gets the default one, kept from then on.
+        // If the mod its look came from is gone, the default stands in until it's back
+        // (DESIGN.md 32.2), as for adapters: without a part, craft and ships carrying
+        // the program's parts would be missing them.
         static string SideChassis(Program p)
         {
             if (!p.Type.HasSideMount || !p.Type.HasLooks) return null;
             if (string.IsNullOrEmpty(p.SideLook)) p.SideLook = Looks.DefaultSide(p.Type, p.Model) ?? "";
-            return Looks.Chassis(p.Type, true, p.SideLook, p.Model);
+            string look = Looks.Chassis(p.Type, true, p.SideLook, p.Model);
+            if (look != null) return look;
+            Debug.LogWarning($"[PIP] {p.Name}'s side-mount look {p.SideLook} isn't installed; it uses the default side-mount look");
+            return Looks.Chassis(p.Type, true, Looks.DefaultSide(p.Type, p.Model), p.Model);
         }
 
         // An adapter program's look (DESIGN.md 20.2), kept in SideLook. If the mod it
