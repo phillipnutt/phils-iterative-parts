@@ -2902,6 +2902,19 @@ program every time the part starts. A program's versions share its size, so
 built hardware keeps the size it was built at. **Code:**
 `ModulePipPart.LockSize`.
 
+### 32.4 Every flight gets its ignition check, reused engines too
+
+Section 6: one check per engine per flight, and a failed engine on the pad
+means recover and try again. The check's two flags (checked, failed) are saved
+with the part, and nothing cleared them, so an engine the Reusability Suite
+flew again never got another check, and one that failed once was shut down on
+every later flight. Each engine now notes which launch its check belongs to
+(the parts' launch ID, which KSP gives every new launch, reused parts
+included). When a new launch starts the flags are cleared: a new check, and a
+failed engine works again. A quickload on the pad is the same launch, so a pad
+failure holds. A ship saved before this and already flying keeps its state.
+**Code:** `ModulePipEngine.NewFlight`, saved field `ignitionFlight`.
+
 ## Looks and side-mount build (2026-11-04)
 
 Built from sections 15 and 16 after Phil's "Yes, build it". This is Looks

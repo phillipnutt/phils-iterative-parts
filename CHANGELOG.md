@@ -115,6 +115,11 @@ the default side-mount look until the mod is back, as adapters already did.
 picker back after loading a craft, an undo or an SPH/VAB switch, and its size
 could be changed. The size now stays locked.
 
+**Fixed** (DESIGN.md 32.4): an engine flown again with Phil's Reusability Suite
+never got another ignition check, and one that had failed to light stayed dead on
+every later flight. Each launch now gets its own check, as section 6 says, and a
+failed engine works again on its next launch.
+
 **Fixed** (DESIGN.md 31): PIP jets lost thrust in physics warp (Prop.
 Requirement Met 100% at 1x, 76% at 2x, 50% at 3x, 25% at 4x on a turbofan fed
 by an intake with a small look). Every PIP jet now carries half a second of the

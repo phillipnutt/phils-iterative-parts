@@ -31,6 +31,7 @@ namespace PIP
         [KSPField(isPersistant = true)] public bool fired;            // ran after leaving the pad (counts recoveries)
         [KSPField(isPersistant = true)] public bool ignitionChecked;   // the one ignition check this flight
         [KSPField(isPersistant = true)] public bool failed;
+        [KSPField(isPersistant = true)] public int ignitionFlight;     // the launch those two belong to (0: saved before 32.4)
 
         [KSPField(guiName = "Program", guiActive = true, guiActiveEditor = true)]
         public string programLabel = "";
@@ -131,9 +132,7 @@ namespace PIP
         {
             Recompute();
             programLabel = Assigned ? $"{programName} {Progress.MkName(mk)}" : "No program";
-            ignitionLabel = !Assigned ? "" : failed ? "Failed to light"
-                : stats.FailureChance <= 0 ? (Type == PartTypes.Jet ? "Never fails" : "Failures off")
-                : $"{stats.FailureChance * 100:0.#}% chance to fail";
+            SetIgnitionLabel();
             if (!Assigned || engines.Count == 0) return;
 
             if (Type == PartTypes.Jet) ApplyJet();
@@ -322,10 +321,34 @@ namespace PIP
             }
         }
 
+        void SetIgnitionLabel() =>
+            ignitionLabel = !Assigned ? "" : failed ? "Failed to light"
+                : stats.FailureChance <= 0 ? (Type == PartTypes.Jet ? "Never fails" : "Failures off")
+                : $"{stats.FailureChance * 100:0.#}% chance to fail";
+
+        // One check per engine per flight (DESIGN.md 6). A reused engine (the Reusability
+        // Suite flies the same part again) gets its new check when its next launch starts,
+        // and one that failed on its last flight works again (32.4). Once per launch, by
+        // the launch's ID, so a failure on the pad holds through a quickload.
+        void NewFlight()
+        {
+            int launch = (int)part.launchID;
+            if (ignitionFlight == launch) return;
+            bool before = ignitionFlight == 0;
+            ignitionFlight = launch;
+            // Saved before checks belonged to a launch, and already flying: this flight's state stands.
+            if (before && vessel != null && vessel.situation != Vessel.Situations.PRELAUNCH) return;
+            if (!ignitionChecked && !failed) return;
+            Debug.Log($"[PIP] {programName} {Progress.MkName(mk)} on {part.partInfo?.name}: new flight, new ignition check{(failed ? " (failed on its last flight)" : "")}");
+            ignitionChecked = failed = false;
+            SetIgnitionLabel();
+        }
+
         // One check per engine per flight, the first time it's lit.
         void FixedUpdate()
         {
             if (!HighLogic.LoadedSceneIsFlight || engines.Count == 0 || !Assigned) return;
+            NewFlight();
             if (failed)
             {
                 foreach (ModuleEngines e in engines) if (e.EngineIgnited) Kill(e);
