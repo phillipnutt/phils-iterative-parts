@@ -2915,6 +2915,23 @@ failed engine works again. A quickload on the pad is the same launch, so a pad
 failure holds. A ship saved before this and already flying keeps its state.
 **Code:** `ModulePipEngine.NewFlight`, saved field `ignitionFlight`.
 
+### 32.5 A jet look's built-in intake can't throw errors
+
+A guard: no look in Phil's installs has a built-in intake. Every jet with
+one there (the Goliath, B9's jet pods) is surface-attached in its config, so
+it is never a look; PIP's standard 2.5 m turbofan copies the Goliath and has
+always kept its intake and air.
+
+A look keeps only the resources its program sets (Looks.Keeps), so a jet look
+from a mod whose engine has a built-in intake would keep the intake but not
+its air store. Stock's intake looks for its store once, when it starts, and
+would find none: a NullReferenceException every physics step, and no air.
+Since 31 every PIP jet has its own air store, which such an intake finds on
+craft and ships saved since. On those saved before, the intake can start
+before PIP adds the store, so PIP now points it at the store. Whether a look
+should bring its built-in intake at all would be a design question, if one
+ever turns up. **Code:** `ModulePipEngine.LinkIntakes`.
+
 ## Looks and side-mount build (2026-11-04)
 
 Built from sections 15 and 16 after Phil's "Yes, build it". This is Looks

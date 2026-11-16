@@ -120,6 +120,11 @@ never got another ignition check, and one that had failed to light stayed dead o
 every later flight. Each launch now gets its own check, as section 6 says, and a
 failed engine works again on its next launch.
 
+**Fixed** (DESIGN.md 32.5): a jet wearing a look whose engine has a built-in
+intake (none of stock's or B9's can be a look) would have logged an error every
+physics step on ships saved before the air reserve (DESIGN.md 31). Its intake
+now finds the jet's air store.
+
 **Fixed** (DESIGN.md 31): PIP jets lost thrust in physics warp (Prop.
 Requirement Met 100% at 1x, 76% at 2x, 50% at 3x, 25% at 4x on a turbofan fed
 by an intake with a small look). Every PIP jet now carries half a second of the

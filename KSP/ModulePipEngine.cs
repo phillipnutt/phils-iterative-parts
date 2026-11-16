@@ -234,10 +234,25 @@ namespace PIP
                 node.AddValue("maxAmount", max.ToString("R", System.Globalization.CultureInfo.InvariantCulture));
                 part.AddResource(node);
                 if (HighLogic.LoadedSceneIsFlight) part.vessel?.UpdateResourceSets();
+                LinkIntakes();
                 return;
             }
             r.maxAmount = max;
             if (HighLogic.LoadedSceneIsEditor || r.amount > max) r.amount = max;
+            LinkIntakes();
+        }
+
+        // A guard (DESIGN.md 32.5): a look whose engine has a built-in intake would lose
+        // the look's air store (Looks.Keeps), and stock's intake looks for its store once,
+        // when it starts: if that was before the store above was added (a craft or ship
+        // saved before 31), it would find none and fail every physics step. Pointed at the
+        // store, it works as it does on anything saved since.
+        void LinkIntakes()
+        {
+            PartResource store = part.Resources[Air];
+            if (store == null) return;
+            foreach (ModuleResourceIntake i in part.FindModulesImplementing<ModuleResourceIntake>())
+                if (i.resourceName == Air && i.res == null) i.res = store;
         }
 
         // Air a second at full throttle, where the speed and altitude curves peak: the
