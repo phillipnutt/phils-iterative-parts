@@ -432,13 +432,18 @@ namespace PIP
         }
 
         // Resources only change in the VAB: a built part keeps what it was built with.
+        // The new capacity, as full as the part was (DESIGN.md 32.8), as PipApi.Refill
+        // does for a craft file: a part from the parts list comes full, and one emptied
+        // with the slider (or a hangar ship's used ablator) stays that way through a
+        // reload, undo or SPH/VAB switch.
         void SetResource(string name, double amount)
         {
             if (!HighLogic.LoadedSceneIsEditor) return;
             PartResource r = part.Resources[name];
             if (r == null) return;
+            double full = r.maxAmount > 0 ? Math.Max(0, Math.Min(1, r.amount / r.maxAmount)) : 1;
             r.maxAmount = amount;
-            r.amount = amount;
+            r.amount = amount * full;
         }
 
         // Kerbalism's RTG decays (ModuleRadioisotopeGenerator); without it the stock RTG's

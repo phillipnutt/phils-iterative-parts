@@ -2969,6 +2969,17 @@ refund correction). Craft files saved before keep their old, higher saved
 price (the Space Center's launch list, the Suite's stored ships) until they're
 saved again. **Code:** `ModulePipPart.GetModuleCost`.
 
+### 32.8 The VAB keeps how full a battery, probe core or heat shield is
+
+The VAB set what such a part holds to its program's capacity, full, every time
+the part applied its program: on each load, undo and SPH/VAB switch. A charge
+lowered with the slider came back full, and so did a hangar ship's used
+ablator. Now a new capacity keeps the share the part was full (as PipApi's
+craft-file update already did): a part from the parts list comes full, and one
+part-filled stays that way until the slider moves. Measured: a battery set to
+356 of 713 was full again after a reload; now it's still 356. **Code:**
+`ModulePipPart.SetResource`.
+
 ## Looks and side-mount build (2026-11-04)
 
 Built from sections 15 and 16 after Phil's "Yes, build it". This is Looks
