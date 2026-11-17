@@ -141,6 +141,10 @@ shield filled itself up again on every load, undo or SPH/VAB switch, losing a
 charge set with the slider (and a hangar ship's used ablator). It now stays as
 full as it was; new parts still come full.
 
+**Fixed** (DESIGN.md 32.9): a later version of a solid booster with high Build
+cost points could be worth less than its own fuel, so recovering a spent one
+took funds away. A booster now never costs less than its fuel.
+
 **Fixed** (DESIGN.md 31): PIP jets lost thrust in physics warp (Prop.
 Requirement Met 100% at 1x, 76% at 2x, 50% at 3x, 25% at 4x on a turbofan fed
 by an intake with a small look). Every PIP jet now carries half a second of the

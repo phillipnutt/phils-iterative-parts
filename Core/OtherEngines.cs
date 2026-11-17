@@ -40,6 +40,8 @@ namespace PIP
             { 40, 90, 325 }, { 375, 820, 2600 }, { 1265.625, 2767.5, 5800 }, { 3000, 8000, 16400 }, { 10125, 27000, 55350 },
         };
         public const double UnitMass = 0.0075;
+        // Stock's SolidFuel price a unit, which a booster's price includes.
+        public const double FuelUnitCost = 0.6;
 
         // Vacuum kN at medium length, { 0 points, 100 points }; short x0.6, long x2.
         static readonly double[,] MediumThrust = { { 12, 50 }, { 120, 480 }, { 300, 1100 }, { 650, 2500 }, { 2000, 7500 } };
@@ -93,8 +95,10 @@ namespace PIP
             s[K.Mass] = s[K.Propellant] * Lerp(0.27, 0.13, E(pts, 2, mk));
             s[K.Burn] = s[K.Propellant] * s[K.IspVac] * Engines.G0 / Math.Max(0.001, s[K.ThrustVac]);
             s[K.Fail] = FailureAt(m, P(pts, 3), mk, level);
-            // About 1 fund per unit of propellant, fuel included (as stock prices are).
-            s[K.Price] = BuildPrice(PropellantUnits(m), pts);
+            // About 1 fund per unit of propellant, fuel included (as stock prices are), and
+            // never less than the fuel itself: Build cost can't make an empty casing worth
+            // less than nothing (DESIGN.md 32.9).
+            s[K.Price] = Math.Max(BuildPrice(PropellantUnits(m), pts), PropellantUnits(m) * FuelUnitCost);
             return s;
         }
 

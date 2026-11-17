@@ -106,6 +106,10 @@ Check 'Isp window' "$(Stat $sol '125-M' $zero 0 'ispSL')/$(Stat $sol '125-M' $ma
 Check 'solid gimbal is a pick' (GStat $sol '125-M' $max 5 'gimbal' 5) 5
 Check 'mature failure 0.05%' (Stat $sol '125-M' $max 10 'fail') 0.0005
 Check 'burn time' (Stat $sol '125-M' $max 10 'burn') (6.15 * 265 * 9.80665 / 480) 1e-6
+$cheap = [int[]]@(0, 0, 0, 0, 100)
+Check 'booster at Build cost 100, first version: above its fuel' (Stat $sol '125-M' $cheap 1 'price') (820 * 0.75 * 1.0)
+Check 'booster at Build cost 100, a later version: never below its fuel' ($sol.Compute((M '125-M'), $cheap, 1, (Level Normal), $null, $cheap, 0).Item('price')) (820 * 0.6)
+Check 'booster price unchanged at 0 points' (Stat $sol '125-M' $zero 1 'price') (820 * 0.75 * 1.5)
 Check 'chassis name' ($sol.ChassisPart((M '375-L'))) 'PIP-SOL-375-L'
 
 Write-Host 'Monopropellant engines'

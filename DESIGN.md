@@ -2980,6 +2980,16 @@ part-filled stays that way until the slider moves. Measured: a battery set to
 356 of 713 was full again after a reload; now it's still 356. **Code:**
 `ModulePipPart.SetResource`.
 
+### 32.9 A solid booster is never worth less than its fuel
+
+A booster's price includes its fuel (about 1 a unit of propellant, as stock's
+are), and Build cost brings it down, as low as 0.375 a unit for a later version
+(which starts from the points the one before ended on). Solid fuel is
+0.6 a unit, so the empty casing could be worth less than nothing, and recovering
+a spent booster took funds away. A booster's price now never drops below its
+fuel's value. Nothing else changes: a first version with Build cost 100 is
+0.75 a unit. **Code:** `SolidMotors.Compute`.
+
 ## Looks and side-mount build (2026-11-04)
 
 Built from sections 15 and 16 after Phil's "Yes, build it". This is Looks
