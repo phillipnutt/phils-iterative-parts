@@ -129,6 +129,13 @@ now finds the jet's air store.
 switch told other mods (Kerbalism's planner, Kerbal Engineer) the ship changed
 once for every PIP part on it. Now it's once.
 
+**Fixed** (DESIGN.md 32.7): PIP tanks and fuselages paid for their fuel twice
+(B9PartSwitch already prices it), and their empty price included a full load, so
+recovering a drained tank refunded fuel you'd burned. A tank now costs its
+program's build price empty, plus its fuel: a 400-volume LF/Ox tank at a build
+price of 385 went from 752 to 569 full. Craft saved before show the old price
+on the Space Center's launch list until you save them again.
+
 **Fixed** (DESIGN.md 31): PIP jets lost thrust in physics warp (Prop.
 Requirement Met 100% at 1x, 76% at 2x, 50% at 3x, 25% at 4x on a turbofan fed
 by an intake with a small look). Every PIP jet now carries half a second of the

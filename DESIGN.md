@@ -2941,6 +2941,34 @@ listener (Kerbalism's planner, Kerbal Engineer, the Reusability Suite's Build
 panel) ran each time. PIP's parts now ask for it, and it goes out once, at the
 end of the frame. Nothing else changes. **Code:** `EditorShip`.
 
+### 32.7 PIP tanks no longer pay for their fuel twice
+
+KSP prices a part as its listed cost plus what every cost module adds, with
+its resources full; the empty price takes the full load's value off once. PIP
+added the full load's value, and B9PartSwitch's fuel switch on a PIP tank or
+fuselage adds it too (volume × its tank type's fuel cost and tank cost, read in
+B9's code). So a full tank paid for its fuel twice, and its empty price
+included one load: recovering a drained tank refunded fuel that was burned.
+
+Measured on the clean install (a 400-volume tank, build price 385): LF/Ox was
+752 full and 569 empty (stock's FL-T400: 500 and 316); it is now 569 and 385.
+LF only (B9 also adds its 0.3 a unit of volume tank cost) was, by the same sum,
+1,145 and 825 (S20's LF tank showed it in play: 800 empty at a build price of
+360); it is now 705 and 385. Every PIP tank and fuselage now costs its program's build
+price empty, as its page says, plus its fuel.
+
+It also closes the PIP-tank part of the Reusability Suite's S20 (a ship
+priced higher after a launch, hop and recovery). KSP saves a ship at launch
+before B9 starts, when B9 adds nothing, so the saved tank was 385 empty and the
+live one 569. PIP now takes B9's share out in the same sum, so the tank prices
+the same before and after B9 starts. Other mods' B9 tanks still differ that
+way; that's for the Suite.
+
+Only B9PartSwitch's share is taken out; other mods' shares stay (KSP-Recall's
+refund correction). Craft files saved before keep their old, higher saved
+price (the Space Center's launch list, the Suite's stored ships) until they're
+saved again. **Code:** `ModulePipPart.GetModuleCost`.
+
 ## Looks and side-mount build (2026-11-04)
 
 Built from sections 15 and 16 after Phil's "Yes, build it". This is Looks

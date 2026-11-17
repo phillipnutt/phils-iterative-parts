@@ -493,15 +493,22 @@ namespace PIP
         public ModifierChangeWhen GetModuleMassChangeWhen() => ModifierChangeWhen.FIXED;
 
         // KSP counts a part's listed cost as including full resources, so the
-        // build price (empty) plus what it holds when full.
+        // build price (empty) plus what it holds when full. B9PartSwitch's share is
+        // taken out: its fuel switch already prices the tank's full load (and its tank
+        // type's cost), so the part paid for its fuel twice (DESIGN.md 32.7). KSP asks
+        // every module in the same breath, so the total is right whatever B9 says at
+        // that moment (0 before it starts, as when KSP saves a ship at launch). Other
+        // mods' shares stay (KSP-Recall's refund correction).
         public float GetModuleCost(float defaultCost, ModifierStagingSituation situation)
         {
             if (IsPrefab || !Assigned) return 0f;
             if (!statsReady) Recompute();
-            double full = 0;
+            double full = 0, b9 = 0;
             foreach (PartResource r in part.Resources)
                 full += r.maxAmount * (PartResourceLibrary.Instance?.GetDefinition(r.resourceName)?.unitCost ?? 0);
-            return (float)(stats.BuildPrice + full - defaultCost);
+            foreach (PartModule m in part.Modules)
+                if (m.moduleName == "ModuleB9PartSwitch" && m is IPartCostModifier cm) b9 += cm.GetModuleCost(defaultCost, situation);
+            return (float)(stats.BuildPrice + full - defaultCost - b9);
         }
 
         public ModifierChangeWhen GetModuleCostChangeWhen() => ModifierChangeWhen.FIXED;
